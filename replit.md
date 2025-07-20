@@ -1,0 +1,110 @@
+# Campus Connect - University Utility & Communications App
+
+## Overview
+
+Campus Connect is a mobile-first, full-stack web application designed as a comprehensive university utility and communications platform. The application follows a modular architecture with distinct frontend and backend components, built using modern web technologies for scalability and maintainability.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React with TypeScript, configured for mobile-first responsive design
+- **UI Library**: Radix UI components with shadcn/ui component system for consistent design
+- **Styling**: Tailwind CSS with CSS variables for theming and dark mode support
+- **Routing**: Wouter for lightweight client-side routing
+- **State Management**: React Query (TanStack Query) for server state management
+- **Form Handling**: React Hook Form with Zod validation
+- **Build Tool**: Vite for fast development and optimized production builds
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js server
+- **Language**: TypeScript with ES modules
+- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **Database Provider**: Neon Database (serverless PostgreSQL)
+- **Authentication**: OpenID Connect (OIDC) with Replit Auth integration
+- **Session Management**: Express sessions with PostgreSQL storage
+
+### Progressive Web App (PWA) Features
+- Service worker implementation for offline functionality
+- Web app manifest for installable mobile experience
+- Caching strategies for improved performance
+
+## Key Components
+
+### Authentication & Authorization
+- **OAuth 2.0 Flow**: Integrated with institutional email authentication
+- **Role-Based Access Control**: Three-tier system (student, admin, committee_club)
+- **Granular Permissions**: Feature-specific access control with admin override capabilities
+- **Session Security**: Secure session management with PostgreSQL-backed storage
+
+### Core Modules
+1. **Announcements System**: Campus-wide communication with role-based posting permissions
+2. **Event Management**: Calendar with RSVP functionality and attendance tracking
+3. **Forum Platform**: Discussion boards with categories, reactions, and moderation
+4. **Dining Services**: Sick food booking and hostel leave applications
+5. **Directory**: User lookup with messaging capabilities
+6. **Admin Panel**: User permission management and system oversight
+
+### Database Schema
+- **Users**: Profile management with role and permission storage
+- **Content Tables**: Announcements, events, forum posts with relational integrity
+- **Interaction Tables**: RSVPs, reactions, attendance records
+- **Service Tables**: Dining bookings, leave applications, grievances
+
+## Data Flow
+
+### Client-Server Communication
+1. **Authentication Flow**: OIDC redirect → token validation → user session establishment
+2. **API Communication**: RESTful endpoints with credential-based authentication
+3. **Real-time Updates**: React Query for automatic cache invalidation and refetching
+4. **Error Handling**: Centralized error handling with automatic logout on 401 responses
+
+### Permission Validation
+1. Frontend route protection with role/permission checks
+2. Backend API endpoint authorization middleware
+3. Admin-only functionality for user permission management
+4. Graceful fallbacks for unauthorized access attempts
+
+## External Dependencies
+
+### Development & Build Tools
+- **Vite**: Development server and build tool with React plugin
+- **TypeScript**: Type safety across frontend and backend
+- **Replit Integration**: Development environment optimizations and error overlay
+
+### UI & Styling
+- **Tailwind CSS**: Utility-first CSS framework with custom design system
+- **Radix UI**: Accessible component primitives
+- **Lucide React**: Icon system
+
+### Backend Services
+- **Neon Database**: Serverless PostgreSQL with connection pooling
+- **Drizzle ORM**: Type-safe database operations with migration support
+- **Express Session**: Session management with PostgreSQL store
+
+### Authentication
+- **OpenID Client**: OIDC protocol implementation
+- **Passport.js**: Authentication middleware integration
+
+## Deployment Strategy
+
+### Development Environment
+- **Local Development**: Vite dev server with Express backend
+- **Hot Reloading**: Full-stack development with automatic reload
+- **Environment Variables**: Database URL and session secrets configuration
+
+### Production Build
+- **Frontend**: Static site generation with Vite build
+- **Backend**: ES module compilation with esbuild
+- **Database**: Migration system with Drizzle Kit
+- **Session Storage**: PostgreSQL-backed session persistence
+
+### Mobile Optimization
+- **Responsive Design**: Mobile-first approach with max-width constraints
+- **PWA Features**: Offline capability and app-like experience
+- **Performance**: Optimized bundle sizes and lazy loading
+
+The application is designed for easy deployment on platforms like Replit, with containerized architecture and environment-based configuration for seamless scaling and maintenance.
