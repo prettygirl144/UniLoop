@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, LogOut, UserCheck } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Users, Plus, LogOut, UserCheck, ChevronDown, Settings } from "lucide-react";
 
 interface LinkedAccount {
   id: string;
@@ -126,28 +127,73 @@ export default function AccountSwitcher() {
     }
   };
 
+  // Store active account in localStorage
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem('activeAccountId', user.id);
+      localStorage.setItem('activeRole', user.role || 'student');
+    }
+  }, [user]);
+
   return (
     <div className="flex items-center gap-2">
-      {/* Current Account Display */}
-      <div className="flex items-center gap-2">
-        <Badge variant={getRoleBadgeVariant(user?.role || 'student')}>
-          {user?.role?.replace('_', ' ') || 'Student'}
-        </Badge>
-        {linkedAccounts.length > 1 && (
-          <Badge variant="outline" className="text-xs">
-            {linkedAccounts.length} accounts
-          </Badge>
-        )}
-      </div>
-
-      {/* Account Switcher */}
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Users className="h-4 w-4 mr-1" />
-            Accounts
+      {/* Enhanced Account Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Badge variant={getRoleBadgeVariant(user?.role || 'student')} className="text-xs">
+                {user?.role?.replace('_', ' ') || 'Student'}
+              </Badge>
+              {linkedAccounts.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  +{linkedAccounts.length - 1}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="h-3 w-3" />
           </Button>
-        </DialogTrigger>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {/* Current Account */}
+          <div className="px-2 py-1.5">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-primary" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">Current Account</p>
+              </div>
+            </div>
+          </div>
+          
+          <DropdownMenuSeparator />
+          
+          {/* Switch Account Options */}
+          {linkedAccounts.filter((account: LinkedAccount) => account.id !== user?.id).map((account: LinkedAccount) => (
+            <DropdownMenuItem 
+              key={account.id}
+              onClick={() => switchAccountMutation.mutate(account.id)}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <div className="flex-1">
+                <p className="text-sm font-medium">{account.email}</p>
+                <Badge variant={getRoleBadgeVariant(account.role)} className="text-xs mt-1">
+                  {account.role.replace('_', ' ')}
+                </Badge>
+              </div>
+            </DropdownMenuItem>
+          ))}
+          
+          <DropdownMenuSeparator />
+          
+          {/* Account Management */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Account
+              </DropdownMenuItem>
+            </DialogTrigger>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Account Management</DialogTitle>
@@ -279,14 +325,26 @@ export default function AccountSwitcher() {
             </Dialog>
           </div>
 
-          <DialogFooter className="border-t pt-4">
-            <Button variant="outline" onClick={handleLogout} className="w-full">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout from All Accounts
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => createAccountMutation.mutate()}
+                  disabled={createAccountMutation.isPending}
+                >
+                  {createAccountMutation.isPending ? "Creating..." : "Create Account"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

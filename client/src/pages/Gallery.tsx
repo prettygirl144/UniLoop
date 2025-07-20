@@ -1,11 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Users, Search, Image as ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Calendar, MapPin, Users, Search, Image as ImageIcon, Plus, ExternalLink, FolderOpen } from "lucide-react";
 
 interface Event {
   id: number;
@@ -19,14 +28,80 @@ interface Event {
   authorId: string;
 }
 
+interface GalleryFolder {
+  id: number;
+  name: string;
+  category: string;
+  driveUrl: string;
+  description?: string;
+  isPublic: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+const folderFormSchema = z.object({
+  name: z.string().min(1, "Folder name is required"),
+  category: z.string().min(1, "Category is required"),
+  driveUrl: z.string().url("Please enter a valid Google Drive URL"),
+  description: z.string().optional(),
+  isPublic: z.boolean().default(true),
+});
+
 export default function Gallery() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<"events" | "folders">("folders");
+  const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof folderFormSchema>>({
+    resolver: zodResolver(folderFormSchema),
+    defaultValues: {
+      name: "",
+      category: "Events",
+      driveUrl: "",
+      description: "",
+      isPublic: true,
+    },
+  });
 
   // Fetch events with media
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading: eventsLoading } = useQuery({
     queryKey: ["/api/events"],
     retry: false,
+  });
+
+  // Fetch gallery folders
+  const { data: folders = [], isLoading: foldersLoading } = useQuery({
+    queryKey: ["/api/gallery/folders"],
+    retry: false,
+  });
+
+  // Create folder mutation
+  const createFolderMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof folderFormSchema>) => {
+      return await apiRequest("/api/gallery/folders", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Gallery folder created successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery/folders"] });
+      form.reset();
+      setIsAddFolderOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create gallery folder",
+        variant: "destructive",
+      });
+    },
   });
 
   const eventsWithMedia = events.filter((event: Event) => 
@@ -37,6 +112,15 @@ export default function Gallery() {
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.hostCommittee.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const filteredFolders = folders.filter((folder: GalleryFolder) =>
+    folder.isPublic && (
+      folder.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      folder.category.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const canManageFolders = user?.role === 'admin' || user?.permissions?.gallery;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -66,39 +150,215 @@ export default function Gallery() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ImageIcon className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-semibold">Event Gallery</h1>
+              <h1 className="text-xl font-semibold">Gallery</h1>
             </div>
-            <Badge variant="outline" className="text-primary">
-              {eventsWithMedia.length} Events
-            </Badge>
+            {canManageFolders && (
+              <Dialog open={isAddFolderOpen} onOpenChange={setIsAddFolderOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Folder
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Gallery Folder</DialogTitle>
+                    <DialogDescription>
+                      Add a Google Drive folder to the gallery
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit((values) => createFolderMutation.mutate(values))} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Folder Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Tech Fest 2025" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Events">Events</SelectItem>
+                                <SelectItem value="Celebrations">Celebrations</SelectItem>
+                                <SelectItem value="Competitions">Competitions</SelectItem>
+                                <SelectItem value="Academic">Academic</SelectItem>
+                                <SelectItem value="Sports">Sports</SelectItem>
+                                <SelectItem value="Cultural">Cultural</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="driveUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Google Drive URL</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://drive.google.com/drive/folders/..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Brief description of the folder contents" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsAddFolderOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createFolderMutation.isPending}>
+                          {createFolderMutation.isPending ? "Adding..." : "Add Folder"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </div>
 
       <div className="max-w-sm mx-auto px-4 py-6 space-y-6">
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+          <Button
+            variant={activeTab === "folders" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("folders")}
+            className="flex-1"
+          >
+            <FolderOpen className="h-4 w-4 mr-1" />
+            Drive Folders
+          </Button>
+          <Button
+            variant={activeTab === "events" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("events")}
+            className="flex-1"
+          >
+            <ImageIcon className="h-4 w-4 mr-1" />
+            Event Media
+          </Button>
+        </div>
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search events..."
+            placeholder={activeTab === "folders" ? "Search folders..." : "Search events..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
 
-        {/* Events with Media */}
-        {filteredEvents.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Media Found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm ? "No events match your search." : "No events have uploaded media yet."}
-              </p>
-            </CardContent>
-          </Card>
+        {/* Content based on active tab */}
+        {activeTab === "folders" ? (
+          /* Google Drive Folders */
+          filteredFolders.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No Folders Found</h3>
+                <p className="text-muted-foreground">
+                  {searchTerm ? "No folders match your search." : "No gallery folders have been added yet."}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredFolders.map((folder: GalleryFolder) => (
+                <Card key={folder.id} className="overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg leading-tight mb-2 flex items-center gap-2">
+                          <FolderOpen className="h-5 w-5 text-primary" />
+                          {folder.name}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-xs mb-2">
+                          {folder.category}
+                        </Badge>
+                        {folder.description && (
+                          <CardDescription className="mt-2">
+                            {folder.description}
+                          </CardDescription>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                      <iframe
+                        src={folder.driveUrl.replace('/view?usp=sharing', '/preview')}
+                        className="w-full h-full border-0"
+                        title={folder.name}
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center mt-3">
+                      <p className="text-xs text-muted-foreground">
+                        Created {new Date(folder.createdAt).toLocaleDateString()}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(folder.driveUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )
         ) : (
+          /* Events with Media */
+          filteredEvents.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No Media Found</h3>
+                <p className="text-muted-foreground">
+                  {searchTerm ? "No events match your search." : "No events have uploaded media yet."}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
           <div className="space-y-4">
             {filteredEvents.map((event: Event) => (
               <Card key={event.id} className="overflow-hidden">
@@ -164,6 +424,7 @@ export default function Gallery() {
               </Card>
             ))}
           </div>
+          )
         )}
       </div>
     </div>

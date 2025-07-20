@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuthContext } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
+import CompactAccountSwitcher from './CompactAccountSwitcher';
 
 export default function TopAppBar() {
   const { user } = useAuthContext();
@@ -35,14 +36,9 @@ export default function TopAppBar() {
           </Button>
           
           {/* Account Switcher */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.location.href = '/api/logout'}
-            className="text-white hover:bg-white hover:bg-opacity-10 px-2 py-1 text-xs"
-          >
-            Logout
-          </Button>
+          <div style={{ zIndex: 50 }}>
+            <CompactAccountSwitcher />
+          </div>
           
           {user?.profileImageUrl ? (
             <img 

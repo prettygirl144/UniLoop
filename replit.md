@@ -109,30 +109,50 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - RBAC Authentication System Implementation
-- **Full RBAC System**: Implemented comprehensive Role-Based Access Control with three roles:
+### January 2025 - Comprehensive Multi-Account & Media System Implementation
+- **Enhanced RBAC System**: Expanded Role-Based Access Control with full multi-account support:
   - `student`: Default view-only access after OAuth login
   - `committee_club`: Elevated permissions for specific modules
   - `admin`: Full system access with user management capabilities
-- **Permission-Based Authorization**: Added granular permissions system:
-  - `calendar`: Create/edit events
-  - `attendance`: View and log attendance
-  - `gallery`: Upload/manage media
-  - `forumMod`: Moderate forum posts
-  - `diningHostel`: Manage dining and hostel services
-  - `postCreation`: Create announcements
-- **Admin Dashboard**: Complete admin interface for user management:
-  - View all users with role and permission matrix
-  - Search and filter functionality
-  - Role modification with dropdown selection
-  - Permission toggles for committee/club users
-  - Real-time updates with validation
-- **Security Features**: 
-  - Admin-only API endpoints with proper authorization middleware
-  - Frontend route protection with role/permission checks
-  - Automatic logout on 401 responses
-  - Admin bypasses individual permission checks
-- **Database Updates**: Enhanced user schema with role and permissions columns
-- **Typography**: Changed all fonts to Segoe UI for modern Windows-native appearance
+  - **Multi-Account Support**: Users can link multiple accounts with different roles (e.g., Student + Committee)
+  - **Account Switching**: Gmail-style account switcher in top app bar with persistent session management
+  - **Enhanced Permission Management**: Granular permissions with admin override capabilities
+
+- **Media Upload & Gallery System**: Complete media management implementation:
+  - **Media Upload Component**: File upload support for events and forum posts with preview functionality
+  - **Google Drive Integration**: Gallery folders with embedded iframe display of Google Drive content
+  - **Enhanced Event Forms**: Events can include multiple media files with upload progress tracking
+  - **Enhanced Forum Forms**: Forum posts support media attachments and file uploads
+  - **Gallery Page**: Dual-tab interface showing both Google Drive folders and event media
+
+- **Advanced Authentication Features**: 
+  - **Alternate Account Creation**: Users can create secondary accounts with different roles
+  - **Session Persistence**: Account switching without full logout/login cycle
+  - **Local Storage Integration**: Active account tracking across browser sessions
+  - **Enhanced Admin Panel**: Complete user management with role switching capabilities
+
+- **Google Drive Gallery Integration**:
+  - **Folder Management**: Admin/committee users can add Google Drive folders to gallery
+  - **Category Organization**: Folders organized by Events, Celebrations, Competitions, Academic, etc.
+  - **Iframe Embedding**: Direct Google Drive folder preview within the application
+  - **Public/Private Control**: Folder visibility management with creator permissions
+
+- **Database Enhancements**:
+  - **Extended User Schema**: Added accountType, linkedAccountId, isActive fields for multi-account support
+  - **Gallery Folders Table**: New table for Google Drive folder management with metadata
+  - **Media URL Storage**: Enhanced events and forum posts with media URL arrays
+  - **Permission Matrix**: Expanded permissions system with feature-specific access control
+
+- **UI/UX Improvements**:
+  - **Compact Account Switcher**: Mobile-optimized account switcher in top app bar
+  - **Enhanced Gallery**: Tab-based interface with search functionality for both media types
+  - **Responsive Design**: Mobile-first approach with optimized touch interactions
+  - **Loading States**: Comprehensive loading and error states for all async operations
+
+- **Security & Authorization**:
+  - **Enhanced API Endpoints**: Gallery folder management, account switching, and media upload APIs
+  - **Permission-Based Access**: Feature-specific authorization middleware
+  - **Admin Override System**: Admins bypass individual permission checks
+  - **Session Security**: Secure account switching with proper session management
 
 The application is designed for easy deployment on platforms like Replit, with containerized architecture and environment-based configuration for seamless scaling and maintenance.

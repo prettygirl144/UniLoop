@@ -40,6 +40,9 @@ export const users = pgTable("users", {
     diningHostel?: boolean;
     postCreation?: boolean;
   }>().default({}),
+  accountType: varchar("account_type").default("primary"), // primary, alternate
+  linkedAccountId: varchar("linked_account_id"), // References primary account for alternates
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -291,6 +294,22 @@ export const insertGrievanceSchema = createInsertSchema(grievances).omit({
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Google Drive gallery folders
+export const galleryFolders = pgTable("gallery_folders", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  category: varchar("category").notNull(), // Events, Celebrations, Competitions, Academic
+  driveUrl: text("drive_url").notNull(), // Google Drive iframe embed URL
+  description: text("description"),
+  isPublic: boolean("is_public").default(true),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type InsertGalleryFolder = typeof galleryFolders.$inferInsert;
+export type GalleryFolder = typeof galleryFolders.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;

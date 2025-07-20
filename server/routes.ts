@@ -479,6 +479,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gallery folder endpoints
+  app.get('/api/gallery/folders', isAuthenticated, async (req, res) => {
+    try {
+      const folders = await storage.getGalleryFolders();
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching gallery folders:", error);
+      res.status(500).json({ message: "Failed to fetch gallery folders" });
+    }
+  });
+
+  app.post('/api/gallery/folders', authorize('gallery'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const folderData = {
+        ...req.body,
+        createdBy: userId,
+      };
+      
+      const folder = await storage.createGalleryFolder(folderData);
+      res.json(folder);
+    } catch (error) {
+      console.error("Error creating gallery folder:", error);
+      res.status(500).json({ message: "Failed to create gallery folder" });
+    }
+  });
+
+  app.delete('/api/gallery/folders/:id', authorize('gallery'), async (req: any, res) => {
+    try {
+      const folderId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const userRole = req.user.role;
+      
+      // Only allow deletion by admin or creator
+      const folder = await storage.getGalleryFolderById(folderId);
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+      
+      if (userRole !== 'admin' && folder.createdBy !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this folder" });
+      }
+      
+      await storage.deleteGalleryFolder(folderId);
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting gallery folder:", error);
+      res.status(500).json({ message: "Failed to delete gallery folder" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

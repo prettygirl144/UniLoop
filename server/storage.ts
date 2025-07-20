@@ -11,6 +11,7 @@ import {
   grievances,
   diningMenu,
   attendance,
+  galleryFolders,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -28,6 +29,8 @@ import {
   type HostelLeave,
   type InsertGrievance,
   type Grievance,
+  type InsertGalleryFolder,
+  type GalleryFolder,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql } from "drizzle-orm";
@@ -176,6 +179,32 @@ export class DatabaseStorage implements IStorage {
       .values([alternateUserData])
       .returning();
     return user;
+  }
+
+  // Gallery folder operations
+  async getGalleryFolders(): Promise<any[]> {
+    return await db
+      .select()
+      .from(galleryFolders)
+      .where(eq(galleryFolders.isPublic, true))
+      .orderBy(desc(galleryFolders.createdAt));
+  }
+
+  async getGalleryFolderById(id: number): Promise<any | undefined> {
+    const [folder] = await db.select().from(galleryFolders).where(eq(galleryFolders.id, id));
+    return folder;
+  }
+
+  async createGalleryFolder(folderData: any): Promise<any> {
+    const [folder] = await db
+      .insert(galleryFolders)
+      .values([folderData])
+      .returning();
+    return folder;
+  }
+
+  async deleteGalleryFolder(id: number): Promise<void> {
+    await db.delete(galleryFolders).where(eq(galleryFolders.id, id));
   }
 
   // Announcements
