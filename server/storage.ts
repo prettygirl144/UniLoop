@@ -30,7 +30,7 @@ import {
   type Grievance,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
       // Insert new user with default values
       const [user] = await db
         .insert(users)
-        .values(userData)
+        .values([userData])
         .returning();
       return user;
     }
@@ -114,6 +114,66 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ permissions, updatedAt: new Date() })
       .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserRoleAndPermissions(userId: string, role: string, permissions: any): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ role, permissions, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getAllUsersForAdmin(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.createdAt);
+  }
+
+  async getEventById(id: number): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event;
+  }
+
+  async getLinkedAccounts(userId: string): Promise<User[]> {
+    // Get all accounts linked to this user (including primary)
+    return await db
+      .select()
+      .from(users)
+      .where(
+        or(
+          eq(users.id, userId),
+          eq(users.linkedAccountId, userId),
+          eq(users.id, 
+            sql`(SELECT linked_account_id FROM users WHERE id = ${userId})`
+          )
+        )
+      );
+  }
+
+  async createAlternateAccount(primaryUserId: string, role: string, permissions: any): Promise<User> {
+    const primaryUser = await this.getUser(primaryUserId);
+    if (!primaryUser) {
+      throw new Error("Primary user not found");
+    }
+
+    const alternateId = `${primaryUserId}_${role}`;
+    const alternateUserData = {
+      id: alternateId,
+      email: primaryUser.email,
+      firstName: primaryUser.firstName,
+      lastName: primaryUser.lastName,
+      profileImageUrl: primaryUser.profileImageUrl,
+      role,
+      permissions,
+      accountType: "alternate",
+      linkedAccountId: primaryUserId,
+    };
+
+    const [user] = await db
+      .insert(users)
+      .values([alternateUserData])
       .returning();
     return user;
   }
@@ -145,7 +205,7 @@ export class DatabaseStorage implements IStorage {
   async createEvent(event: InsertEvent): Promise<Event> {
     const [created] = await db
       .insert(events)
-      .values(event)
+      .values([event])
       .returning();
     return created;
   }
@@ -189,7 +249,7 @@ export class DatabaseStorage implements IStorage {
   async createForumPost(post: InsertForumPost): Promise<ForumPost> {
     const [created] = await db
       .insert(forumPosts)
-      .values(post)
+      .values([post])
       .returning();
     return created;
   }

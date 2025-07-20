@@ -1,13 +1,13 @@
 import { useLocation, Link } from 'wouter';
-import { Home, Calendar, MessageSquare, Utensils, Users, Settings } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Utensils, Users, Settings, Image } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', id: 'dashboard' },
   { path: '/calendar', icon: Calendar, label: 'Events', id: 'calendar' },
+  { path: '/gallery', icon: Image, label: 'Gallery', id: 'gallery' },
   { path: '/forum', icon: MessageSquare, label: 'Forum', id: 'forum' },
   { path: '/dining', icon: Utensils, label: 'Dining', id: 'dining' },
-  { path: '/directory', icon: Users, label: 'Directory', id: 'directory' },
 ];
 
 const adminNavItem = { path: '/admin', icon: Settings, label: 'Admin', id: 'admin' };

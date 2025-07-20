@@ -395,6 +395,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Media upload endpoint
+  app.post('/api/upload', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock file upload - in production, you'd use multer or similar
+      const { file, fileName } = req.body;
+      
+      if (!file || !fileName) {
+        return res.status(400).json({ message: "File and fileName are required" });
+      }
+
+      // Simulate file storage and return URL
+      const mockUrl = `https://mock-storage.example.com/${Date.now()}-${fileName}`;
+      
+      res.json({ url: mockUrl });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+
+  // Gallery endpoint for events
+  app.get('/api/events/:id/gallery', isAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const event = await storage.getEventById(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      res.json({ mediaUrls: event.mediaUrls || [] });
+    } catch (error) {
+      console.error("Error fetching event gallery:", error);
+      res.status(500).json({ message: "Failed to fetch gallery" });
+    }
+  });
+
+  // Account switching endpoints
+  app.get('/api/auth/linked-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const linkedAccounts = await storage.getLinkedAccounts(userId);
+      res.json(linkedAccounts);
+    } catch (error) {
+      console.error("Error fetching linked accounts:", error);
+      res.status(500).json({ message: "Failed to fetch linked accounts" });
+    }
+  });
+
+  app.post('/api/auth/create-alternate-account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { role, permissions } = req.body;
+      
+      if (!['committee_club', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role for alternate account" });
+      }
+
+      const alternateAccount = await storage.createAlternateAccount(userId, role, permissions);
+      res.json(alternateAccount);
+    } catch (error) {
+      console.error("Error creating alternate account:", error);
+      res.status(500).json({ message: "Failed to create alternate account" });
+    }
+  });
+
+  app.post('/api/auth/switch-account', isAuthenticated, async (req: any, res) => {
+    try {
+      const { accountId } = req.body;
+      const targetAccount = await storage.getUser(accountId);
+      
+      if (!targetAccount) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      // Update session with new account
+      req.user.currentAccountId = accountId;
+      res.json(targetAccount);
+    } catch (error) {
+      console.error("Error switching account:", error);
+      res.status(500).json({ message: "Failed to switch account" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

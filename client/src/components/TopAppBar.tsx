@@ -34,6 +34,16 @@ export default function TopAppBar() {
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse"></div>
           </Button>
           
+          {/* Account Switcher */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.href = '/api/logout'}
+            className="text-white hover:bg-white hover:bg-opacity-10 px-2 py-1 text-xs"
+          >
+            Logout
+          </Button>
+          
           {user?.profileImageUrl ? (
             <img 
               src={user.profileImageUrl} 

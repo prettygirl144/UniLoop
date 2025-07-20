@@ -68,6 +68,7 @@ export const events = pgTable("events", {
   category: varchar("category").notNull(),
   rsvpEnabled: boolean("rsvp_enabled").default(false),
   authorId: varchar("author_id").notNull().references(() => users.id),
+  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -98,6 +99,7 @@ export const forumPosts = pgTable("forum_posts", {
   authorId: varchar("author_id").references(() => users.id),
   isAnonymous: boolean("is_anonymous").default(false),
   imageUrl: text("image_url"),
+  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   category: varchar("category").default("general"), // questions, discussions, events, general
   isHidden: boolean("is_hidden").default(false),
   createdAt: timestamp("created_at").defaultNow(),

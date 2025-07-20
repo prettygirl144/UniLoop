@@ -14,6 +14,7 @@ import Dining from "@/pages/Dining";
 import Directory from "@/pages/Directory";
 import Admin from "@/pages/Admin";
 import Attendance from "@/pages/Attendance";
+import Gallery from "@/pages/Gallery";
 import Layout from "@/components/Layout";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
         <Layout>
           <Route path="/" component={Home} />
           <Route path="/calendar" component={Calendar} />
+          <Route path="/gallery" component={Gallery} />
           <Route path="/forum" component={Forum} />
           <Route path="/dining" component={Dining} />
           <Route path="/directory" component={Directory} />
