@@ -1,5 +1,6 @@
 import { useLocation, Link } from 'wouter';
-import { Home, Calendar, MessageSquare, Utensils, Users } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Utensils, Users, Settings } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', id: 'dashboard' },
@@ -9,13 +10,19 @@ const navItems = [
   { path: '/directory', icon: Users, label: 'Directory', id: 'directory' },
 ];
 
+const adminNavItem = { path: '/admin', icon: Settings, label: 'Admin', id: 'admin' };
+
 export default function BottomNavigation() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  
+  // Add admin item for admin users
+  const allNavItems = user?.role === 'admin' ? [...navItems, adminNavItem] : navItems;
 
   return (
     <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-surface border-t border-gray-200">
       <div className="flex items-center justify-around py-2">
-        {navItems.map((item) => {
+        {allNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path;
           

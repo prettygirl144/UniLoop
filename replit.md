@@ -107,4 +107,32 @@ Preferred communication style: Simple, everyday language.
 - **PWA Features**: Offline capability and app-like experience
 - **Performance**: Optimized bundle sizes and lazy loading
 
+## Recent Changes
+
+### January 2025 - RBAC Authentication System Implementation
+- **Full RBAC System**: Implemented comprehensive Role-Based Access Control with three roles:
+  - `student`: Default view-only access after OAuth login
+  - `committee_club`: Elevated permissions for specific modules
+  - `admin`: Full system access with user management capabilities
+- **Permission-Based Authorization**: Added granular permissions system:
+  - `calendar`: Create/edit events
+  - `attendance`: View and log attendance
+  - `gallery`: Upload/manage media
+  - `forumMod`: Moderate forum posts
+  - `diningHostel`: Manage dining and hostel services
+  - `postCreation`: Create announcements
+- **Admin Dashboard**: Complete admin interface for user management:
+  - View all users with role and permission matrix
+  - Search and filter functionality
+  - Role modification with dropdown selection
+  - Permission toggles for committee/club users
+  - Real-time updates with validation
+- **Security Features**: 
+  - Admin-only API endpoints with proper authorization middleware
+  - Frontend route protection with role/permission checks
+  - Automatic logout on 401 responses
+  - Admin bypasses individual permission checks
+- **Database Updates**: Enhanced user schema with role and permissions columns
+- **Typography**: Changed all fonts to Segoe UI for modern Windows-native appearance
+
 The application is designed for easy deployment on platforms like Replit, with containerized architecture and environment-based configuration for seamless scaling and maintenance.

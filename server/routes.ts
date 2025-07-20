@@ -14,6 +14,55 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Authorization middleware
+function authorize(permission?: string) {
+  return async (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const userId = req.user.claims.sub;
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Admin bypasses all permission checks
+    if (user.role === 'admin') {
+      req.currentUser = user;
+      return next();
+    }
+    
+    // If specific permission required, check it
+    if (permission && (!user.permissions || !(user.permissions as any)[permission])) {
+      return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    
+    req.currentUser = user;
+    next();
+  };
+}
+
+// Admin-only middleware
+function adminOnly() {
+  return async (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const userId = req.user.claims.sub;
+    const user = await storage.getUser(userId);
+    
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    
+    req.currentUser = user;
+    next();
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -41,15 +90,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/announcements', isAuthenticated, async (req: any, res) => {
+  app.post('/api/announcements', authorize('postCreation'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.permissions?.postCreation && user?.role !== 'admin') {
-        return res.status(403).json({ message: "No permission to create announcements" });
-      }
-
       const announcementData = insertAnnouncementSchema.parse({
         ...req.body,
         authorId: userId,
@@ -291,23 +334,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.put('/api/admin/users/:id/permissions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/users', adminOnly(), async (req, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const adminUser = await storage.getUser(adminUserId);
-      
-      if (adminUser?.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
+      const users = await storage.getAllUsersForAdmin();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
 
+  app.put('/api/admin/users/:id', adminOnly(), async (req: any, res) => {
+    try {
       const targetUserId = req.params.id;
-      const { permissions } = req.body;
+      const { role, permissions } = req.body;
       
-      const updatedUser = await storage.updateUserPermissions(targetUserId, permissions);
+      // Validate role
+      if (!['student', 'committee_club', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const updatedUser = await storage.updateUserRoleAndPermissions(targetUserId, role, permissions);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       res.json(updatedUser);
     } catch (error) {
-      console.error("Error updating permissions:", error);
-      res.status(500).json({ message: "Failed to update permissions" });
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Update other protected routes to use authorize middleware
+  app.post('/api/events', authorize('calendar'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        authorId: userId,
+      });
+      
+      const event = await storage.createEvent(eventData);
+      res.json(event);
+    } catch (error) {
+      console.error("Error creating event:", error);
+      res.status(500).json({ message: "Failed to create event" });
+    }
+  });
+
+  app.post('/api/attendance', authorize('attendance'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId, attendees } = req.body;
+      await storage.saveAttendance(eventId, attendees, userId);
+      res.json({ message: "Attendance saved successfully" });
+    } catch (error) {
+      console.error("Error saving attendance:", error);
+      res.status(500).json({ message: "Failed to save attendance" });
     }
   });
 

@@ -1,0 +1,163 @@
+# 📘 Replit Implementation Guide: RBAC System & Admin Dashboard for Campus Connect App
+
+---
+
+## 🔐 Role-Based Access Control (RBAC) Design
+
+### 1. 🧾 Roles Definition
+
+| Role             | Description                                              |
+| ---------------- | -------------------------------------------------------- |
+| `student`        | Default user role after OAuth login. View-only access.   |
+| `committee_club` | Elevated role with permissions to manage select modules. |
+| `admin`          | Full access to system. Can manage user roles & content.  |
+
+---
+
+### 2. 🎛️ Permissions Schema
+
+Each user will have a `permissions` object attached to their profile. Example:
+
+```json
+{
+  "email": "user@university.edu",
+  "role": "committee_club",
+  "permissions": {
+    "calendar": true,
+    "attendance": false,
+    "gallery": false,
+    "forumMod": false,
+    "diningHostel": true
+  }
+}
+```
+
+**Permissions Keys**:
+
+* `calendar`: Can create/edit events
+* `attendance`: Can view and log attendance
+* `gallery`: Can upload/manage media
+* `forumMod`: Can moderate forum posts
+* `diningHostel`: Can manage sick food/leave/menu complaints
+
+---
+
+### 3. 🧩 RBAC System Architecture
+
+#### Backend
+
+* Each protected API route will check JWT and permission flags before processing.
+* Example (Node.js):
+
+```js
+function authorize(permission) {
+  return (req, res, next) => {
+    const user = req.user;
+    if (user.role === 'admin' || user.permissions[permission]) {
+      next();
+    } else {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+  };
+}
+```
+
+#### Frontend
+
+* Use `useContext` or `Redux` store to manage and access permissions
+* Conditionally render UI components by permission flag
+
+```tsx
+{permissions.calendar && <CreateEventButton />}
+```
+
+---
+
+## 🧮 Admin Dashboard Module
+
+### 1. 🎛️ Dashboard Features
+
+* View all registered users (email, role, permission matrix)
+* Filter by role (`student`, `committee_club`, `admin`)
+* Modify role (dropdown)
+* Toggle feature permissions using switch UI (for committee/club)
+* Save/Update button to persist changes
+
+### 2. 📐 Admin Dashboard Wireframe Structure (Sections)
+
+#### ➤ User List Section
+
+* Search bar (email/name)
+* Table:
+  \| Email | Role | Calendar | Attendance | Gallery | ForumMod | DiningHostel | Actions |
+
+#### ➤ Role Update Modal
+
+* User Email
+* Dropdown: Set Role (student / committee\_club / admin)
+* Show toggles only for committee\_club
+
+#### ➤ Feature Toggles
+
+For `committee_club`, display:
+
+```tsx
+<Switch label="Calendar Access" checked={permissions.calendar} onChange={...} />
+<Switch label="Attendance Access" checked={permissions.attendance} onChange={...} />
+...
+```
+
+### 3. ⚙️ Backend API Design
+
+#### ➤ Get All Users
+
+`GET /api/users`
+
+#### ➤ Update Role & Permissions
+
+`POST /api/users/update`
+
+```json
+{
+  "email": "user@university.edu",
+  "role": "committee_club",
+  "permissions": {
+    "calendar": true,
+    "attendance": false,
+    "gallery": false,
+    "forumMod": false,
+    "diningHostel": true
+  }
+}
+```
+
+### 4. 🔐 Security
+
+* Only users with `admin` role can access the dashboard route/page
+* Backend must reject any role-modification calls from non-admins
+* Log changes for audit (e.g., store `changedBy`, `timestamp`)
+
+---
+
+## 📌 Notes for Replit Deployment
+
+* Use Firebase/JSON DB or SQLite for storage in MVP
+* Consider seed admin credentials on startup if none exist
+* Consider adding an "Audit Logs" module for production
+
+---
+
+## ✅ Final Outcome
+
+* Student users have seamless view-only access
+* Committee & Club users have role-customized functional access
+* Admin can configure user roles + module access easily through a responsive dashboard
+* RBAC enforced on both frontend and backend
+
+---
+
+Let me know if you want:
+
+* Low-fidelity UI wireframes
+* Backend endpoint code stubs
+* Replit `.replit` and `replit.nix` configuration

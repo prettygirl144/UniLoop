@@ -68,6 +68,10 @@ export interface IStorage {
   // Directory
   getAllUsers(): Promise<User[]>;
   searchUsers(query: string): Promise<User[]>;
+  
+  // Admin functions
+  getAllUsersForAdmin(): Promise<User[]>;
+  updateUserRoleAndPermissions(userId: string, role: string, permissions: any): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -96,7 +100,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return user;
     } else {
-      // Insert new user
+      // Insert new user with default values
       const [user] = await db
         .insert(users)
         .values(userData)
@@ -311,6 +315,27 @@ export class DatabaseStorage implements IStorage {
         eq(users.email, query)
       )
       .orderBy(users.firstName);
+  }
+
+  // Admin functions
+  async getAllUsersForAdmin(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(users.email);
+  }
+
+  async updateUserRoleAndPermissions(userId: string, role: string, permissions: any): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        role, 
+        permissions,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
   }
 }
 
