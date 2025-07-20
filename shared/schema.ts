@@ -111,7 +111,9 @@ export const forumReactions = pgTable("forum_reactions", {
   userId: varchar("user_id").notNull().references(() => users.id),
   type: varchar("type").notNull(), // like, heart, laugh
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("unique_post_user_reaction").on(table.postId, table.userId)
+]);
 
 // Forum comments table
 export const forumComments = pgTable("forum_comments", {

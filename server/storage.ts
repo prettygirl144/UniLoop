@@ -78,18 +78,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
+    // Try to find existing user first
+    const existingUser = await this.getUser(userData.id);
+    
+    if (existingUser) {
+      // Update existing user
+      const [user] = await db
+        .update(users)
+        .set({
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+        })
+        .where(eq(users.id, userData.id))
+        .returning();
+      return user;
+    } else {
+      // Insert new user
+      const [user] = await db
+        .insert(users)
+        .values(userData)
+        .returning();
+      return user;
+    }
   }
 
   async updateUserPermissions(userId: string, permissions: any): Promise<User | undefined> {
@@ -186,13 +199,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async reactToPost(reaction: InsertForumReaction): Promise<void> {
-    await db
-      .insert(forumReactions)
-      .values(reaction)
-      .onConflictDoUpdate({
-        target: [forumReactions.postId, forumReactions.userId],
-        set: { type: reaction.type },
-      });
+    // Check if reaction exists first
+    const [existingReaction] = await db
+      .select()
+      .from(forumReactions)
+      .where(
+        and(
+          eq(forumReactions.postId, reaction.postId),
+          eq(forumReactions.userId, reaction.userId)
+        )
+      );
+
+    if (existingReaction) {
+      // Update existing reaction
+      await db
+        .update(forumReactions)
+        .set({ type: reaction.type })
+        .where(
+          and(
+            eq(forumReactions.postId, reaction.postId),
+            eq(forumReactions.userId, reaction.userId)
+          )
+        );
+    } else {
+      // Insert new reaction
+      await db
+        .insert(forumReactions)
+        .values(reaction);
+    }
   }
 
   async getPostReactions(postId: number): Promise<{ type: string; count: number }[]> {
