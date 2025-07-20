@@ -131,7 +131,7 @@ export default function Gallery() {
     });
   };
 
-  if (isLoading) {
+  if (eventsLoading || foldersLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
