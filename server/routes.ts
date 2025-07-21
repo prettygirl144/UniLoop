@@ -89,14 +89,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', (req: any, res) => {
     const sessionUser = req.session?.user;
     
-    console.log('Main auth/user route - session:', req.session);
-    console.log('Main auth/user route - user:', sessionUser);
+    console.log('Main auth/user route - session user:', sessionUser);
     
     if (!sessionUser) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
     
-    res.json(sessionUser);
+    // Return complete user information including role and permissions
+    res.json({
+      id: sessionUser.id,
+      email: sessionUser.email,
+      firstName: sessionUser.firstName,
+      lastName: sessionUser.lastName,
+      profileImageUrl: sessionUser.profileImageUrl,
+      role: sessionUser.role,
+      permissions: sessionUser.permissions,
+    });
   });
 
   // Auth0 user sync endpoint

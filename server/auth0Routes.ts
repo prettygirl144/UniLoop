@@ -73,12 +73,24 @@ router.get('/callback', async (req, res) => {
     }
 
     // Create or update user in our database
+    // Grant admin access to pritika.pauli21@iimranchi.ac.in
+    const isAdmin = userInfo.email === 'pritika.pauli21@iimranchi.ac.in';
+    
     const user = await storage.upsertUser({
       id: userInfo.sub,
       email: userInfo.email,
       firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
       lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
       profileImageUrl: userInfo.picture,
+      role: isAdmin ? 'admin' : 'student',
+      permissions: isAdmin ? {
+        calendar: true,
+        attendance: true,
+        gallery: true,
+        forumMod: true,
+        diningHostel: true,
+        postCreation: true
+      } : {},
     });
 
     // Set user session
@@ -87,9 +99,15 @@ router.get('/callback', async (req, res) => {
       email: user.email,
       name: `${user.firstName} ${user.lastName}`.trim(),
       picture: user.profileImageUrl,
+      role: user.role,
+      permissions: user.permissions,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
     };
 
     console.log('User session created:', (req as any).session.user);
+    console.log('Admin access granted:', isAdmin);
 
     // Redirect to home page
     res.redirect('/');
