@@ -19,6 +19,7 @@ import { z } from 'zod';
 const sickFoodSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   mealType: z.string().min(1, 'Meal type is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
   specialRequirements: z.string().optional(),
 });
 
@@ -26,12 +27,20 @@ const leaveApplicationSchema = z.object({
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
   reason: z.string().min(1, 'Reason is required'),
+  emergencyContact: z.string().min(1, 'Emergency contact is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
 });
 
 const grievanceSchema = z.object({
-  type: z.string().min(1, 'Type is required'),
-  category: z.string().optional(),
+  category: z.string().min(1, 'Category is required'),
   description: z.string().min(1, 'Description is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
+});
+
+const menuUploadSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  mealType: z.string().min(1, 'Meal type is required'),
+  items: z.array(z.string()).min(1, 'At least one item is required'),
 });
 
 type SickFoodForm = z.infer<typeof sickFoodSchema>;

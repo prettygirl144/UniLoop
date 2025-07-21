@@ -11,7 +11,7 @@ import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Calendar from "@/pages/Calendar";
 import Forum from "@/pages/Forum";
-import Dining from "@/pages/Dining";
+import Amenities from "@/pages/Amenities";
 import Directory from "@/pages/Directory";
 import Admin from "@/pages/Admin";
 import Attendance from "@/pages/Attendance";
@@ -41,7 +41,7 @@ function Router() {
           <Route path="/calendar" component={Calendar} />
           <Route path="/gallery" component={Gallery} />
           <Route path="/forum" component={Forum} />
-          <Route path="/dining" component={Dining} />
+          <Route path="/dining" component={Amenities} />
           <Route path="/directory" component={Directory} />
           <Route path="/admin" component={Admin} />
           <Route path="/attendance" component={Attendance} />

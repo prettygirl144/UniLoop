@@ -1,0 +1,102 @@
+Please now begin building the backend functionality for the Amenities module — renamed from "Dining & Hostel" — which includes:
+
+✅ Sub-Features (Frontend is already designed and should remain intact)
+Today's Menu
+
+Sick Food Booking (should include Room Number field)
+
+Hostel Leave Application (with Room Number field + push notification + approval system)
+
+Grievance Submission (should include Room Number + category: Mess / IT / Hostel etc.)
+
+Sports Booking System (Placeholder card saying “Coming Soon”)
+
+🔐 1. Role-Based Access Control (RBAC) — Admin-Driven
+Admin will assign access to specific subfeatures of Amenities module to specific user emails.
+
+Examples:
+
+User A: Access to Menu Upload + Grievance
+
+User B: Access to Sick Food & Leave Application
+
+This role control should:
+
+Be modifiable via the Admin panel
+
+Affect both frontend visibility and backend API access
+
+Admin always has access to all modules and permission management
+
+📅 2. Backend for Menu Upload
+Mess timings:
+
+Breakfast: 8:00 AM – 10:00 AM
+
+Lunch: 1:00 PM – 3:00 PM
+
+Snacks: 5:45 PM – 6:45 PM
+
+Dinner: 8:00 PM – 10:00 PM
+
+Upload: Admin should be able to upload an Excel file with date-wise menu categorized into:
+
+Breakfast, Lunch, Snacks, Dinner
+
+The backend should:
+
+Parse the Excel
+
+Return correct meals based on current date/time
+
+Allow manual override to edit a day’s menu from dashboard in case of changes
+
+🤒 3. Sick Food Booking
+Should include Room Number field
+
+Should store entries by date and user
+
+Admin role with access can view entries per day
+
+🏕️ 4. Hostel Leave Application — Email Approval System
+User submits:
+
+Dates of leave, reason, emergency contact, room number
+
+Triggers an email to pritika.paul4@gmail.com (this should be modifiable later)
+
+Email should include:
+
+Leave details
+
+Two HTML buttons: ✅ Approve | ❌ Deny
+
+Clicking a button hits secure backend endpoints:
+
+/leave/approve?token=...
+
+/leave/deny?token=...
+
+Status should:
+
+Be updated in the database
+
+Reflect in the user's app (in-app status: Pending → Approved/Denied)
+
+If button clicked again or after expiry → show “Link expired / already responded”
+
+Admin panel should show a leave request table with current status and filter options
+
+🛠️ 5. Grievance Submission
+Fields: Room No., Grievance Category (dropdown), Description
+
+Stored by type: Mess / Hostel / IT / Other
+
+Admin can view grievances and mark as resolved
+
+Optionally, push notification to user when marked resolved
+
+🔁 6. Additional Backend Logic
+Admin defines which emails get what feature access (RBAC per subfeature)
+
+All permissions and feature visibility to be enforced backend-first

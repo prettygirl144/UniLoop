@@ -288,7 +288,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dining routes
+  // Enhanced Amenities (Dining) routes
+  
+  // Get today's menu (public)
   app.get('/api/dining/menu', async (req, res) => {
     try {
       const menu = await storage.getTodaysMenu();
@@ -299,6 +301,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get menu by date (public)
+  app.get('/api/dining/menu/:date', async (req, res) => {
+    try {
+      const date = new Date(req.params.date);
+      const menu = await storage.getMenuByDate(date);
+      res.json(menu);
+    } catch (error) {
+      console.error("Error fetching menu:", error);
+      res.status(500).json({ message: "Failed to fetch menu" });
+    }
+  });
+
+  // Upload menu (admin only)
+  app.post('/api/dining/menu/upload', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const menuItems = req.body.menuItems; // Array of menu items
+      const menuData = menuItems.map((item: any) => ({
+        ...item,
+        date: new Date(item.date),
+        uploadedBy: userId,
+      }));
+      
+      const menu = await storage.uploadMenu(menuData);
+      res.json(menu);
+    } catch (error) {
+      console.error("Error uploading menu:", error);
+      res.status(500).json({ message: "Failed to upload menu" });
+    }
+  });
+
+  // Update menu item (admin only)
+  app.put('/api/dining/menu/:date/:mealType', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const date = new Date(req.params.date);
+      const mealType = req.params.mealType;
+      const { items } = req.body;
+      
+      const menu = await storage.updateMenu(date, mealType, items);
+      res.json(menu);
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      res.status(500).json({ message: "Failed to update menu" });
+    }
+  });
+
+  // Book sick food
   app.post('/api/dining/sick-food', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
@@ -317,6 +377,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get sick food bookings (admin only)
+  app.get('/api/dining/sick-food', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const date = req.query.date ? new Date(req.query.date as string) : undefined;
+      const bookings = await storage.getSickFoodBookings(date);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching sick food bookings:", error);
+      res.status(500).json({ message: "Failed to fetch sick food bookings" });
+    }
+  });
+
+  // Apply for hostel leave
   app.post('/api/hostel/leave', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
@@ -336,6 +414,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get leave applications (admin only)
+  app.get('/api/hostel/leave', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const status = req.query.status as string;
+      const applications = await storage.getLeaveApplications(status);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching leave applications:", error);
+      res.status(500).json({ message: "Failed to fetch leave applications" });
+    }
+  });
+
+  // Approve leave application via token
+  app.post('/api/hostel/leave/:id/approve/:token', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const token = req.params.token;
+      
+      const leave = await storage.approveLeave(id, token);
+      res.json({ message: "Leave approved successfully", leave });
+    } catch (error) {
+      console.error("Error approving leave:", error);
+      res.status(500).json({ message: "Failed to approve leave" });
+    }
+  });
+
+  // Deny leave application via token
+  app.post('/api/hostel/leave/:id/deny/:token', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const token = req.params.token;
+      
+      const leave = await storage.denyLeave(id, token);
+      res.json({ message: "Leave denied", leave });
+    } catch (error) {
+      console.error("Error denying leave:", error);
+      res.status(500).json({ message: "Failed to deny leave" });
+    }
+  });
+
+  // Submit grievance
   app.post('/api/grievances', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
@@ -350,6 +474,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error submitting grievance:", error);
       res.status(500).json({ message: "Failed to submit grievance" });
+    }
+  });
+
+  // Get grievances (admin only)
+  app.get('/api/grievances', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const category = req.query.category as string;
+      const grievances = await storage.getGrievances(category);
+      res.json(grievances);
+    } catch (error) {
+      console.error("Error fetching grievances:", error);
+      res.status(500).json({ message: "Failed to fetch grievances" });
+    }
+  });
+
+  // Resolve grievance (admin only)
+  app.post('/api/grievances/:id/resolve', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const { adminNotes } = req.body;
+      
+      const grievance = await storage.resolveGrievance(id, adminNotes);
+      res.json(grievance);
+    } catch (error) {
+      console.error("Error resolving grievance:", error);
+      res.status(500).json({ message: "Failed to resolve grievance" });
     }
   });
 

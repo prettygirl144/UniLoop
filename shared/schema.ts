@@ -134,9 +134,24 @@ export const forumComments = pgTable("forum_comments", {
 export const diningMenu = pgTable("dining_menu", {
   id: serial("id").primaryKey(),
   date: timestamp("date").notNull(),
-  mealType: varchar("meal_type").notNull(), // breakfast, lunch, dinner
+  mealType: varchar("meal_type").notNull(), // breakfast, lunch, snacks, dinner
   items: text("items").array().notNull(),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Amenities permissions table - for granular RBAC per sub-feature
+export const amenitiesPermissions = pgTable("amenities_permissions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  menuUpload: boolean("menu_upload").default(false),
+  sickFoodAccess: boolean("sick_food_access").default(false),
+  leaveApplicationAccess: boolean("leave_application_access").default(false),
+  grievanceAccess: boolean("grievance_access").default(false),
+  adminAccess: boolean("admin_access").default(false), // can view all bookings/applications
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Sick food bookings table
@@ -146,6 +161,7 @@ export const sickFoodBookings = pgTable("sick_food_bookings", {
   date: timestamp("date").notNull(),
   mealType: varchar("meal_type").notNull(),
   specialRequirements: text("special_requirements"),
+  roomNumber: varchar("room_number").notNull(),
   status: varchar("status").default("pending"), // pending, approved, rejected
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -157,7 +173,11 @@ export const hostelLeave = pgTable("hostel_leave", {
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   reason: text("reason").notNull(),
+  emergencyContact: varchar("emergency_contact").notNull(),
+  roomNumber: varchar("room_number").notNull(),
   status: varchar("status").default("pending"), // pending, approved, rejected
+  approvalToken: varchar("approval_token"), // for email approval links
+  tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -165,10 +185,12 @@ export const hostelLeave = pgTable("hostel_leave", {
 export const grievances = pgTable("grievances", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
-  type: varchar("type").notNull(), // food_quality, hostel_maintenance, other
+  roomNumber: varchar("room_number").notNull(),
+  category: varchar("category").notNull(), // Mess, IT, Hostel, Other
   description: text("description").notNull(),
-  category: varchar("category"), // undercooked, item_missing, etc.
   status: varchar("status").default("pending"), // pending, in_progress, resolved
+  resolvedAt: timestamp("resolved_at"),
+  adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -284,11 +306,27 @@ export const insertSickFoodBookingSchema = createInsertSchema(sickFoodBookings).
 export const insertHostelLeaveSchema = createInsertSchema(hostelLeave).omit({
   id: true,
   createdAt: true,
+  approvalToken: true,
+  tokenExpiry: true,
 });
 
 export const insertGrievanceSchema = createInsertSchema(grievances).omit({
   id: true,
   createdAt: true,
+  resolvedAt: true,
+  adminNotes: true,
+});
+
+export const insertDiningMenuSchema = createInsertSchema(diningMenu).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAmenitiesPermissionsSchema = createInsertSchema(amenitiesPermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Types
@@ -326,3 +364,7 @@ export type InsertHostelLeave = z.infer<typeof insertHostelLeaveSchema>;
 export type HostelLeave = typeof hostelLeave.$inferSelect;
 export type InsertGrievance = z.infer<typeof insertGrievanceSchema>;
 export type Grievance = typeof grievances.$inferSelect;
+export type DiningMenu = typeof diningMenu.$inferSelect;
+export type InsertDiningMenu = z.infer<typeof insertDiningMenuSchema>;
+export type AmenitiesPermissions = typeof amenitiesPermissions.$inferSelect;
+export type InsertAmenitiesPermissions = z.infer<typeof insertAmenitiesPermissionsSchema>;

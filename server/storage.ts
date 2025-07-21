@@ -31,9 +31,14 @@ import {
   type Grievance,
   type InsertGalleryFolder,
   type GalleryFolder,
+  type DiningMenu,
+  type InsertDiningMenu,
+  type AmenitiesPermissions,
+  type InsertAmenitiesPermissions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql } from "drizzle-orm";
+import crypto from "crypto";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -60,10 +65,23 @@ export interface IStorage {
   getPostReactions(postId: number): Promise<{ type: string; count: number }[]>;
 
   // Dining & Hostel
-  getTodaysMenu(): Promise<any[]>;
+  getTodaysMenu(): Promise<DiningMenu[]>;
+  getMenuByDate(date: Date): Promise<DiningMenu[]>;
+  uploadMenu(menu: InsertDiningMenu[]): Promise<DiningMenu[]>;
+  updateMenu(date: Date, mealType: string, items: string[]): Promise<DiningMenu>;
   bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking>;
+  getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]>;
   applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave>;
+  getLeaveApplications(status?: string): Promise<HostelLeave[]>;
+  approveLeave(id: number, token: string): Promise<HostelLeave>;
+  denyLeave(id: number, token: string): Promise<HostelLeave>;
   submitGrievance(grievance: InsertGrievance): Promise<Grievance>;
+  getGrievances(category?: string): Promise<Grievance[]>;
+  resolveGrievance(id: number, adminNotes?: string): Promise<Grievance>;
+  
+  // Amenities permissions
+  getAmenitiesPermissions(userId: string): Promise<AmenitiesPermissions | undefined>;
+  setAmenitiesPermissions(permissions: InsertAmenitiesPermissions): Promise<AmenitiesPermissions>;
 
   // Attendance
   saveAttendance(eventId: number, attendees: string[], markedBy: string): Promise<void>;
@@ -336,8 +354,8 @@ export class DatabaseStorage implements IStorage {
     return Object.entries(grouped).map(([type, count]) => ({ type, count }));
   }
 
-  // Dining & Hostel
-  async getTodaysMenu(): Promise<any[]> {
+  // Dining & Hostel - Enhanced Implementation
+  async getTodaysMenu(): Promise<DiningMenu[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -349,7 +367,44 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         gte(diningMenu.date, today),
         lte(diningMenu.date, tomorrow)
-      ));
+      ))
+      .orderBy(diningMenu.mealType);
+  }
+
+  async getMenuByDate(date: Date): Promise<DiningMenu[]> {
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+
+    return await db
+      .select()
+      .from(diningMenu)
+      .where(and(
+        gte(diningMenu.date, startDate),
+        lte(diningMenu.date, endDate)
+      ))
+      .orderBy(diningMenu.mealType);
+  }
+
+  async uploadMenu(menu: InsertDiningMenu[]): Promise<DiningMenu[]> {
+    const created = await db
+      .insert(diningMenu)
+      .values(menu)
+      .returning();
+    return created;
+  }
+
+  async updateMenu(date: Date, mealType: string, items: string[]): Promise<DiningMenu> {
+    const [updated] = await db
+      .update(diningMenu)
+      .set({ items, updatedAt: new Date() })
+      .where(and(
+        eq(diningMenu.date, date),
+        eq(diningMenu.mealType, mealType)
+      ))
+      .returning();
+    return updated;
   }
 
   async bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking> {
@@ -360,18 +415,132 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]> {
+    let query = db.select().from(sickFoodBookings);
+    
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      query = query.where(and(
+        gte(sickFoodBookings.date, startDate),
+        lte(sickFoodBookings.date, endDate)
+      ));
+    }
+    
+    return await query.orderBy(desc(sickFoodBookings.createdAt));
+  }
+
   async applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave> {
+    // Generate approval token
+    const approvalToken = crypto.randomUUID();
+    const tokenExpiry = new Date();
+    tokenExpiry.setDate(tokenExpiry.getDate() + 7); // 7 days validity
+
     const [created] = await db
       .insert(hostelLeave)
-      .values(leave)
+      .values({
+        ...leave,
+        approvalToken,
+        tokenExpiry,
+      })
       .returning();
     return created;
+  }
+
+  async getLeaveApplications(status?: string): Promise<HostelLeave[]> {
+    let query = db.select().from(hostelLeave);
+    
+    if (status) {
+      query = query.where(eq(hostelLeave.status, status));
+    }
+    
+    return await query.orderBy(desc(hostelLeave.createdAt));
+  }
+
+  async approveLeave(id: number, token: string): Promise<HostelLeave> {
+    const [updated] = await db
+      .update(hostelLeave)
+      .set({ status: 'approved' })
+      .where(and(
+        eq(hostelLeave.id, id),
+        eq(hostelLeave.approvalToken, token),
+        gte(hostelLeave.tokenExpiry, new Date())
+      ))
+      .returning();
+    return updated;
+  }
+
+  async denyLeave(id: number, token: string): Promise<HostelLeave> {
+    const [updated] = await db
+      .update(hostelLeave)
+      .set({ status: 'rejected' })
+      .where(and(
+        eq(hostelLeave.id, id),
+        eq(hostelLeave.approvalToken, token),
+        gte(hostelLeave.tokenExpiry, new Date())
+      ))
+      .returning();
+    return updated;
   }
 
   async submitGrievance(grievance: InsertGrievance): Promise<Grievance> {
     const [created] = await db
       .insert(grievances)
       .values(grievance)
+      .returning();
+    return created;
+  }
+
+  async getGrievances(category?: string): Promise<Grievance[]> {
+    let query = db.select().from(grievances);
+    
+    if (category) {
+      query = query.where(eq(grievances.category, category));
+    }
+    
+    return await query.orderBy(desc(grievances.createdAt));
+  }
+
+  async resolveGrievance(id: number, adminNotes?: string): Promise<Grievance> {
+    const [updated] = await db
+      .update(grievances)
+      .set({ 
+        status: 'resolved',
+        resolvedAt: new Date(),
+        adminNotes 
+      })
+      .where(eq(grievances.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Amenities permissions
+  async getAmenitiesPermissions(userId: string): Promise<AmenitiesPermissions | undefined> {
+    const [permissions] = await db
+      .select()
+      .from(amenitiesPermissions)
+      .where(eq(amenitiesPermissions.userId, userId));
+    return permissions;
+  }
+
+  async setAmenitiesPermissions(permissions: InsertAmenitiesPermissions): Promise<AmenitiesPermissions> {
+    const [created] = await db
+      .insert(amenitiesPermissions)
+      .values(permissions)
+      .onConflictDoUpdate({
+        target: amenitiesPermissions.userId,
+        set: {
+          menuUpload: permissions.menuUpload,
+          sickFoodAccess: permissions.sickFoodAccess,
+          leaveApplicationAccess: permissions.leaveApplicationAccess,
+          grievanceAccess: permissions.grievanceAccess,
+          adminAccess: permissions.adminAccess,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
     return created;
   }

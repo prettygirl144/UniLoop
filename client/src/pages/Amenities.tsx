@@ -1,0 +1,822 @@
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { 
+  Utensils, 
+  UserX, 
+  Home, 
+  AlertTriangle, 
+  CalendarDays, 
+  Upload, 
+  Edit, 
+  Clock,
+  CheckCircle,
+  XCircle,
+  Users
+} from 'lucide-react';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { isUnauthorizedError } from '@/lib/authUtils';
+import { z } from 'zod';
+
+// Enhanced schemas with all required fields
+const sickFoodSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  mealType: z.string().min(1, 'Meal type is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
+  specialRequirements: z.string().optional(),
+});
+
+const leaveApplicationSchema = z.object({
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
+  reason: z.string().min(1, 'Reason is required'),
+  emergencyContact: z.string().min(1, 'Emergency contact is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
+});
+
+const grievanceSchema = z.object({
+  category: z.string().min(1, 'Category is required'),
+  description: z.string().min(1, 'Description is required'),
+  roomNumber: z.string().min(1, 'Room number is required'),
+});
+
+const menuUploadSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  mealType: z.string().min(1, 'Meal type is required'),
+  items: z.string().min(1, 'Menu items are required'),
+});
+
+type SickFoodForm = z.infer<typeof sickFoodSchema>;
+type LeaveApplicationForm = z.infer<typeof leaveApplicationSchema>;
+type GrievanceForm = z.infer<typeof grievanceSchema>;
+type MenuUploadForm = z.infer<typeof menuUploadSchema>;
+
+export default function Amenities() {
+  const [showSickFoodDialog, setShowSickFoodDialog] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
+  const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Check if user is admin
+  const isAdmin = (user as any)?.role === 'admin';
+
+  // Form instances
+  const sickFoodForm = useForm<SickFoodForm>({
+    resolver: zodResolver(sickFoodSchema),
+    defaultValues: {
+      date: '',
+      mealType: '',
+      roomNumber: '',
+      specialRequirements: '',
+    },
+  });
+
+  const leaveForm = useForm<LeaveApplicationForm>({
+    resolver: zodResolver(leaveApplicationSchema),
+    defaultValues: {
+      startDate: '',
+      endDate: '',
+      reason: '',
+      emergencyContact: '',
+      roomNumber: '',
+    },
+  });
+
+  const grievanceForm = useForm<GrievanceForm>({
+    resolver: zodResolver(grievanceSchema),
+    defaultValues: {
+      category: '',
+      description: '',
+      roomNumber: '',
+    },
+  });
+
+  const menuUploadForm = useForm<MenuUploadForm>({
+    resolver: zodResolver(menuUploadSchema),
+    defaultValues: {
+      date: '',
+      mealType: '',
+      items: '',
+    },
+  });
+
+  // Data queries
+  const { data: todaysMenu = [], isLoading: menuLoading } = useQuery({
+    queryKey: ['/api/dining/menu'],
+  });
+
+  const { data: sickFoodBookings = [] } = useQuery({
+    queryKey: ['/api/dining/sick-food'],
+    enabled: isAdmin,
+  });
+
+  const { data: leaveApplications = [] } = useQuery({
+    queryKey: ['/api/hostel/leave'],
+    enabled: isAdmin,
+  });
+
+  const { data: grievances = [] } = useQuery({
+    queryKey: ['/api/grievances'],
+    enabled: isAdmin,
+  });
+
+  // Mutations
+  const sickFoodMutation = useMutation({
+    mutationFn: async (data: SickFoodForm) => {
+      await apiRequest('POST', '/api/dining/sick-food', data);
+    },
+    onSuccess: () => {
+      setShowSickFoodDialog(false);
+      sickFoodForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Sick food booking submitted successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/dining/sick-food'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to submit booking. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: async (data: LeaveApplicationForm) => {
+      await apiRequest('POST', '/api/hostel/leave', data);
+    },
+    onSuccess: () => {
+      setShowLeaveDialog(false);
+      leaveForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Leave application submitted successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/hostel/leave'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to submit application. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const grievanceMutation = useMutation({
+    mutationFn: async (data: GrievanceForm) => {
+      await apiRequest('POST', '/api/grievances', data);
+    },
+    onSuccess: () => {
+      setShowGrievanceDialog(false);
+      grievanceForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Grievance submitted successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/grievances'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to submit grievance. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const menuUploadMutation = useMutation({
+    mutationFn: async (data: MenuUploadForm) => {
+      const items = data.items.split('\n').filter(item => item.trim() !== '');
+      await apiRequest('POST', '/api/dining/menu/upload', {
+        menuItems: [{
+          date: data.date,
+          mealType: data.mealType,
+          items,
+        }]
+      });
+    },
+    onSuccess: () => {
+      setShowMenuUploadDialog(false);
+      menuUploadForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Menu uploaded successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/dining/menu'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to upload menu. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const resolveGrievanceMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes?: string }) => {
+      await apiRequest('POST', `/api/grievances/${id}/resolve`, { adminNotes });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Grievance resolved successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/grievances'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to resolve grievance.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  return (
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Amenities</h1>
+          <p className="text-muted-foreground">Campus dining, accommodation, and services</p>
+        </div>
+        {isAdmin && (
+          <Dialog open={showMenuUploadDialog} onOpenChange={setShowMenuUploadDialog}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Upload Menu
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Menu</DialogTitle>
+              </DialogHeader>
+              <Form {...menuUploadForm}>
+                <form onSubmit={menuUploadForm.handleSubmit((data) => menuUploadMutation.mutate(data))} className="space-y-4">
+                  <FormField
+                    control={menuUploadForm.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={menuUploadForm.control}
+                    name="mealType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Meal Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select meal type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="breakfast">Breakfast</SelectItem>
+                            <SelectItem value="lunch">Lunch</SelectItem>
+                            <SelectItem value="snacks">Snacks</SelectItem>
+                            <SelectItem value="dinner">Dinner</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={menuUploadForm.control}
+                    name="items"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Menu Items (one per line)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Rice&#10;Dal&#10;Sabzi&#10;Roti"
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button 
+                    type="submit" 
+                    disabled={menuUploadMutation.isPending}
+                    className="w-full"
+                  >
+                    {menuUploadMutation.isPending ? 'Uploading...' : 'Upload Menu'}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <Tabs defaultValue="menu" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="menu">Today's Menu</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+          {isAdmin && <TabsTrigger value="bookings">Bookings</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="admin">Admin Panel</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="menu" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Utensils className="h-5 w-5" />
+                Today's Menu
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {menuLoading ? (
+                <div className="text-center py-8">Loading menu...</div>
+              ) : (todaysMenu as any[]).length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {(todaysMenu as any[]).map((menu: any) => (
+                    <div key={`${menu.id}`} className="p-4 border rounded-lg">
+                      <h3 className="font-semibold capitalize mb-2">{menu.mealType}</h3>
+                      <ul className="space-y-1">
+                        {menu.items.map((item: string, index: number) => (
+                          <li key={index} className="text-sm text-muted-foreground">
+                            • {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No menu available for today
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="services" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Sick Food Booking */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserX className="h-5 w-5" />
+                  Sick Food Booking
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Request food delivery to your room when you're unwell
+                </p>
+                <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full">Book Sick Food</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Book Sick Food</DialogTitle>
+                    </DialogHeader>
+                    <Form {...sickFoodForm}>
+                      <form onSubmit={sickFoodForm.handleSubmit((data) => sickFoodMutation.mutate(data))} className="space-y-4">
+                        <FormField
+                          control={sickFoodForm.control}
+                          name="date"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={sickFoodForm.control}
+                          name="mealType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Meal Type</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select meal type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="breakfast">Breakfast</SelectItem>
+                                  <SelectItem value="lunch">Lunch</SelectItem>
+                                  <SelectItem value="dinner">Dinner</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={sickFoodForm.control}
+                          name="roomNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Room Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., A-101" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={sickFoodForm.control}
+                          name="specialRequirements"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Special Requirements</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Any dietary restrictions or special needs..." {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button 
+                          type="submit" 
+                          disabled={sickFoodMutation.isPending}
+                          className="w-full"
+                        >
+                          {sickFoodMutation.isPending ? 'Submitting...' : 'Submit Booking'}
+                        </Button>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+
+            {/* Leave Application */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="h-5 w-5" />
+                  Leave Application
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Apply for hostel leave with approval workflow
+                </p>
+                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full">Apply for Leave</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Hostel Leave Application</DialogTitle>
+                    </DialogHeader>
+                    <Form {...leaveForm}>
+                      <form onSubmit={leaveForm.handleSubmit((data) => leaveMutation.mutate(data))} className="space-y-4">
+                        <FormField
+                          control={leaveForm.control}
+                          name="startDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Start Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={leaveForm.control}
+                          name="endDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>End Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={leaveForm.control}
+                          name="reason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Reason for Leave</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Explain the reason for your leave..." {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={leaveForm.control}
+                          name="emergencyContact"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Emergency Contact</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Phone number for emergency contact" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={leaveForm.control}
+                          name="roomNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Room Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., A-101" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button 
+                          type="submit" 
+                          disabled={leaveMutation.isPending}
+                          className="w-full"
+                        >
+                          {leaveMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                        </Button>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+
+            {/* Grievance */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Submit Grievance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Report issues with mess, hostel, IT, or other services
+                </p>
+                <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full">Submit Grievance</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Submit Grievance</DialogTitle>
+                    </DialogHeader>
+                    <Form {...grievanceForm}>
+                      <form onSubmit={grievanceForm.handleSubmit((data) => grievanceMutation.mutate(data))} className="space-y-4">
+                        <FormField
+                          control={grievanceForm.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Category</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Mess">Mess</SelectItem>
+                                  <SelectItem value="IT">IT Services</SelectItem>
+                                  <SelectItem value="Hostel">Hostel Maintenance</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={grievanceForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Description</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Describe your grievance in detail..." {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={grievanceForm.control}
+                          name="roomNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Room Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., A-101" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button 
+                          type="submit" 
+                          disabled={grievanceMutation.isPending}
+                          className="w-full"
+                        >
+                          {grievanceMutation.isPending ? 'Submitting...' : 'Submit Grievance'}
+                        </Button>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="bookings" className="space-y-4">
+            <div className="grid gap-4">
+              {/* Sick Food Bookings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sick Food Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(sickFoodBookings as any[]).length > 0 ? (
+                    <div className="space-y-2">
+                      {(sickFoodBookings as any[]).map((booking: any) => (
+                        <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                            <p className="text-sm text-muted-foreground">Room: {booking.roomNumber}</p>
+                            {booking.specialRequirements && (
+                              <p className="text-sm text-muted-foreground">Special: {booking.specialRequirements}</p>
+                            )}
+                          </div>
+                          <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'}>
+                            {booking.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No bookings found</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Leave Applications */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Leave Applications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(leaveApplications as any[]).length > 0 ? (
+                    <div className="space-y-2">
+                      {(leaveApplications as any[]).map((application: any) => (
+                        <div key={application.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">
+                              {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm text-muted-foreground">Room: {application.roomNumber}</p>
+                            <p className="text-sm text-muted-foreground">Contact: {application.emergencyContact}</p>
+                            <p className="text-sm text-muted-foreground">Reason: {application.reason}</p>
+                          </div>
+                          <Badge variant={application.status === 'pending' ? 'secondary' : 'default'}>
+                            {application.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No applications found</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="admin" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Grievance Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(grievances as any[]).length > 0 ? (
+                  <div className="space-y-3">
+                    {(grievances as any[]).map((grievance: any) => (
+                      <div key={grievance.id} className="p-4 border rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline">{grievance.category}</Badge>
+                          <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'}>
+                            {grievance.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm">{grievance.description}</p>
+                        <p className="text-xs text-muted-foreground">Room: {grievance.roomNumber}</p>
+                        {grievance.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
+                            disabled={resolveGrievanceMutation.isPending}
+                          >
+                            Mark as Resolved
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No grievances found</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  );
+}
