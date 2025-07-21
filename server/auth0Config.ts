@@ -1,17 +1,21 @@
-import { auth } from 'express-oauth2-jwt-bearer';
 import type { RequestHandler } from 'express';
 
-const isAuth0Configured = !!(process.env.AUTH0_DOMAIN && process.env.AUTH0_AUDIENCE);
+// Simplified Auth0 configuration check (no audience needed for Google OAuth only)
+const isAuth0Configured = !!(
+  process.env.AUTH0_DOMAIN &&
+  process.env.AUTH0_CLIENT_ID &&
+  process.env.AUTH0_CLIENT_SECRET
+);
 
 if (!isAuth0Configured) {
   console.warn('Auth0 environment variables not configured. Using fallback authentication.');
+} else {
+  console.log('Auth0 configured with simplified Google OAuth authentication.');
 }
 
-// Auth0 JWT validation middleware - only create if Auth0 is configured
-export const checkAuth0Jwt: RequestHandler = isAuth0Configured ? auth({
-  issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`,
-  audience: process.env.AUTH0_AUDIENCE,
-}) : (req, res, next) => next(); // Passthrough middleware if Auth0 not configured
+// Since we're simplifying to Google OAuth only without JWT audience validation,
+// we'll use session-based authentication instead of JWT middleware
+export const checkAuth0Jwt: RequestHandler = (req, res, next) => next();
 
 // Custom Auth0 middleware that handles both Auth0 JWT and fallback to existing auth
 export const checkAuth: RequestHandler = async (req, res, next) => {
@@ -26,7 +30,7 @@ export const checkAuth: RequestHandler = async (req, res, next) => {
 };
 
 // Error handler for Auth0 authentication errors
-export const handleAuthError: RequestHandler = (err, req, res, next) => {
+export const handleAuthError = (err: any, req: any, res: any, next: any) => {
   if (err.name === 'UnauthorizedError') {
     return res.status(401).json({ 
       message: 'Unauthorized',

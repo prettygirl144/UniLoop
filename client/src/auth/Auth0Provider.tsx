@@ -8,10 +8,9 @@ interface Auth0ProviderProps {
 export default function Auth0Provider({ children }: Auth0ProviderProps) {
   const domain = import.meta.env.VITE_AUTH0_DOMAIN;
   const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
-  const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
 
-  // If Auth0 is not configured, render children without Auth0 provider
-  if (!domain || !clientId || !audience) {
+  // Simplified check - no audience needed for Google OAuth only
+  if (!domain || !clientId) {
     console.warn('Auth0 not configured, falling back to existing authentication');
     return <>{children}</>;
   }
@@ -24,7 +23,6 @@ export default function Auth0Provider({ children }: Auth0ProviderProps) {
       clientId={clientId}
       authorizationParams={{
         redirect_uri: redirectUri,
-        audience: audience,
         scope: "openid profile email",
         // Force Google login only
         connection: "google-oauth2"

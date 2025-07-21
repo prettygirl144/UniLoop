@@ -5,8 +5,7 @@ export function isUnauthorizedError(error: Error): boolean {
 // Auth0 logout function
 export function logout() {
   const isAuth0Configured = !!(import.meta.env.VITE_AUTH0_DOMAIN && 
-                               import.meta.env.VITE_AUTH0_CLIENT_ID && 
-                               import.meta.env.VITE_AUTH0_AUDIENCE);
+                               import.meta.env.VITE_AUTH0_CLIENT_ID);
 
   if (isAuth0Configured) {
     // For Auth0, we need to use the logout from useAuth0 hook

@@ -36,6 +36,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Check Auth0 configuration
+const isAuth0Configured = !!(process.env.AUTH0_DOMAIN && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET);
+if (isAuth0Configured) {
+  console.log("Auth0 configured for simplified Google OAuth authentication.");
+} else {
+  console.log("Auth0 environment variables not configured. Using fallback authentication.");
+}
+
 (async () => {
   const server = await registerRoutes(app);
 

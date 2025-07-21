@@ -6,10 +6,9 @@ import { setGlobalAccessTokenFunction } from "@/lib/queryClient";
 export function useAuth() {
   const auth0 = useAuth0();
   
-  // Check if Auth0 is configured
+  // Check if Auth0 is configured (simplified - no audience needed)
   const isAuth0Configured = !!(import.meta.env.VITE_AUTH0_DOMAIN && 
-                               import.meta.env.VITE_AUTH0_CLIENT_ID && 
-                               import.meta.env.VITE_AUTH0_AUDIENCE);
+                               import.meta.env.VITE_AUTH0_CLIENT_ID);
 
   // Set up global access token function for API requests
   useEffect(() => {
