@@ -93,14 +93,24 @@ router.get('/callback', async (req, res) => {
       } : {},
     });
 
-    // Set user session
+    // Set user session with admin role/permissions if applicable
+    const sessionRole = isAdmin ? 'admin' : 'student';
+    const sessionPermissions = isAdmin ? {
+      calendar: true,
+      attendance: true,
+      gallery: true,
+      forumMod: true,
+      diningHostel: true,
+      postCreation: true
+    } : {};
+
     (req as any).session.user = {
       id: user.id,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`.trim(),
       picture: user.profileImageUrl,
-      role: user.role,
-      permissions: user.permissions,
+      role: sessionRole,
+      permissions: sessionPermissions,
       firstName: user.firstName,
       lastName: user.lastName,
       profileImageUrl: user.profileImageUrl,
@@ -108,6 +118,7 @@ router.get('/callback', async (req, res) => {
 
     console.log('User session created:', (req as any).session.user);
     console.log('Admin access granted:', isAdmin);
+    console.log('Database user created:', user);
 
     // Redirect to home page
     res.redirect('/');
@@ -134,6 +145,16 @@ router.get('/logout', (req, res) => {
       `returnTo=${encodeURIComponent(returnTo)}`;
       
     res.redirect(logoutUrl);
+  });
+});
+
+// Force logout route to clear session completely
+router.get('/force-logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Session destruction error:', err);
+    }
+    res.json({ message: 'Session cleared' });
   });
 });
 
