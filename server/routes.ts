@@ -358,6 +358,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update menu by ID (admin only)
+  app.put('/api/dining/menu/:id', checkAuth, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      if (req.session.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { items } = req.body;
+      
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ message: 'Invalid menu items' });
+      }
+
+      const menu = await storage.updateMenuById(parseInt(id), items);
+      res.json(menu);
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      res.status(500).json({ message: "Failed to update menu" });
+    }
+  });
+
   // Book sick food
   app.post('/api/dining/sick-food', checkAuth, async (req: any, res) => {
     try {

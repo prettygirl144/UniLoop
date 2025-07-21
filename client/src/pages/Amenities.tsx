@@ -57,10 +57,13 @@ const grievanceSchema = z.object({
 });
 
 const menuUploadSchema = z.object({
-  date: z.string().min(1, 'Date is required'),
-  mealType: z.string().min(1, 'Meal type is required'),
-  items: z.string().min(1, 'Menu items are required'),
-});
+  date: z.string().optional(),
+  mealType: z.string().optional(),
+  items: z.string().optional(),
+}).refine((data) => {
+  // Skip validation if uploading Excel file
+  return true;
+}, { message: "Please either upload an Excel file or fill all manual fields" });
 
 type SickFoodForm = z.infer<typeof sickFoodSchema>;
 type LeaveApplicationForm = z.infer<typeof leaveApplicationSchema>;
@@ -73,6 +76,8 @@ export default function Amenities() {
   const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
   const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [editingMenu, setEditingMenu] = useState<{id: number, date: string, mealType: string, items: string[]} | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -116,6 +121,12 @@ export default function Amenities() {
     defaultValues: {
       date: '',
       mealType: '',
+      items: '',
+    },
+  });
+
+  const menuEditForm = useForm({
+    defaultValues: {
       items: '',
     },
   });
@@ -246,8 +257,11 @@ export default function Amenities() {
         // Excel file upload
         await apiRequest('POST', '/api/dining/menu/upload', data);
       } else {
-        // Manual text input
-        const items = data.items.split('\n').filter(item => item.trim() !== '');
+        // Manual text input - validate required fields only if no file uploaded
+        if (!uploadedFile && (!data.date || !data.mealType || !data.items)) {
+          throw new Error('All fields are required when not uploading an Excel file');
+        }
+        const items = (data.items || '').split('\n').filter(item => item.trim() !== '');
         await apiRequest('POST', '/api/dining/menu/upload', {
           menuItems: [{
             date: data.date,
@@ -409,6 +423,53 @@ export default function Amenities() {
     }
   };
 
+  // Edit menu functionality
+  const editMenuMutation = useMutation({
+    mutationFn: async ({ id, items }: { id: number; items: string[] }) => {
+      await apiRequest('PUT', `/api/dining/menu/${id}`, { items });
+    },
+    onSuccess: () => {
+      setShowEditDialog(false);
+      setEditingMenu(null);
+      menuEditForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Menu updated successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/dining/menu'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to update menu.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleEditMenu = (menuItem: any) => {
+    setEditingMenu(menuItem);
+    menuEditForm.setValue('items', menuItem.items.join('\n'));
+    setShowEditDialog(true);
+  };
+
+  const handleSaveMenuEdit = (data: { items: string }) => {
+    if (!editingMenu) return;
+    const items = data.items.split('\n').filter(item => item.trim() !== '');
+    editMenuMutation.mutate({ id: editingMenu.id, items });
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -520,7 +581,7 @@ export default function Amenities() {
                       />
                       <Button 
                         type="submit" 
-                        disabled={menuUploadMutation.isPending}
+                        disabled={menuUploadMutation.isPending || (!uploadedFile && (!menuUploadForm.watch('date') || !menuUploadForm.watch('mealType') || !menuUploadForm.watch('items')))}
                         className="w-full"
                       >
                         {menuUploadMutation.isPending ? 'Uploading...' : 'Upload Menu'}
@@ -557,7 +618,19 @@ export default function Amenities() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {(todaysMenu as any[]).map((menu: any) => (
                     <div key={`${menu.id}`} className="p-4 border rounded-lg">
-                      <h3 className="font-semibold capitalize mb-2">{menu.mealType}</h3>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold capitalize">{menu.mealType}</h3>
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditMenu(menu)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                       <ul className="space-y-1">
                         {menu.items.map((item: string, index: number) => (
                           <li key={index} className="text-sm text-muted-foreground">
@@ -578,22 +651,22 @@ export default function Amenities() {
         </TabsContent>
 
         <TabsContent value="services" className="space-y-4">
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {/* Sick Food Booking */}
-            <Card className="flex flex-col h-full">
-              <CardHeader className="flex-shrink-0">
-                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
-                  <UserX className="h-5 w-5 flex-shrink-0" />
-                  <span className="min-w-0">Sick Food Booking</span>
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
+                  <UserX className="h-4 w-4 flex-shrink-0" />
+                  <span className="break-words">Sick Food Booking</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col justify-between">
-                <p className="text-sm text-muted-foreground mb-4 flex-1">
+              <CardContent className="flex flex-col justify-between flex-1 pt-0">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
                   Request food delivery to your room when you're unwell
                 </p>
                 <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full">Book Sick Food</Button>
+                    <Button className="w-full text-xs py-2">Book Sick Food</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -677,20 +750,20 @@ export default function Amenities() {
             </Card>
 
             {/* Leave Application */}
-            <Card className="flex flex-col h-full">
-              <CardHeader className="flex-shrink-0">
-                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
-                  <Home className="h-5 w-5 flex-shrink-0" />
-                  <span className="min-w-0">Leave Application</span>
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
+                  <Home className="h-4 w-4 flex-shrink-0" />
+                  <span className="break-words">Leave Application</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col justify-between">
-                <p className="text-sm text-muted-foreground mb-4 flex-1">
+              <CardContent className="flex flex-col justify-between flex-1 pt-0">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
                 <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full">Apply for Leave</Button>
+                    <Button className="w-full text-xs py-2">Apply for Leave</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -778,20 +851,20 @@ export default function Amenities() {
             </Card>
 
             {/* Grievance */}
-            <Card className="flex flex-col h-full">
-              <CardHeader className="flex-shrink-0">
-                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
-                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                  <span className="min-w-0">Submit Grievance</span>
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <span className="break-words">Submit Grievance</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col justify-between">
-                <p className="text-sm text-muted-foreground mb-4 flex-1">
+              <CardContent className="flex flex-col justify-between flex-1 pt-0">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
                   Report issues with mess, hostel, IT, or other services
                 </p>
                 <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full">Submit Grievance</Button>
+                    <Button className="w-full text-xs py-2">Submit Grievance</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -995,6 +1068,53 @@ export default function Amenities() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Edit Menu Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Menu - {editingMenu?.mealType}</DialogTitle>
+          </DialogHeader>
+          <Form {...menuEditForm}>
+            <form onSubmit={menuEditForm.handleSubmit(handleSaveMenuEdit)} className="space-y-4">
+              <FormField
+                control={menuEditForm.control}
+                name="items"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Menu Items (one per line)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Rice&#10;Dal&#10;Sabzi&#10;Roti"
+                        className="min-h-[150px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEditDialog(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={editMenuMutation.isPending}
+                  className="flex-1"
+                >
+                  {editMenuMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
