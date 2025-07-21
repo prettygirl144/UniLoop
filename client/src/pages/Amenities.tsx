@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,13 +23,16 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Users
+  Users,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import { z } from 'zod';
+import * as XLSX from 'xlsx';
 
 // Enhanced schemas with all required fields
 const sickFoodSchema = z.object({
@@ -69,6 +72,8 @@ export default function Amenities() {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
   const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -236,19 +241,26 @@ export default function Amenities() {
   });
 
   const menuUploadMutation = useMutation({
-    mutationFn: async (data: MenuUploadForm) => {
-      const items = data.items.split('\n').filter(item => item.trim() !== '');
-      await apiRequest('POST', '/api/dining/menu/upload', {
-        menuItems: [{
-          date: data.date,
-          mealType: data.mealType,
-          items,
-        }]
-      });
+    mutationFn: async (data: MenuUploadForm | { menuItems: any[] }) => {
+      if ('menuItems' in data) {
+        // Excel file upload
+        await apiRequest('POST', '/api/dining/menu/upload', data);
+      } else {
+        // Manual text input
+        const items = data.items.split('\n').filter(item => item.trim() !== '');
+        await apiRequest('POST', '/api/dining/menu/upload', {
+          menuItems: [{
+            date: data.date,
+            mealType: data.mealType,
+            items,
+          }]
+        });
+      }
     },
     onSuccess: () => {
       setShowMenuUploadDialog(false);
       menuUploadForm.reset();
+      setUploadedFile(null);
       toast({
         title: 'Success',
         description: 'Menu uploaded successfully!',
@@ -295,6 +307,108 @@ export default function Amenities() {
     },
   });
 
+  // File upload handlers
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      setUploadedFile(file);
+      processExcelFile(file);
+    } else {
+      toast({
+        title: 'Invalid File',
+        description: 'Please select an Excel (.xlsx) file.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const processExcelFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        // Process Excel data and create menu items
+        const menuItems: any[] = [];
+        for (let i = 1; i < jsonData.length; i++) { // Skip header row
+          const row = jsonData[i] as any[];
+          if (row.length >= 3) {
+            menuItems.push({
+              date: row[0],
+              mealType: row[1],
+              items: row.slice(2).filter(item => item && item.toString().trim() !== '')
+            });
+          }
+        }
+
+        menuUploadMutation.mutate({ menuItems });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to process Excel file. Please check the format.',
+          variant: 'destructive',
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Download reports
+  const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {
+    try {
+      let data: any[] = [];
+      let filename = '';
+      
+      switch (reportType) {
+        case 'sick-food':
+          data = sickFoodBookings as any[];
+          filename = 'sick-food-bookings.xlsx';
+          break;
+        case 'leave-applications':
+          data = leaveApplications as any[];
+          filename = 'leave-applications.xlsx';
+          break;
+        case 'grievances':
+          data = grievances as any[];
+          filename = 'grievances.xlsx';
+          break;
+      }
+
+      if (data.length === 0) {
+        toast({
+          title: 'No Data',
+          description: 'No data available to download.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+      XLSX.writeFile(workbook, filename);
+      
+      toast({
+        title: 'Success',
+        description: 'Report downloaded successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download report.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -303,83 +417,120 @@ export default function Amenities() {
           <p className="text-muted-foreground">Campus dining, accommodation, and services</p>
         </div>
         {isAdmin && (
-          <Dialog open={showMenuUploadDialog} onOpenChange={setShowMenuUploadDialog}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Upload Menu
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Upload Menu</DialogTitle>
-              </DialogHeader>
-              <Form {...menuUploadForm}>
-                <form onSubmit={menuUploadForm.handleSubmit((data) => menuUploadMutation.mutate(data))} className="space-y-4">
-                  <FormField
-                    control={menuUploadForm.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={menuUploadForm.control}
-                    name="mealType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Meal Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select meal type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="breakfast">Breakfast</SelectItem>
-                            <SelectItem value="lunch">Lunch</SelectItem>
-                            <SelectItem value="snacks">Snacks</SelectItem>
-                            <SelectItem value="dinner">Dinner</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={menuUploadForm.control}
-                    name="items"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Menu Items (one per line)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Rice&#10;Dal&#10;Sabzi&#10;Roti"
-                            className="min-h-[100px]"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button 
-                    type="submit" 
-                    disabled={menuUploadMutation.isPending}
-                    className="w-full"
-                  >
-                    {menuUploadMutation.isPending ? 'Uploading...' : 'Upload Menu'}
-                  </Button>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2 flex-wrap">
+            <Dialog open={showMenuUploadDialog} onOpenChange={setShowMenuUploadDialog}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload Menu
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Upload Menu</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Excel File Upload */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <div className="text-center">
+                      <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <div className="text-sm text-gray-600 mb-2">
+                        Upload Excel file (.xlsx)
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleFileSelect}
+                        className="mb-2"
+                      >
+                        Choose File
+                      </Button>
+                      {uploadedFile && (
+                        <div className="text-xs text-green-600">
+                          Selected: {uploadedFile.name}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                  
+                  <div className="text-center text-sm text-gray-500">OR</div>
+                  
+                  {/* Manual Form */}
+                  <Form {...menuUploadForm}>
+                    <form onSubmit={menuUploadForm.handleSubmit((data) => menuUploadMutation.mutate(data))} className="space-y-4">
+                      <FormField
+                        control={menuUploadForm.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={menuUploadForm.control}
+                        name="mealType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Meal Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select meal type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="breakfast">Breakfast</SelectItem>
+                                <SelectItem value="lunch">Lunch</SelectItem>
+                                <SelectItem value="snacks">Snacks</SelectItem>
+                                <SelectItem value="dinner">Dinner</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={menuUploadForm.control}
+                        name="items"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Menu Items (one per line)</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Rice&#10;Dal&#10;Sabzi&#10;Roti"
+                                className="min-h-[100px]"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button 
+                        type="submit" 
+                        disabled={menuUploadMutation.isPending}
+                        className="w-full"
+                      >
+                        {menuUploadMutation.isPending ? 'Uploading...' : 'Upload Menu'}
+                      </Button>
+                    </form>
+                  </Form>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       </div>
 
@@ -427,17 +578,17 @@ export default function Amenities() {
         </TabsContent>
 
         <TabsContent value="services" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {/* Sick Food Booking */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserX className="h-5 w-5" />
-                  Sick Food Booking
+            <Card className="flex flex-col h-full">
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
+                  <UserX className="h-5 w-5 flex-shrink-0" />
+                  <span className="min-w-0">Sick Food Booking</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex-1 flex flex-col justify-between">
+                <p className="text-sm text-muted-foreground mb-4 flex-1">
                   Request food delivery to your room when you're unwell
                 </p>
                 <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
@@ -526,15 +677,15 @@ export default function Amenities() {
             </Card>
 
             {/* Leave Application */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Home className="h-5 w-5" />
-                  Leave Application
+            <Card className="flex flex-col h-full">
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
+                  <Home className="h-5 w-5 flex-shrink-0" />
+                  <span className="min-w-0">Leave Application</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex-1 flex flex-col justify-between">
+                <p className="text-sm text-muted-foreground mb-4 flex-1">
                   Apply for hostel leave with approval workflow
                 </p>
                 <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
@@ -627,15 +778,15 @@ export default function Amenities() {
             </Card>
 
             {/* Grievance */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Submit Grievance
+            <Card className="flex flex-col h-full">
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center gap-2 text-base whitespace-normal word-break-break-word">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                  <span className="min-w-0">Submit Grievance</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex-1 flex flex-col justify-between">
+                <p className="text-sm text-muted-foreground mb-4 flex-1">
                   Report issues with mess, hostel, IT, or other services
                 </p>
                 <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
@@ -718,8 +869,17 @@ export default function Amenities() {
             <div className="grid gap-4">
               {/* Sick Food Bookings */}
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Sick Food Bookings</CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadReports('sick-food')}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {(sickFoodBookings as any[]).length > 0 ? (
@@ -747,8 +907,17 @@ export default function Amenities() {
 
               {/* Leave Applications */}
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Leave Applications</CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadReports('leave-applications')}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {(leaveApplications as any[]).length > 0 ? (
@@ -781,8 +950,17 @@ export default function Amenities() {
         {isAdmin && (
           <TabsContent value="admin" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Grievance Management</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadReports('grievances')}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
               </CardHeader>
               <CardContent>
                 {(grievances as any[]).length > 0 ? (

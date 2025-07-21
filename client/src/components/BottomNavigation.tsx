@@ -7,7 +7,7 @@ const navItems = [
   { path: '/calendar', icon: Calendar, label: 'Events', id: 'calendar' },
   { path: '/gallery', icon: Image, label: 'Gallery', id: 'gallery' },
   { path: '/forum', icon: MessageSquare, label: 'Forum', id: 'forum' },
-  { path: '/dining', icon: Utensils, label: 'Dining', id: 'dining' },
+  { path: '/dining', icon: Utensils, label: 'Amenities', id: 'dining' },
 ];
 
 const adminNavItem = { path: '/admin', icon: Settings, label: 'Admin', id: 'admin' };
@@ -17,7 +17,7 @@ export default function BottomNavigation() {
   const { user } = useAuth();
   
   // Add admin item for admin users
-  const allNavItems = user?.role === 'admin' ? [...navItems, adminNavItem] : navItems;
+  const allNavItems = (user as any)?.role === 'admin' ? [...navItems, adminNavItem] : navItems;
 
   return (
     <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-surface border-t border-gray-200">
