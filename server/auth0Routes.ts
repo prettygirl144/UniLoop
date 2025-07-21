@@ -7,15 +7,18 @@ const router = express.Router();
 router.get('/login', (req, res) => {
   const auth0Domain = process.env.AUTH0_DOMAIN;
   const clientId = process.env.AUTH0_CLIENT_ID;
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/callback`;
+  const redirectUri = `https://${req.get('host')}/api/callback`;
+  
+  console.log('Login redirect URI:', redirectUri);
   
   const auth0Url = `https://${auth0Domain}/authorize?` +
     `response_type=code&` +
     `client_id=${clientId}&` +
-    `redirect_uri=${redirectUri}&` +
+    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `scope=openid%20profile%20email&` +
     `connection=google-oauth2`;
     
+  console.log('Auth0 URL:', auth0Url);
   res.redirect(auth0Url);
 });
 
@@ -31,7 +34,9 @@ router.get('/callback', async (req, res) => {
     const auth0Domain = process.env.AUTH0_DOMAIN;
     const clientId = process.env.AUTH0_CLIENT_ID;
     const clientSecret = process.env.AUTH0_CLIENT_SECRET;
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/callback`;
+    const redirectUri = `https://${req.get('host')}/api/callback`;
+    
+    console.log('Callback redirect URI:', redirectUri);
 
     // Exchange code for token
     const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
