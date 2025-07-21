@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users } from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
@@ -34,7 +34,7 @@ type CreateEventForm = z.infer<typeof createEventSchema>;
 export default function Calendar() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

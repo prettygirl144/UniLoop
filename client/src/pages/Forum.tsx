@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Plus, ThumbsUp, Heart, MessageSquare, Share, Bookmark } from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
@@ -38,7 +38,7 @@ const categories = [
 export default function Forum() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [activeCategory, setActiveCategory] = useState('general');
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

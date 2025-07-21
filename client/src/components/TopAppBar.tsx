@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
 
 export default function TopAppBar() {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const toggleNotifications = () => {

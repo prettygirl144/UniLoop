@@ -1,6 +1,8 @@
 import { useEffect } from "react";
-import { useAuthContext } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+
+import type { User } from "@shared/schema";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +16,7 @@ export default function ProtectedRoute({
   requireAdmin 
 }: ProtectedRouteProps) {
   const { toast } = useToast();
-  const { user, isAuthenticated, isLoading } = useAuthContext();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
