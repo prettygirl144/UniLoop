@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Heart, Share, CalendarPlus } from 'lucide-react';
-import { Link } from 'wouter';
 import type { Announcement } from '@shared/schema';
 
 export default function Home() {
@@ -13,15 +11,15 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
+      <div className="content-spacing">
+        <div className="grid-tablet gap-md">
+          <div className="card-elevated p-md animate-pulse">
+            <div className="h-8 bg-muted rounded mb-2"></div>
+            <div className="h-4 bg-muted rounded"></div>
           </div>
-          <div className="bg-surface rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
+          <div className="card-elevated p-md animate-pulse">
+            <div className="h-8 bg-muted rounded mb-2"></div>
+            <div className="h-4 bg-muted rounded"></div>
           </div>
         </div>
       </div>
@@ -29,137 +27,112 @@ export default function Home() {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="shadow-sm border-gray-100">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-primary">5</p>
-                <p className="text-xs text-text-secondary">New Events</p>
-              </div>
-              <Calendar className="text-lg text-primary opacity-60" size={20} />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm border-gray-100">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-secondary">
-                  {announcements?.length || 0}
-                </p>
-                <p className="text-xs text-text-secondary">Announcements</p>
-              </div>
-              <MessageSquare className="text-lg text-secondary opacity-60" size={20} />
-            </div>
-          </CardContent>
-        </Card>
+    <div className="content-spacing">
+      {/* Welcome Card */}
+      <div className="bg-gradient-to-br from-primary to-accent rounded-xl p-lg text-primary-foreground section-spacing">
+        <h2 className="text-heading mb-2">Welcome back!</h2>
+        <p className="text-body opacity-90">Ready to explore campus life?</p>
       </div>
 
-      {/* Recent Announcements */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Latest Updates</h3>
-          <Link href="/announcements">
-            <Button variant="ghost" size="sm" className="text-primary">
-              See All
-            </Button>
-          </Link>
+      {/* Quick Stats */}
+      <div className="grid-tablet gap-md section-spacing">
+        <div className="card-interactive p-md">
+          <div className="flex-between">
+            <div>
+              <p className="text-lg font-bold text-primary">5</p>
+              <p className="text-caption">New Events</p>
+            </div>
+            <Calendar className="h-6 w-6 text-primary opacity-60" />
+          </div>
         </div>
         
-        {announcements?.slice(0, 3).map((announcement) => (
-          <Card key={announcement.id} className="shadow-sm border-gray-100">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs px-2 py-1 ${
-                        announcement.tag === 'Event' 
-                          ? 'bg-accent bg-opacity-10 text-accent' 
-                          : announcement.tag === 'Academic'
-                          ? 'bg-primary bg-opacity-10 text-primary'
-                          : 'bg-secondary bg-opacity-10 text-secondary'
-                      }`}
-                    >
-                      {announcement.tag}
-                    </Badge>
-                    <span className="text-xs text-text-secondary">
-                      {new Date(announcement.createdAt!).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                  <h4 className="font-medium text-sm mb-1">{announcement.title}</h4>
-                  <p className="text-xs text-text-secondary line-clamp-2">
-                    {announcement.description}
-                  </p>
-                </div>
-                <Button variant="ghost" size="sm" className="text-primary ml-3 p-1">
-                  <Heart size={14} />
-                </Button>
-              </div>
-              
-              {announcement.rsvpEnabled && (
-                <div className="flex items-center space-x-4 pt-2 border-t border-gray-100">
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-1 text-xs text-text-secondary p-0 h-auto">
-                    <CalendarPlus size={12} />
-                    <span>RSVP</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-1 text-xs text-text-secondary p-0 h-auto">
-                    <Share size={12} />
-                    <span>Share</span>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Upcoming Events Preview */}
-      <div className="space-y-3">
-        <h3 className="font-semibold">This Week's Events</h3>
-        
-        <div className="bg-gradient-to-r from-secondary to-green-600 rounded-xl p-4 text-white">
-          <div className="flex items-center justify-between">
+        <div className="card-interactive p-md">
+          <div className="flex-between">
             <div>
-              <h4 className="font-medium text-sm mb-1">Guest Lecture: AI in Healthcare</h4>
-              <p className="text-xs opacity-90">Tomorrow, 2:00 PM • Auditorium</p>
-              <div className="flex items-center space-x-1 mt-2">
-                <i className="fas fa-users text-xs"></i>
-                <span className="text-xs">45 attending</span>
-              </div>
+              <p className="text-lg font-bold text-accent">
+                {announcements?.length || 0}
+              </p>
+              <p className="text-caption">Announcements</p>
             </div>
-            <i className="fas fa-chalkboard-teacher text-2xl opacity-70"></i>
+            <MessageSquare className="h-6 w-6 text-accent opacity-60" />
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/forum">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
-            <CardContent className="p-4 text-center space-y-2">
-              <MessageSquare className="text-xl text-primary mx-auto" size={24} />
-              <p className="text-sm font-medium">Community</p>
-            </CardContent>
-          </Card>
-        </Link>
+      {/* Recent Announcements */}
+      <div className="content-spacing section-spacing">
+        <div className="flex-between">
+          <h3 className="text-heading">Latest Updates</h3>
+          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+            See All
+          </Button>
+        </div>
         
-        <Link href="/directory">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
-            <CardContent className="p-4 text-center space-y-2">
-              <i className="fas fa-address-book text-xl text-secondary"></i>
-              <p className="text-sm font-medium">Directory</p>
-            </CardContent>
-          </Card>
-        </Link>
+        <div className="mobile-flex">
+          {announcements?.slice(0, 3).map((announcement) => (
+            <div key={announcement.id} className="card-interactive p-md">
+              <div className="flex-between mb-3">
+                <div>
+                  <h4 className="text-body font-medium line-clamp-1">
+                    {announcement.title}
+                  </h4>
+                  <p className="text-caption mt-1">
+                    {new Date(announcement.createdAt || '').toLocaleDateString()}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-primary text-primary-foreground text-sm">
+                  New
+                </Badge>
+              </div>
+              
+              <p className="text-body text-muted-foreground leading-relaxed line-clamp-2 mb-3">
+                {announcement.description || announcement.content}
+              </p>
+              
+              <div className="flex-between">
+                <div className="flex items-center gap-lg text-muted-foreground">
+                  <button className="flex items-center gap-xs text-caption transition-smooth hover:text-accent">
+                    <Heart className="h-4 w-4" />
+                    <span>12</span>
+                  </button>
+                  <button className="flex items-center gap-xs text-caption transition-smooth hover:text-primary">
+                    <Share className="h-4 w-4" />
+                    <span>Share</span>
+                  </button>
+                </div>
+                <Button variant="ghost" size="sm" className="text-primary text-caption">
+                  Read More
+                </Button>
+              </div>
+            </div>
+          ))}
+          
+          {/* Empty State */}
+          {!announcements || announcements.length === 0 ? (
+            <div className="card-elevated p-xl text-center">
+              <CalendarPlus className="mx-auto h-12 w-12 text-muted-foreground mb-md" />
+              <p className="text-body text-muted-foreground">No announcements yet</p>
+              <p className="text-caption text-muted-foreground">Check back later for updates</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid-tablet gap-md section-spacing">
+        <Button className="btn-primary rounded-xl p-lg h-auto">
+          <div className="text-center">
+            <Calendar className="h-8 w-8 mx-auto mb-2" />
+            <p className="text-body font-medium">View Calendar</p>
+          </div>
+        </Button>
+        
+        <Button variant="secondary" className="btn-secondary rounded-xl p-lg h-auto">
+          <div className="text-center">
+            <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+            <p className="text-body font-medium">Browse Forum</p>
+          </div>
+        </Button>
       </div>
     </div>
   );

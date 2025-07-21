@@ -1,80 +1,125 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/components/ThemeProvider';
 import { Button } from '@/components/ui/button';
-import { Bell } from 'lucide-react';
+import { Bell, Sun, Moon, Monitor, X } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
 
 export default function TopAppBar() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications);
   };
 
+  const getThemeIcon = () => {
+    switch (theme) {
+      case 'light': return <Sun className="h-4 w-4" />;
+      case 'dark': return <Moon className="h-4 w-4" />;
+      default: return <Monitor className="h-4 w-4" />;
+    }
+  };
+
   return (
     <>
-      <div className="bg-primary text-white p-4 flex items-center justify-between relative">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-            <i className="fas fa-graduation-cap text-sm"></i>
-          </div>
-          <div>
-            <h1 className="font-semibold text-sm">Campus Connect</h1>
-            <p className="text-xs opacity-80 capitalize">{user?.role || 'Student'} Portal</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleNotifications}
-            className="relative text-white hover:bg-white hover:bg-opacity-10 p-2"
-          >
-            <Bell size={18} />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse"></div>
-          </Button>
-          
-          {/* Account Switcher */}
-          <div style={{ zIndex: 50 }}>
-            <CompactAccountSwitcher />
-          </div>
-          
-          {user?.profileImageUrl ? (
-            <img 
-              src={user.profileImageUrl} 
-              alt="Profile" 
-              className="w-8 h-8 rounded-full object-cover border-2 border-white border-opacity-30"
-            />
-          ) : (
-            <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {user?.firstName?.charAt(0) || 'U'}
-              </span>
+      <header className="bg-primary text-primary-foreground border-b border-border/20 sticky top-0 z-30">
+        <div className="container-mobile">
+          <div className="flex-between py-3">
+            <div className="flex items-center gap-md">
+              <div className="w-10 h-10 bg-primary-foreground/20 rounded-xl flex-center">
+                <span className="text-lg font-bold">🎓</span>
+              </div>
+              <div>
+                <h1 className="text-heading">Campus Connect</h1>
+                <p className="text-sm opacity-80 capitalize">Student Portal</p>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+            
+            <div className="flex items-center gap-sm">
+              {/* Theme Switcher */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="nav-item text-primary-foreground hover:bg-primary-foreground/10"
+                  >
+                    {getThemeIcon()}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setTheme('light')}>
+                    <Sun className="mr-2 h-4 w-4" />
+                    Light
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme('dark')}>
+                    <Moon className="mr-2 h-4 w-4" />
+                    Dark
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme('system')}>
+                    <Monitor className="mr-2 h-4 w-4" />
+                    System
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-      {/* Notification Panel */}
-      {showNotifications && (
-        <div className="fixed top-16 left-4 right-4 bg-surface rounded-xl shadow-xl border border-gray-200 z-40 max-w-sm mx-auto">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Notifications</h3>
+              {/* Notifications */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleNotifications}
-                className="text-text-secondary h-6 w-6 p-0"
+                className="nav-item relative text-primary-foreground hover:bg-primary-foreground/10"
               >
-                ×
+                <Bell className="h-4 w-4" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+              </Button>
+              
+              {/* Account Switcher */}
+              <div className="z-50">
+                <CompactAccountSwitcher />
+              </div>
+              
+              {/* User Avatar */}
+              {user?.picture ? (
+                <img 
+                  src={user.picture} 
+                  alt="Profile" 
+                  className="w-8 h-8 rounded-full object-cover border-2 border-primary-foreground/30"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-primary-foreground/20 rounded-full flex-center">
+                  <span className="text-sm font-medium">
+                    {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Notification Panel */}
+      {showNotifications && (
+        <div className="overlay" onClick={toggleNotifications}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-between mb-4">
+              <h3 className="text-heading">Notifications</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleNotifications}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="space-y-3">
-              <div className="p-3 bg-primary bg-opacity-5 rounded-lg border-l-4 border-primary">
-                <p className="text-sm font-medium">Welcome to Campus Connect!</p>
-                <p className="text-xs text-text-secondary">Get started by exploring the features</p>
+            <div className="content-spacing">
+              <div className="card-elevated p-4 border-l-4 border-accent">
+                <p className="text-body font-medium">Welcome to Campus Connect!</p>
+                <p className="text-caption">Get started by exploring the features</p>
               </div>
             </div>
           </div>
