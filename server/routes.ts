@@ -85,6 +85,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(handleAuthError);
 
   // Auth routes handled by auth0Routes.ts
+  // But we need to override the /api/auth/user route to use session data
+  app.get('/api/auth/user', (req: any, res) => {
+    const sessionUser = req.session?.user;
+    
+    console.log('Main auth/user route - session:', req.session);
+    console.log('Main auth/user route - user:', sessionUser);
+    
+    if (!sessionUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    res.json(sessionUser);
+  });
 
   // Auth0 user sync endpoint
   app.post('/api/auth0/sync-user', checkAuth, async (req: any, res) => {

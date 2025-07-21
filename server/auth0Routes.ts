@@ -89,12 +89,14 @@ router.get('/callback', async (req, res) => {
       picture: user.profileImageUrl,
     };
 
+    console.log('User session created:', (req as any).session.user);
+
     // Redirect to home page
     res.redirect('/');
     
   } catch (error) {
     console.error('Auth0 callback error:', error);
-    res.status(500).json({ error: 'Authentication failed' });
+    res.redirect('/?error=auth_failed');
   }
 });
 
@@ -120,6 +122,8 @@ router.get('/logout', (req, res) => {
 // Current user route
 router.get('/user', (req, res) => {
   const sessionUser = (req as any).session?.user;
+  
+  console.log('Session check - user:', sessionUser);
   
   if (!sessionUser) {
     return res.status(401).json({ message: 'Unauthorized' });
