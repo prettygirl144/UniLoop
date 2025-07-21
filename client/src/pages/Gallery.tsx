@@ -67,13 +67,13 @@ export default function Gallery() {
   });
 
   // Fetch events with media
-  const { data: events = [], isLoading: eventsLoading } = useQuery({
+  const { data: events = [], isLoading: eventsLoading } = useQuery<Event[]>({
     queryKey: ["/api/events"],
     retry: false,
   });
 
   // Fetch gallery folders
-  const { data: folders = [], isLoading: foldersLoading } = useQuery({
+  const { data: folders = [], isLoading: foldersLoading } = useQuery<GalleryFolder[]>({
     queryKey: ["/api/gallery/folders"],
     retry: false,
   });
@@ -81,10 +81,8 @@ export default function Gallery() {
   // Create folder mutation
   const createFolderMutation = useMutation({
     mutationFn: async (values: z.infer<typeof folderFormSchema>) => {
-      return await apiRequest("/api/gallery/folders", {
-        method: "POST",
-        body: JSON.stringify(values),
-      });
+      const response = await apiRequest("POST", "/api/gallery/folders", values);
+      return response.json();
     },
     onSuccess: () => {
       toast({

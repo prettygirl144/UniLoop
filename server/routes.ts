@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { checkAuth, handleAuthError, extractUser } from "./auth0Config";
+import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import {
   insertAnnouncementSchema,
   insertEventSchema,
@@ -64,18 +66,67 @@ function adminOnly() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
+  // Auth middleware - supports both Auth0 and existing Replit auth
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Auth0 authentication error handler
+  app.use(handleAuthError);
+
+  // Auth routes - support both Auth0 and existing authentication
+  app.get('/api/auth/user', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      let user = await storage.getUser(userInfo.id);
+      
+      // If user doesn't exist in our database, create them
+      if (!user) {
+        user = await storage.upsertUser({
+          id: userInfo.id,
+          email: userInfo.email,
+          firstName: userInfo.name?.split(' ')[0] || '',
+          lastName: userInfo.name?.split(' ').slice(1).join(' ') || '',
+          profileImageUrl: userInfo.picture,
+          role: userInfo.role,
+          permissions: userInfo.permissions,
+        });
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Auth0 user sync endpoint
+  app.post('/api/auth0/sync-user', checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const { auth0Id, email, name, picture } = req.body;
+      
+      const userData = {
+        id: auth0Id || userInfo.id,
+        email: email || userInfo.email,
+        firstName: name?.split(' ')[0] || '',
+        lastName: name?.split(' ').slice(1).join(' ') || '',
+        profileImageUrl: picture || userInfo.picture,
+        role: userInfo.role || 'student',
+        permissions: userInfo.permissions || {},
+      };
+
+      const user = await storage.upsertUser(userData);
+      res.json(user);
+    } catch (error) {
+      console.error("Error syncing Auth0 user:", error);
+      res.status(500).json({ message: "Failed to sync user" });
     }
   });
 
@@ -92,7 +143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/announcements', authorize('postCreation'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
       const announcementData = insertAnnouncementSchema.parse({
         ...req.body,
         authorId: userId,
@@ -117,9 +169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', isAuthenticated, async (req: any, res) => {
+  app.post('/api/events', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
       const user = await storage.getUser(userId);
       
       if (!user?.permissions?.calendar && user?.role !== 'admin') {
@@ -529,6 +582,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete gallery folder" });
     }
   });
+
+  // Register gallery routes
+  registerGalleryRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
