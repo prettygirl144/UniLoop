@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Replit auth removed - using Auth0 only
 import { checkAuth, handleAuthError, extractUser } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import {
@@ -19,13 +19,12 @@ import { z } from "zod";
 // Authorization middleware
 function authorize(permission?: string) {
   return async (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) {
+    const sessionUser = req.session?.user;
+    if (!sessionUser) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const userId = req.user.claims.sub;
-    const user = await storage.getUser(userId);
-    
+    const user = await storage.getUser(sessionUser.id);
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
@@ -49,12 +48,12 @@ function authorize(permission?: string) {
 // Admin-only middleware
 function adminOnly() {
   return async (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) {
+    const sessionUser = req.session?.user;
+    if (!sessionUser) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const userId = req.user.claims.sub;
-    const user = await storage.getUser(userId);
+    const user = await storage.getUser(sessionUser.id);
     
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: "Admin access required" });
@@ -66,41 +65,26 @@ function adminOnly() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware - supports both Auth0 and existing Replit auth
-  await setupAuth(app);
+  // Session middleware for Auth0
+  const session = await import('express-session');
+  app.use(session.default({
+    secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false, // Set to true in production with HTTPS
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // Add Auth0 routes
+  const auth0Routes = (await import('./auth0Routes')).default;
+  app.use('/api', auth0Routes);
 
   // Auth0 authentication error handler
   app.use(handleAuthError);
 
-  // Auth routes - support both Auth0 and existing authentication
-  app.get('/api/auth/user', checkAuth, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      if (!userInfo) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      let user = await storage.getUser(userInfo.id);
-      
-      // If user doesn't exist in our database, create them
-      if (!user) {
-        user = await storage.upsertUser({
-          id: userInfo.id,
-          email: userInfo.email,
-          firstName: userInfo.name?.split(' ')[0] || '',
-          lastName: userInfo.name?.split(' ').slice(1).join(' ') || '',
-          profileImageUrl: userInfo.picture,
-          role: userInfo.role,
-          permissions: userInfo.permissions,
-        });
-      }
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // Auth routes handled by auth0Routes.ts
 
   // Auth0 user sync endpoint
   app.post('/api/auth0/sync-user', checkAuth, async (req: any, res) => {
@@ -194,10 +178,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Event RSVP routes
-  app.post('/api/events/:id/rsvp', isAuthenticated, async (req: any, res) => {
+  app.post('/api/events/:id/rsvp', checkAuth, async (req: any, res) => {
     try {
       const eventId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const rsvpData = insertEventRsvpSchema.parse({
         eventId,
@@ -213,9 +197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/rsvps', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/rsvps', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const rsvps = await storage.getUserRsvps(userId);
       res.json(rsvps);
     } catch (error) {
@@ -235,9 +219,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/forum/posts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/forum/posts', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const postData = insertForumPostSchema.parse({
         ...req.body,
@@ -252,10 +236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/forum/posts/:id/react', isAuthenticated, async (req: any, res) => {
+  app.post('/api/forum/posts/:id/react', checkAuth, async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const reactionData = insertForumReactionSchema.parse({
         postId,
@@ -294,9 +278,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/dining/sick-food', isAuthenticated, async (req: any, res) => {
+  app.post('/api/dining/sick-food', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const bookingData = insertSickFoodBookingSchema.parse({
         ...req.body,
@@ -312,9 +296,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/hostel/leave', isAuthenticated, async (req: any, res) => {
+  app.post('/api/hostel/leave', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const leaveData = insertHostelLeaveSchema.parse({
         ...req.body,
@@ -331,9 +315,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/grievances', isAuthenticated, async (req: any, res) => {
+  app.post('/api/grievances', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       
       const grievanceData = insertGrievanceSchema.parse({
         ...req.body,
@@ -349,9 +333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Attendance routes
-  app.post('/api/attendance', isAuthenticated, async (req: any, res) => {
+  app.post('/api/attendance', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const user = await storage.getUser(userId);
       
       if (!user?.permissions?.attendance && user?.role !== 'admin') {
@@ -368,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Directory routes
-  app.get('/api/directory/users', isAuthenticated, async (req, res) => {
+  app.get('/api/directory/users', checkAuth, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       // Remove sensitive information
@@ -422,7 +406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update other protected routes to use authorize middleware
   app.post('/api/events', authorize('calendar'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const eventData = insertEventSchema.parse({
         ...req.body,
         authorId: userId,
@@ -438,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/attendance', authorize('attendance'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const { eventId, attendees } = req.body;
       await storage.saveAttendance(eventId, attendees, userId);
       res.json({ message: "Attendance saved successfully" });
@@ -449,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Media upload endpoint
-  app.post('/api/upload', isAuthenticated, async (req: any, res) => {
+  app.post('/api/upload', checkAuth, async (req: any, res) => {
     try {
       // Mock file upload - in production, you'd use multer or similar
       const { file, fileName } = req.body;
@@ -469,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gallery endpoint for events
-  app.get('/api/events/:id/gallery', isAuthenticated, async (req, res) => {
+  app.get('/api/events/:id/gallery', checkAuth, async (req, res) => {
     try {
       const eventId = parseInt(req.params.id);
       const event = await storage.getEventById(eventId);
@@ -486,9 +470,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account switching endpoints
-  app.get('/api/auth/linked-accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/linked-accounts', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const linkedAccounts = await storage.getLinkedAccounts(userId);
       res.json(linkedAccounts);
     } catch (error) {
@@ -497,9 +481,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/create-alternate-account', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/create-alternate-account', checkAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const { role, permissions } = req.body;
       
       if (!['committee_club', 'admin'].includes(role)) {
@@ -514,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/switch-account', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/switch-account', checkAuth, async (req: any, res) => {
     try {
       const { accountId } = req.body;
       const targetAccount = await storage.getUser(accountId);
@@ -533,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gallery folder endpoints
-  app.get('/api/gallery/folders', isAuthenticated, async (req, res) => {
+  app.get('/api/gallery/folders', checkAuth, async (req, res) => {
     try {
       const folders = await storage.getGalleryFolders();
       res.json(folders);
@@ -545,7 +529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/gallery/folders', authorize('gallery'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const folderData = {
         ...req.body,
         createdBy: userId,
@@ -562,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/gallery/folders/:id', authorize('gallery'), async (req: any, res) => {
     try {
       const folderId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.id;
       const userRole = req.user.role;
       
       // Only allow deletion by admin or creator

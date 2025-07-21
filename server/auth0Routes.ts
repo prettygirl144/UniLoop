@@ -1,0 +1,126 @@
+import express from 'express';
+import { storage } from './storage';
+
+const router = express.Router();
+
+// Auth0 login route - redirects to Auth0 Google login
+router.get('/login', (req, res) => {
+  const auth0Domain = process.env.AUTH0_DOMAIN;
+  const clientId = process.env.AUTH0_CLIENT_ID;
+  const redirectUri = `${req.protocol}://${req.get('host')}/api/callback`;
+  
+  const auth0Url = `https://${auth0Domain}/authorize?` +
+    `response_type=code&` +
+    `client_id=${clientId}&` +
+    `redirect_uri=${redirectUri}&` +
+    `scope=openid%20profile%20email&` +
+    `connection=google-oauth2`;
+    
+  res.redirect(auth0Url);
+});
+
+// Auth0 callback route
+router.get('/callback', async (req, res) => {
+  const { code } = req.query;
+  
+  if (!code) {
+    return res.status(400).json({ error: 'No authorization code provided' });
+  }
+
+  try {
+    const auth0Domain = process.env.AUTH0_DOMAIN;
+    const clientId = process.env.AUTH0_CLIENT_ID;
+    const clientSecret = process.env.AUTH0_CLIENT_SECRET;
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/callback`;
+
+    // Exchange code for token
+    const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: code,
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    
+    if (!tokenResponse.ok) {
+      throw new Error(`Token exchange failed: ${tokenData.error_description || tokenData.error}`);
+    }
+
+    // Get user info
+    const userResponse = await fetch(`https://${auth0Domain}/userinfo`, {
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    const userInfo = await userResponse.json();
+    
+    if (!userResponse.ok) {
+      throw new Error(`Failed to get user info: ${userInfo.error_description || userInfo.error}`);
+    }
+
+    // Create or update user in our database
+    const user = await storage.upsertUser({
+      id: userInfo.sub,
+      email: userInfo.email,
+      firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+      lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+      profileImageUrl: userInfo.picture,
+    });
+
+    // Set user session
+    (req as any).session.user = {
+      id: user.id,
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      picture: user.profileImageUrl,
+    };
+
+    // Redirect to home page
+    res.redirect('/');
+    
+  } catch (error) {
+    console.error('Auth0 callback error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// Logout route
+router.get('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Session destruction error:', err);
+    }
+    
+    const auth0Domain = process.env.AUTH0_DOMAIN;
+    const clientId = process.env.AUTH0_CLIENT_ID;
+    const returnTo = `${req.protocol}://${req.get('host')}`;
+    
+    const logoutUrl = `https://${auth0Domain}/v2/logout?` +
+      `client_id=${clientId}&` +
+      `returnTo=${encodeURIComponent(returnTo)}`;
+      
+    res.redirect(logoutUrl);
+  });
+});
+
+// Current user route
+router.get('/user', (req, res) => {
+  const sessionUser = (req as any).session?.user;
+  
+  if (!sessionUser) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  res.json(sessionUser);
+});
+
+export default router;

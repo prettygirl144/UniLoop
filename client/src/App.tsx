@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { useAuth0 } from "@auth0/auth0-react";
+// Removed Auth0 provider - using session-based authentication
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,12 +22,6 @@ import Layout from "@/components/Layout";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
-  const auth0 = useAuth0();
-  
-  // Check if Auth0 is configured
-  const isAuth0Configured = !!(import.meta.env.VITE_AUTH0_DOMAIN && 
-                               import.meta.env.VITE_AUTH0_CLIENT_ID && 
-                               import.meta.env.VITE_AUTH0_AUDIENCE);
 
   if (isLoading) {
     return (
@@ -40,9 +34,7 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        isAuth0Configured ? 
-          <Route path="/" component={Auth0Login} /> : 
-          <Route path="/" component={Landing} />
+        <Route path="/" component={Landing} />
       ) : (
         <Layout>
           <Route path="/" component={Home} />
@@ -55,7 +47,6 @@ function Router() {
           <Route path="/attendance" component={Attendance} />
         </Layout>
       )}
-      {isAuth0Configured && <Route path="/logout" component={Auth0Logout} />}
       <Route component={NotFound} />
     </Switch>
   );
@@ -64,12 +55,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

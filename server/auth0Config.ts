@@ -17,16 +17,13 @@ if (!isAuth0Configured) {
 // we'll use session-based authentication instead of JWT middleware
 export const checkAuth0Jwt: RequestHandler = (req, res, next) => next();
 
-// Custom Auth0 middleware that handles both Auth0 JWT and fallback to existing auth
-export const checkAuth: RequestHandler = async (req, res, next) => {
-  // If Auth0 is configured, use Auth0 JWT validation
-  if (isAuth0Configured) {
-    return checkAuth0Jwt(req, res, next);
+// Auth0 session-based middleware
+export const checkAuth: RequestHandler = async (req: any, res, next) => {
+  const sessionUser = req.session?.user;
+  if (!sessionUser) {
+    return res.status(401).json({ message: "Unauthorized" });
   }
-  
-  // Fallback to existing authentication if Auth0 is not configured
-  const { isAuthenticated } = await import('./replitAuth');
-  return isAuthenticated(req, res, next);
+  next();
 };
 
 // Error handler for Auth0 authentication errors
