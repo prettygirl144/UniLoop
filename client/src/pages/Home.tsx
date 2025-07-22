@@ -36,10 +36,10 @@ export default function Home() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-primary">5</p>
+                <p className="text-large text-primary">5</p>
                 <p className="text-xs text-text-secondary">New Events</p>
               </div>
-              <Calendar className="text-lg text-primary opacity-60" size={20} />
+              <Calendar className="text-medium text-primary opacity-60" size={20} />
             </div>
           </CardContent>
         </Card>
@@ -48,12 +48,12 @@ export default function Home() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-secondary">
+                <p className="text-large text-secondary">
                   {announcements?.length || 0}
                 </p>
                 <p className="text-xs text-text-secondary">Announcements</p>
               </div>
-              <MessageSquare className="text-lg text-secondary opacity-60" size={20} />
+              <MessageSquare className="text-medium text-secondary opacity-60" size={20} />
             </div>
           </CardContent>
         </Card>
@@ -62,7 +62,7 @@ export default function Home() {
       {/* Recent Announcements */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Latest Updates</h3>
+          <h3 className="text-medium">Latest Updates</h3>
           <Link href="/announcements">
             <Button variant="ghost" size="sm" className="text-primary">
               See All
@@ -95,7 +95,7 @@ export default function Home() {
                       })}
                     </span>
                   </div>
-                  <h4 className="font-medium text-sm mb-1">{announcement.title}</h4>
+                  <h4 className="text-small mb-1">{announcement.title}</h4>
                   <p className="text-xs text-text-secondary line-clamp-2">
                     {announcement.description}
                   </p>
@@ -124,19 +124,19 @@ export default function Home() {
 
       {/* Upcoming Events Preview */}
       <div className="space-y-3">
-        <h3 className="font-semibold">This Week's Events</h3>
+        <h3 className="text-medium">This Week's Events</h3>
         
         <div className="bg-gradient-to-r from-secondary to-green-600 rounded-xl p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-medium text-sm mb-1">Guest Lecture: AI in Healthcare</h4>
+              <h4 className="text-small mb-1">Guest Lecture: AI in Healthcare</h4>
               <p className="text-xs opacity-90">Tomorrow, 2:00 PM • Auditorium</p>
               <div className="flex items-center space-x-1 mt-2">
                 <i className="fas fa-users text-xs"></i>
                 <span className="text-xs">45 attending</span>
               </div>
             </div>
-            <i className="fas fa-chalkboard-teacher text-2xl opacity-70"></i>
+            <i className="fas fa-chalkboard-teacher text-large opacity-70"></i>
           </div>
         </div>
       </div>
@@ -146,8 +146,8 @@ export default function Home() {
         <Link href="/forum">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
             <CardContent className="p-4 text-center space-y-2">
-              <MessageSquare className="text-xl text-primary mx-auto" size={24} />
-              <p className="text-sm font-medium">Community</p>
+              <MessageSquare className="text-medium text-primary mx-auto" size={24} />
+              <p className="text-small">Community</p>
             </CardContent>
           </Card>
         </Link>
@@ -155,8 +155,8 @@ export default function Home() {
         <Link href="/directory">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
             <CardContent className="p-4 text-center space-y-2">
-              <i className="fas fa-address-book text-xl text-secondary"></i>
-              <p className="text-sm font-medium">Directory</p>
+              <i className="fas fa-address-book text-medium text-secondary"></i>
+              <p className="text-small">Directory</p>
             </CardContent>
           </Card>
         </Link>

@@ -190,14 +190,14 @@ export default function Dining() {
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-lg font-semibold">Dining & Hostel</h2>
+      <h2 className="text-large">Dining & Hostel</h2>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="shadow-sm border-gray-100">
           <CardContent className="p-4 text-center space-y-2">
-            <Utensils className="text-xl text-primary mx-auto" size={24} />
-            <p className="text-sm font-medium">Today's Menu</p>
+            <Utensils className="text-medium text-primary mx-auto" size={24} />
+            <p className="text-small">Today's Menu</p>
           </CardContent>
         </Card>
         
@@ -205,8 +205,8 @@ export default function Dining() {
           <DialogTrigger asChild>
             <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
               <CardContent className="p-4 text-center space-y-2">
-                <UserX className="text-xl text-accent mx-auto" size={24} />
-                <p className="text-sm font-medium">Sick Food</p>
+                <UserX className="text-medium text-accent mx-auto" size={24} />
+                <p className="text-small">Sick Food</p>
               </CardContent>
             </Card>
           </DialogTrigger>
@@ -292,7 +292,7 @@ export default function Dining() {
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
-              <h4 className="font-medium text-sm">Breakfast</h4>
+              <h4 className="text-small">Breakfast</h4>
               <p className="text-xs text-text-secondary">6:30 AM - 9:30 AM</p>
             </div>
             <div className="text-right">
@@ -303,7 +303,7 @@ export default function Dining() {
           
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
-              <h4 className="font-medium text-sm">Lunch</h4>
+              <h4 className="text-small">Lunch</h4>
               <p className="text-xs text-text-secondary">12:00 PM - 3:00 PM</p>
             </div>
             <div className="text-right">
@@ -314,7 +314,7 @@ export default function Dining() {
           
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
-              <h4 className="font-medium text-sm">Dinner</h4>
+              <h4 className="text-small">Dinner</h4>
               <p className="text-xs text-text-secondary">7:00 PM - 10:00 PM</p>
             </div>
             <div className="text-right">
@@ -327,7 +327,7 @@ export default function Dining() {
 
       {/* Services */}
       <div className="space-y-3">
-        <h3 className="font-semibold">Services</h3>
+        <h3 className="text-medium">Services</h3>
         
         <div className="space-y-3">
           <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
@@ -338,7 +338,7 @@ export default function Dining() {
                     <Home className="text-secondary" size={20} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm">Hostel Leave Application</h4>
+                    <h4 className="text-small">Hostel Leave Application</h4>
                     <p className="text-xs text-text-secondary">Submit leave requests online</p>
                   </div>
                   <i className="fas fa-chevron-right text-text-secondary"></i>
@@ -414,7 +414,7 @@ export default function Dining() {
                     <AlertTriangle className="text-error" size={20} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm">Food Quality Grievance</h4>
+                    <h4 className="text-small">Food Quality Grievance</h4>
                     <p className="text-xs text-text-secondary">Report food quality issues</p>
                   </div>
                   <i className="fas fa-chevron-right text-text-secondary"></i>

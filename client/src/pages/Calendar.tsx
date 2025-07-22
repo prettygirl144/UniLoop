@@ -148,11 +148,11 @@ export default function Calendar() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Events Calendar</h2>
+        <h2 className="text-large">Events Calendar</h2>
         {canCreateEvents && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-white text-sm font-medium">
+              <Button className="bg-primary text-white text-small">
                 <Plus size={16} className="mr-1" />
                 Add Event
               </Button>
@@ -277,7 +277,7 @@ export default function Calendar() {
       <Card className="shadow-sm border-gray-100">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">
+            <h3 className="text-medium">
               {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </h3>
             <div className="flex space-x-2">
@@ -303,7 +303,7 @@ export default function Calendar() {
           {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="py-2 font-medium text-text-secondary">
+              <div key={day} className="py-2 text-medium text-text-secondary">
                 {day}
               </div>
             ))}
@@ -322,7 +322,7 @@ export default function Calendar() {
                   key={i}
                   className={`h-8 flex items-center justify-center text-sm relative ${
                     !isCurrentMonth ? 'text-text-secondary' : ''
-                  } ${isToday ? 'bg-primary text-white rounded-lg font-medium' : ''}`}
+                  } ${isToday ? 'bg-primary text-white rounded-lg text-medium' : ''}`}
                 >
                   {date.getDate()}
                   {hasEvent && (
@@ -337,7 +337,7 @@ export default function Calendar() {
 
       {/* Today's Events */}
       <div className="space-y-3">
-        <h3 className="font-semibold">Today's Events</h3>
+        <h3 className="text-medium">Today's Events</h3>
         
         {todaysEvents?.length === 0 ? (
           <Card className="shadow-sm border-gray-100">
@@ -355,7 +355,7 @@ export default function Calendar() {
                     <i className="fas fa-presentation text-primary"></i>
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm">{event.title}</h4>
+                    <h4 className="text-small">{event.title}</h4>
                     <p className="text-xs text-text-secondary mb-2">
                       {event.location} • {new Date(event.date).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -384,11 +384,11 @@ export default function Calendar() {
                           size="sm"
                           onClick={() => handleRsvp(event.id)}
                           disabled={rsvpMutation.isPending}
-                          className="bg-primary text-white text-xs font-medium"
+                          className="bg-primary text-white text-small"
                         >
                           RSVP
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-primary text-xs font-medium">
+                        <Button variant="ghost" size="sm" className="text-primary text-small">
                           Details
                         </Button>
                       </div>

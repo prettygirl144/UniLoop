@@ -138,7 +138,7 @@ export default function Forum() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Community Forum</h2>
+        <h2 className="text-large">Community Forum</h2>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-white w-10 h-10 rounded-full p-0">
@@ -190,7 +190,7 @@ export default function Forum() {
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <FormLabel className="text-sm font-normal">Post anonymously</FormLabel>
+                      <FormLabel className="text-small">Post anonymously</FormLabel>
                     </FormItem>
                   )}
                 />
@@ -243,24 +243,24 @@ export default function Forum() {
               <CardContent className="p-4">
                 <div className="flex items-start space-x-3">
                   {post.isAnonymous ? (
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-small">
                       A
                     </div>
                   ) : (
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-small">
                       {user?.firstName?.charAt(0) || 'U'}
                     </div>
                   )}
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-sm font-medium">
+                      <span className="text-small">
                         {post.isAnonymous ? 'Anonymous' : 'User'}
                       </span>
                       <span className="text-xs text-text-secondary">
                         {new Date(post.createdAt!).toLocaleString()}
                       </span>
                     </div>
-                    <h4 className="font-medium text-sm mb-2">{post.title}</h4>
+                    <h4 className="text-small mb-2">{post.title}</h4>
                     <p className="text-xs text-text-secondary mb-3 whitespace-pre-wrap">
                       {post.content}
                     </p>

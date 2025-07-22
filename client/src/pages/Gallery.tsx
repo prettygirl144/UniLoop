@@ -148,7 +148,7 @@ export default function Gallery() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ImageIcon className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-semibold">Gallery</h1>
+              <h1 className="text-large">Gallery</h1>
             </div>
             {canManageFolders && (
               <Dialog open={isAddFolderOpen} onOpenChange={setIsAddFolderOpen}>
@@ -289,7 +289,7 @@ export default function Gallery() {
             <Card>
               <CardContent className="p-8 text-center">
                 <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No Folders Found</h3>
+                <h3 className="text-medium mb-2">No Folders Found</h3>
                 <p className="text-muted-foreground">
                   {searchTerm ? "No folders match your search." : "No gallery folders have been added yet."}
                 </p>
@@ -302,7 +302,7 @@ export default function Gallery() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg leading-tight mb-2 flex items-center gap-2">
+                        <CardTitle className="text-medium leading-tight mb-2 flex items-center gap-2">
                           <FolderOpen className="h-5 w-5 text-primary" />
                           {folder.name}
                         </CardTitle>
@@ -350,7 +350,7 @@ export default function Gallery() {
             <Card>
               <CardContent className="p-8 text-center">
                 <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No Media Found</h3>
+                <h3 className="text-medium mb-2">No Media Found</h3>
                 <p className="text-muted-foreground">
                   {searchTerm ? "No events match your search." : "No events have uploaded media yet."}
                 </p>
@@ -363,7 +363,7 @@ export default function Gallery() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg leading-tight mb-2">
+                      <CardTitle className="text-medium leading-tight mb-2">
                         {event.title}
                       </CardTitle>
                       <div className="space-y-1 text-sm text-muted-foreground">
@@ -396,7 +396,7 @@ export default function Gallery() {
                   {/* Media Gallery */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Media ({event.mediaUrls?.length})</h4>
+                      <h4 className="text-small">Media ({event.mediaUrls?.length})</h4>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2">

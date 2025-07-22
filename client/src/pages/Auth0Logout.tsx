@@ -21,7 +21,7 @@ export default function Auth0Logout() {
           <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
             <LogOut className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Signing Out</CardTitle>
+          <CardTitle className="text-large">Signing Out</CardTitle>
           <CardDescription>
             Please wait while we securely sign you out...
           </CardDescription>

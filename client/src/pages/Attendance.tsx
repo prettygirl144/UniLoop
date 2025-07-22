@@ -147,12 +147,12 @@ export default function Attendance() {
                             className="w-8 h-8 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                          <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-small">
                             {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium">
+                          <p className="text-small">
                             {user.firstName} {user.lastName}
                           </p>
                           <p className="text-xs text-text-secondary">

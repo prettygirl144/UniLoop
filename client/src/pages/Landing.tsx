@@ -17,7 +17,7 @@ export default function Landing() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center text-white">
             <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-              <i className="fas fa-graduation-cap text-3xl"></i>
+              <i className="fas fa-graduation-cap text-large"></i>
             </div>
             <h1 className="text-large mb-2">Campus Connect</h1>
             <p className="text-small opacity-90">Your University, Connected</p>
@@ -38,7 +38,7 @@ export default function Landing() {
           className="w-full bg-surface border-2 border-gray-200 rounded-lg p-4 flex items-center justify-center space-x-3 hover:bg-gray-50 transition-colors text-foreground"
           variant="outline"
         >
-          <i className="fab fa-google text-xl text-red-500"></i>
+          <i className="fab fa-google text-medium text-red-500"></i>
           <span className="text-medium">Continue with Google</span>
         </Button>
 
