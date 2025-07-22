@@ -131,10 +131,69 @@ export default function Amenities() {
     },
   });
 
-  // Data queries
-  const { data: todaysMenu = [], isLoading: menuLoading } = useQuery({
+  // Weekly menu query - gets today + 9 days by default
+  const { data: weeklyMenuData = [], isLoading: menuLoading } = useQuery({
     queryKey: ['/api/amenities/menu'],
   });
+
+  // Helper function to get date offset
+  const getDateOffset = (daysOffset: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Helper function to format date display
+  const formatDateDisplay = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    const diffDays = Math.floor((date.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === 2) return 'Day After Tomorrow';
+    
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric'
+    });
+  };
+
+  // Get menu data for specific date
+  const getMenuForDate = (dateStr: string) => {
+    return (weeklyMenuData as any[]).find((menu: any) => menu.date === dateStr);
+  };
+
+  // Get menu data for date ranges
+  const getTodayMenu = () => getMenuForDate(getDateOffset(0));
+  const getTomorrowMenu = () => getMenuForDate(getDateOffset(1));
+  const getDayAfterMenu = () => getMenuForDate(getDateOffset(2));
+  const getNext7DaysMenu = () => {
+    const menus = [];
+    for (let i = 0; i < 7; i++) {
+      const dateStr = getDateOffset(i);
+      const menu = getMenuForDate(dateStr);
+      if (menu) {
+        menus.push({
+          ...menu,
+          displayDate: formatDateDisplay(dateStr),
+          dateStr
+        });
+      } else {
+        menus.push({
+          date: dateStr,
+          displayDate: formatDateDisplay(dateStr),
+          dateStr,
+          breakfast: null,
+          lunch: null,
+          eveningSnacks: null,
+          dinner: null
+        });
+      }
+    }
+    return menus;
+  };
 
   const { data: sickFoodBookings = [] } = useQuery({
     queryKey: ['/api/amenities/sick-food'],
@@ -252,32 +311,34 @@ export default function Amenities() {
   });
 
   const menuUploadMutation = useMutation({
-    mutationFn: async (data: MenuUploadForm | { menuItems: any[] }) => {
-      if ('menuItems' in data) {
-        // Excel file upload
-        await apiRequest('POST', '/api/amenities/menu/upload', data);
-      } else {
-        // Manual text input - validate required fields only if no file uploaded
-        if (!uploadedFile && (!data.date || !data.mealType || !data.items)) {
-          throw new Error('All fields are required when not uploading an Excel file');
-        }
-        const items = (data.items || '').split('\n').filter(item => item.trim() !== '');
-        await apiRequest('POST', '/api/amenities/menu/upload', {
-          menuItems: [{
-            date: data.date,
-            mealType: data.mealType,
-            items,
-          }]
-        });
+    mutationFn: async (data: MenuUploadForm) => {
+      if (!uploadedFile) {
+        throw new Error('Please select an Excel file to upload');
       }
+      
+      const formData = new FormData();
+      formData.append('menuFile', uploadedFile);
+      
+      const response = await fetch('/api/amenities/menu/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload menu');
+      }
+      
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       setShowMenuUploadDialog(false);
       menuUploadForm.reset();
       setUploadedFile(null);
       toast({
         title: 'Success',
-        description: 'Menu uploaded successfully!',
+        description: `Weekly menu uploaded successfully! ${result.data?.length || 0} entries added.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/amenities/menu'] });
     },
@@ -363,7 +424,10 @@ export default function Amenities() {
           }
         }
 
-        menuUploadMutation.mutate({ menuItems });
+        // Direct Excel file upload - not using parsed data
+        if (uploadedFile) {
+          menuUploadMutation.mutate({});
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -597,56 +661,82 @@ export default function Amenities() {
 
       <Tabs defaultValue="menu" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="menu">Today's Menu</TabsTrigger>
+          <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           {isAdmin && <TabsTrigger value="records">Records</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="menu" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Utensils className="h-5 w-5" />
-                Today's Menu
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {menuLoading ? (
-                <div className="text-center py-8">Loading menu...</div>
-              ) : (todaysMenu as any[]).length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  {(todaysMenu as any[]).map((menu: any) => (
-                    <div key={`${menu.id}`} className="p-4 border rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-medium capitalize">{menu.mealType}</h3>
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditMenu(menu)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                      <ul className="space-y-1">
-                        {menu.items.map((item: string, index: number) => (
-                          <li key={index} className="text-small text-muted-foreground">
-                            • {item}
-                          </li>
-                        ))}
-                      </ul>
+          {menuLoading ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">Loading weekly menu...</div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Tabs defaultValue="today" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="today" className="text-small">Today</TabsTrigger>
+                <TabsTrigger value="tomorrow" className="text-small">Tomorrow</TabsTrigger>
+                <TabsTrigger value="dayafter" className="text-small">Day After</TabsTrigger>
+                <TabsTrigger value="week" className="text-small">Next 7 Days</TabsTrigger>
+              </TabsList>
+
+              {/* Today's Menu */}
+              <TabsContent value="today" className="space-y-4">
+                <WeeklyMenuCard 
+                  title="Today's Menu"
+                  menu={getTodayMenu()}
+                  date={getDateOffset(0)}
+                />
+              </TabsContent>
+
+              {/* Tomorrow's Menu */}
+              <TabsContent value="tomorrow" className="space-y-4">
+                <WeeklyMenuCard 
+                  title="Tomorrow's Menu"
+                  menu={getTomorrowMenu()}
+                  date={getDateOffset(1)}
+                />
+              </TabsContent>
+
+              {/* Day After Tomorrow's Menu */}
+              <TabsContent value="dayafter" className="space-y-4">
+                <WeeklyMenuCard 
+                  title="Day After Tomorrow's Menu"
+                  menu={getDayAfterMenu()}
+                  date={getDateOffset(2)}
+                />
+              </TabsContent>
+
+              {/* Next 7 Days Menu */}
+              <TabsContent value="week" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarDays className="h-5 w-5" />
+                      Next 7 Days Menu
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {getNext7DaysMenu().map((dayMenu: any, index: number) => (
+                        <div key={dayMenu.dateStr} className="border-b pb-4 last:border-b-0 last:pb-0">
+                          <h3 className="text-medium mb-3 font-medium">{dayMenu.displayDate}</h3>
+                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <MealSection title="Breakfast" items={dayMenu.breakfast} />
+                            <MealSection title="Lunch" items={dayMenu.lunch} />
+                            <MealSection title="Evening Snacks" items={dayMenu.eveningSnacks} />
+                            <MealSection title="Dinner" items={dayMenu.dinner} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No menu available for today
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          )}
         </TabsContent>
 
         <TabsContent value="services" className="space-y-4">
@@ -1129,5 +1219,55 @@ export default function Amenities() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Helper component for individual meal sections
+function MealSection({ title, items }: { title: string; items: string | null }) {
+  const menuItems = items ? items.split(',').map(item => item.trim()).filter(item => item) : [];
+  
+  return (
+    <div className="p-4 border rounded-lg">
+      <h4 className="text-medium capitalize mb-2">{title}</h4>
+      {menuItems.length > 0 ? (
+        <ul className="space-y-1">
+          {menuItems.map((item: string, index: number) => (
+            <li key={index} className="text-small text-muted-foreground">
+              • {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-small text-muted-foreground">No items available</p>
+      )}
+    </div>
+  );
+}
+
+// Helper component for weekly menu cards
+function WeeklyMenuCard({ title, menu, date }: { title: string; menu: any; date: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Utensils className="h-5 w-5" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {menu ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <MealSection title="Breakfast" items={menu.breakfast} />
+            <MealSection title="Lunch" items={menu.lunch} />
+            <MealSection title="Evening Snacks" items={menu.eveningSnacks} />
+            <MealSection title="Dinner" items={menu.dinner} />
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No menu available for {new Date(date + 'T00:00:00').toLocaleDateString()}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -8,6 +8,7 @@ import {
   serial,
   boolean,
   integer,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -130,16 +131,20 @@ export const forumComments = pgTable("forum_comments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Dining menu table
-export const diningMenu = pgTable("dining_menu", {
+// Weekly menu table - stores processed menu data from Excel uploads
+export const weeklyMenu = pgTable("weekly_menu", {
   id: serial("id").primaryKey(),
-  date: timestamp("date").notNull(),
-  mealType: varchar("meal_type").notNull(), // breakfast, lunch, snacks, dinner
-  items: text("items").array().notNull(),
+  date: varchar("date").notNull(), // YYYY-MM-DD format
+  breakfast: text("breakfast"), // comma-separated items
+  lunch: text("lunch"),
+  eveningSnacks: text("evening_snacks"),
+  dinner: text("dinner"),
   uploadedBy: varchar("uploaded_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  unique("unique_date").on(table.date),
+]);
 
 // Amenities permissions table - for granular RBAC per sub-feature
 export const amenitiesPermissions = pgTable("amenities_permissions", {
@@ -317,9 +322,9 @@ export const insertGrievanceSchema = createInsertSchema(grievances).omit({
   adminNotes: true,
 });
 
-export const insertDiningMenuSchema = createInsertSchema(diningMenu).omit({
+export const insertWeeklyMenuSchema = createInsertSchema(weeklyMenu).omit({
   id: true,
-  createdAt: true,
+  uploadedAt: true,
   updatedAt: true,
 });
 
@@ -364,7 +369,7 @@ export type InsertHostelLeave = z.infer<typeof insertHostelLeaveSchema>;
 export type HostelLeave = typeof hostelLeave.$inferSelect;
 export type InsertGrievance = z.infer<typeof insertGrievanceSchema>;
 export type Grievance = typeof grievances.$inferSelect;
-export type DiningMenu = typeof diningMenu.$inferSelect;
-export type InsertDiningMenu = z.infer<typeof insertDiningMenuSchema>;
+export type WeeklyMenu = typeof weeklyMenu.$inferSelect;
+export type InsertWeeklyMenu = z.infer<typeof insertWeeklyMenuSchema>;
 export type AmenitiesPermissions = typeof amenitiesPermissions.$inferSelect;
 export type InsertAmenitiesPermissions = z.infer<typeof insertAmenitiesPermissionsSchema>;

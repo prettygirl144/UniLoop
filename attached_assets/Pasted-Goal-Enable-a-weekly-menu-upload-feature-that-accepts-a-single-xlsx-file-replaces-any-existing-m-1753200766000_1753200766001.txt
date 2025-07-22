@@ -1,0 +1,31 @@
+Goal  
+Enable a weekly‑menu upload feature that accepts a single .xlsx file, replaces any existing menu, extracts meals, and shows Today, Tomorrow, Day‑After, and Next 7 Days tabs. The first column where “Breakfast”, “Lunch”, “Evening Snacks”, and “Dinner” appear (merged or not) defines meal blocks. Ignore column B entirely. Only users with the appropriate role, as assigned by the admin (RBAC), may upload or replace the menu; everyone else may only view.
+
+File‑replacement workflow  
+• Reject non‑xlsx files or files larger than 5 MB.  
+• On successful upload by an authorised user, discard the previous menu and treat the new file as the sole source of truth.
+
+Parsing logic  
+1. Unmerge all cells, then forward‑fill column A downward so each row explicitly states its meal label.  
+2. Scan row 1 from column C onward; each non‑blank, date‑like cell becomes a menu date. Store dates in normalised YYYY‑MM‑DD.  
+3. For every date column, walk top‑to‑bottom.  
+   – If column A says Breakfast, Lunch, Evening Snacks, or Dinner, read the cell at the same row / same column.  
+   – If that cell is non‑blank, trim it and add it to the list for that meal on that date.  
+4. Join each meal’s list with “, ” to form one line per meal. Build a structure like:  
+   { "2025‑07‑22": { "Breakfast": "item, item, …", "Lunch": "item, …", "Evening Snacks": "…", "Dinner": "…" }, … }
+
+Date matching  
+• Compare each stored date to the server’s current date (no time component).  
+• The column matching today feeds Today; today + 1 feeds Tomorrow; today + 2 feeds Day‑After; the next seven sequential dates feed Next 7 Days (inclusive).  
+• If a required date is missing, show “Menu not available”.
+
+Interface behaviour  
+• Four tabs: Today, Tomorrow, Day‑After 
+• Each tab displays four cards, one per meal, showing the comma‑joined list or “—” if empty.  
+• Next 7 Days tab lists each of the seven dates, expandable to the same four‑card layout.  
+• Show a success toast when an authorised upload parses correctly; otherwise show an error stating the row and column that failed.
+
+RBAC requirement  
+• Only users with a role that includes access to menu changes or “admin” may upload or replace the menu.  
+• Deny upload attempts from unauthorised users with a clear message.  
+• Viewing the parsed menu is open to all authenticated users.

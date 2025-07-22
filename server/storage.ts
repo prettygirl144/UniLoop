@@ -9,7 +9,7 @@ import {
   sickFoodBookings,
   hostelLeave,
   grievances,
-  diningMenu,
+  weeklyMenu,
   attendance,
   galleryFolders,
   type User,
@@ -31,8 +31,8 @@ import {
   type Grievance,
   type InsertGalleryFolder,
   type GalleryFolder,
-  type DiningMenu,
-  type InsertDiningMenu,
+  type WeeklyMenu,
+  type InsertWeeklyMenu,
   type AmenitiesPermissions,
   type InsertAmenitiesPermissions,
   amenitiesPermissions,
@@ -65,11 +65,10 @@ export interface IStorage {
   reactToPost(reaction: InsertForumReaction): Promise<void>;
   getPostReactions(postId: number): Promise<{ type: string; count: number }[]>;
 
-  // Dining & Hostel
-  getTodaysMenu(): Promise<DiningMenu[]>;
-  getMenuByDate(date: Date): Promise<DiningMenu[]>;
-  uploadMenu(menu: InsertDiningMenu[]): Promise<DiningMenu[]>;
-  updateMenu(date: Date, mealType: string, items: string[]): Promise<DiningMenu>;
+  // Weekly Menu Management
+  getWeeklyMenuByDate(date: string): Promise<WeeklyMenu | undefined>;
+  getWeeklyMenuRange(dates: string[]): Promise<WeeklyMenu[]>;
+  replaceAllMenu(menuData: InsertWeeklyMenu[], uploadedBy: string): Promise<WeeklyMenu[]>;
   bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking>;
   getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]>;
   applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave>;
@@ -334,66 +333,41 @@ export class DatabaseStorage implements IStorage {
     return Object.entries(grouped).map(([type, count]) => ({ type, count }));
   }
 
-  // Dining & Hostel - Enhanced Implementation
-  async getTodaysMenu(): Promise<DiningMenu[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return await db
+  // Weekly Menu Management - Excel Upload Implementation
+  async getWeeklyMenuByDate(date: string): Promise<WeeklyMenu | undefined> {
+    const [menu] = await db
       .select()
-      .from(diningMenu)
-      .where(and(
-        gte(diningMenu.date, today),
-        lte(diningMenu.date, tomorrow)
-      ))
-      .orderBy(diningMenu.mealType);
+      .from(weeklyMenu)
+      .where(eq(weeklyMenu.date, date));
+    return menu;
   }
 
-  async getMenuByDate(date: Date): Promise<DiningMenu[]> {
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 1);
-
-    return await db
+  async getWeeklyMenuRange(dates: string[]): Promise<WeeklyMenu[]> {
+    if (dates.length === 0) return [];
+    
+    const menus = await db
       .select()
-      .from(diningMenu)
-      .where(and(
-        gte(diningMenu.date, startDate),
-        lte(diningMenu.date, endDate)
-      ))
-      .orderBy(diningMenu.mealType);
+      .from(weeklyMenu)
+      .where(sql`${weeklyMenu.date} = ANY(${dates})`);
+    return menus;
   }
 
-  async uploadMenu(menu: InsertDiningMenu[]): Promise<DiningMenu[]> {
+  async replaceAllMenu(menuData: InsertWeeklyMenu[], uploadedBy: string): Promise<WeeklyMenu[]> {
+    // Delete all existing menu data
+    await db.delete(weeklyMenu);
+    
+    // Insert new menu data with uploadedBy
+    const dataWithUploader = menuData.map(item => ({
+      ...item,
+      uploadedBy,
+    }));
+    
     const created = await db
-      .insert(diningMenu)
-      .values(menu)
+      .insert(weeklyMenu)
+      .values(dataWithUploader)
       .returning();
+    
     return created;
-  }
-
-  async updateMenu(date: Date, mealType: string, items: string[]): Promise<DiningMenu> {
-    const [updated] = await db
-      .update(diningMenu)
-      .set({ items })
-      .where(and(
-        eq(diningMenu.date, date),
-        eq(diningMenu.mealType, mealType)
-      ))
-      .returning();
-    return updated;
-  }
-
-  async updateMenuById(id: number, items: string[]): Promise<DiningMenu> {
-    const [updated] = await db
-      .update(diningMenu)
-      .set({ items })
-      .where(eq(diningMenu.id, id))
-      .returning();
-    return updated;
   }
 
   async bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking> {

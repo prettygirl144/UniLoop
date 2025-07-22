@@ -15,6 +15,8 @@ import {
   insertGrievanceSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import { parseExcelMenu } from "./menuParser";
+import multer from "multer";
 
 // Authorization middleware
 function authorize(permission?: string) {
@@ -290,12 +292,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced Amenities routes
+  // Configure multer for file uploads (5MB limit)
+  const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  });
+
+  // Enhanced Weekly Menu routes with Excel upload
   
-  // Get today's menu (public)
+  // Get weekly menu data (public)
   app.get('/api/amenities/menu', async (req, res) => {
     try {
-      const menu = await storage.getTodaysMenu();
+      const { dates } = req.query;
+      let dateList: string[] = [];
+      
+      if (dates) {
+        dateList = Array.isArray(dates) ? dates as string[] : [dates as string];
+      } else {
+        // Default: return today, tomorrow, day after, and next 7 days
+        const today = new Date();
+        for (let i = 0; i < 10; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+          dateList.push(date.toISOString().split('T')[0]);
+        }
+      }
+      
+      const menu = await storage.getWeeklyMenuRange(dateList);
       res.json(menu);
     } catch (error) {
       console.error("Error fetching menu:", error);
@@ -303,83 +326,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get menu by date (public)
-  app.get('/api/amenities/menu/:date', async (req, res) => {
-    try {
-      const date = new Date(req.params.date);
-      const menu = await storage.getMenuByDate(date);
-      res.json(menu);
-    } catch (error) {
-      console.error("Error fetching menu:", error);
-      res.status(500).json({ message: "Failed to fetch menu" });
-    }
-  });
-
-  // Upload menu (admin only)
-  app.post('/api/amenities/menu/upload', checkAuth, async (req: any, res) => {
+  // Upload weekly menu via Excel file (RBAC protected)
+  app.post('/api/amenities/menu/upload', checkAuth, upload.single('menuFile'), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
       
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // RBAC check - admin or user with diningHostel permission
+      const hasMenuPermission = user.role === 'admin' || user.permissions?.diningHostel === true;
+      if (!hasMenuPermission) {
+        return res.status(403).json({ 
+          message: 'Menu upload access denied. Admin or dining permissions required.' 
+        });
       }
 
-      const menuItems = req.body.menuItems; // Array of menu items
-      const menuData = menuItems.map((item: any) => ({
-        ...item,
-        date: new Date(item.date),
-        uploadedBy: userId,
-      }));
+      if (!req.file) {
+        return res.status(400).json({ message: 'No Excel file uploaded' });
+      }
+
+      // File validation
+      if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
+        return res.status(400).json({ message: 'File size exceeds 5MB limit' });
+      }
+
+      if (!req.file.originalname.toLowerCase().endsWith('.xlsx')) {
+        return res.status(400).json({ message: 'Only .xlsx files are accepted' });
+      }
+
+      // Parse Excel file
+      const parseResult = parseExcelMenu(req.file.buffer);
       
-      const menu = await storage.uploadMenu(menuData);
-      res.json(menu);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: 'Failed to parse Excel file',
+          error: parseResult.error,
+          details: parseResult.errorDetails
+        });
+      }
+
+      // Convert parsed menu to database format
+      const menuData: any[] = [];
+      for (const [date, meals] of Object.entries(parseResult.menu!)) {
+        menuData.push({
+          date,
+          breakfast: (meals as any).breakfast || null,
+          lunch: (meals as any).lunch || null,
+          eveningSnacks: (meals as any).eveningSnacks || null,
+          dinner: (meals as any).dinner || null,
+        });
+      }
+
+      // Replace all existing menu data
+      const uploaded = await storage.replaceAllMenu(menuData, userId);
+      
+      res.json({
+        message: `Menu uploaded successfully with ${uploaded.length} entries`,
+        data: uploaded
+      });
     } catch (error) {
       console.error("Error uploading menu:", error);
       res.status(500).json({ message: "Failed to upload menu" });
-    }
-  });
-
-  // Update menu item (admin only)
-  app.put('/api/amenities/menu/:date/:mealType', checkAuth, async (req: any, res) => {
-    try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const date = new Date(req.params.date);
-      const mealType = req.params.mealType;
-      const { items } = req.body;
-      
-      const menu = await storage.updateMenu(date, mealType, items);
-      res.json(menu);
-    } catch (error) {
-      console.error("Error updating menu:", error);
-      res.status(500).json({ message: "Failed to update menu" });
-    }
-  });
-
-  // Update menu by ID (admin only)
-  app.put('/api/amenities/menu/:id', checkAuth, async (req: any, res) => {
-    try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const { id } = req.params;
-      const { items } = req.body;
-      
-      if (!items || !Array.isArray(items)) {
-        return res.status(400).json({ message: 'Invalid menu items' });
-      }
-
-      const menu = await storage.updateMenuById(parseInt(id), items);
-      res.json(menu);
-    } catch (error) {
-      console.error("Error updating menu:", error);
-      res.status(500).json({ message: "Failed to update menu" });
     }
   });
 
