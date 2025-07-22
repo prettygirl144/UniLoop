@@ -596,11 +596,10 @@ export default function Amenities() {
       </div>
 
       <Tabs defaultValue="menu" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="menu">Today's Menu</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           {isAdmin && <TabsTrigger value="records">Records</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="admin">Admin Panel</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="menu" className="space-y-4">
@@ -1016,57 +1015,56 @@ export default function Amenities() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Grievance Management */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Grievance Management</CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadReports('grievances')}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {(grievances as any[]).length > 0 ? (
+                    <div className="space-y-3">
+                      {(grievances as any[]).map((grievance: any) => (
+                        <div key={grievance.id} className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline">{grievance.category}</Badge>
+                            <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'}>
+                              {grievance.status}
+                            </Badge>
+                          </div>
+                          <p className="text-small">{grievance.description}</p>
+                          <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
+                          {grievance.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
+                              disabled={resolveGrievanceMutation.isPending}
+                            >
+                              Mark as Resolved
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No grievances found</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="admin" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Grievance Management</CardTitle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadReports('grievances')}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {(grievances as any[]).length > 0 ? (
-                  <div className="space-y-3">
-                    {(grievances as any[]).map((grievance: any) => (
-                      <div key={grievance.id} className="p-4 border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline">{grievance.category}</Badge>
-                          <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'}>
-                            {grievance.status}
-                          </Badge>
-                        </div>
-                        <p className="text-small">{grievance.description}</p>
-                        <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
-                        {grievance.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
-                            disabled={resolveGrievanceMutation.isPending}
-                          >
-                            Mark as Resolved
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">No grievances found</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+
       </Tabs>
 
       {/* Edit Menu Dialog */}
