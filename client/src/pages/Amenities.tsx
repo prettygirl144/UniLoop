@@ -316,8 +316,12 @@ export default function Amenities() {
         throw new Error('Please select an Excel file to upload');
       }
       
+      console.log('Starting menu upload with file:', uploadedFile.name);
+      
       const formData = new FormData();
       formData.append('menuFile', uploadedFile);
+      
+      console.log('FormData created, sending request...');
       
       const response = await fetch('/api/amenities/menu/upload', {
         method: 'POST',
@@ -325,12 +329,17 @@ export default function Amenities() {
         credentials: 'include',
       });
       
+      console.log('Upload response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Upload failed with error:', errorData);
         throw new Error(errorData.message || 'Failed to upload menu');
       }
       
-      return response.json();
+      const result = await response.json();
+      console.log('Upload successful:', result);
+      return result;
     },
     onSuccess: (result: any) => {
       setShowMenuUploadDialog(false);
@@ -389,55 +398,36 @@ export default function Amenities() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    if (file) {
+      console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+      
+      // Check file extension instead of MIME type (more reliable)
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        toast({
+          title: 'Invalid File',
+          description: 'Please select an Excel (.xlsx) file.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Check file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast({
+          title: 'File too large',
+          description: 'File size must be less than 5MB.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      console.log('File validation passed, setting uploaded file');
       setUploadedFile(file);
-      processExcelFile(file);
-    } else {
-      toast({
-        title: 'Invalid File',
-        description: 'Please select an Excel (.xlsx) file.',
-        variant: 'destructive',
-      });
     }
   };
 
-  const processExcelFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        // Process Excel data and create menu items
-        const menuItems: any[] = [];
-        for (let i = 1; i < jsonData.length; i++) { // Skip header row
-          const row = jsonData[i] as any[];
-          if (row.length >= 3) {
-            menuItems.push({
-              date: row[0],
-              mealType: row[1],
-              items: row.slice(2).filter(item => item && item.toString().trim() !== '')
-            });
-          }
-        }
-
-        // Direct Excel file upload - not using parsed data
-        if (uploadedFile) {
-          menuUploadMutation.mutate({});
-        }
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to process Excel file. Please check the format.',
-          variant: 'destructive',
-        });
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
+  // Remove the processExcelFile function - let backend handle parsing
 
   // Download reports
   const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {

@@ -18,18 +18,20 @@ export interface MenuParseResult {
 
 export function parseExcelMenu(buffer: Buffer): MenuParseResult {
   try {
-    // Starting Excel parsing
+    console.log('Starting Excel parsing, buffer size:', buffer.length);
     
     // Read the Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
+    console.log('Workbook sheets:', workbook.SheetNames);
+    
     const firstSheetName = workbook.SheetNames[0];
     
     if (!firstSheetName) {
-
+      console.log('No sheets found in Excel file');
       return { success: false, error: 'No sheets found in Excel file' };
     }
     
-
+    console.log('Processing sheet:', firstSheetName);
 
     const worksheet = workbook.Sheets[firstSheetName];
     
@@ -37,24 +39,24 @@ export function parseExcelMenu(buffer: Buffer): MenuParseResult {
     
     // Convert to JSON format for easier manipulation
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
+    console.log('Raw JSON data rows:', jsonData.length);
+    console.log('First 3 rows sample:', jsonData.slice(0, 3));
     
     if (!Array.isArray(jsonData) || jsonData.length === 0) {
-
+      console.log('Empty worksheet found');
       return { success: false, error: 'Empty worksheet found' };
     }
     
-
-
     // Step 1: Forward-fill column A downward to handle merged cells
     const processedData = forwardFillColumnA(jsonData);
-
+    console.log('Processed data sample (first 3 rows):', processedData.slice(0, 3));
     
     // Step 2: Extract dates from row 1 (starting from column C)
     const dateColumns = extractDateColumns(processedData[0] as string[]);
-
+    console.log('Extracted date columns:', dateColumns);
     
     if (dateColumns.length === 0) {
-
+      console.log('No valid dates found in header row:', processedData[0]);
       return { success: false, error: 'No valid dates found in first row starting from column C' };
     }
 
@@ -76,7 +78,7 @@ export function parseExcelMenu(buffer: Buffer): MenuParseResult {
         const menuItem = (row[columnIndex] || '').toString().trim();
         
         if (menuItem && mealLabel) {
-
+          console.log(`Processing meal: ${mealLabel} -> ${menuItem} for ${date}`);
           
           if (mealLabel.includes('breakfast')) {
             parsedMenu[date].breakfast = addMenuItem(parsedMenu[date].breakfast || '', menuItem);
@@ -137,14 +139,16 @@ function forwardFillColumnA(data: any[][]): string[][] {
 
 function extractDateColumns(headerRow: string[]): Array<{ columnIndex: number; date: string }> {
   const dateColumns: Array<{ columnIndex: number; date: string }> = [];
-
+  console.log('Header row for date extraction:', headerRow);
   
   // Start from column C (index 2)
   for (let i = 2; i < headerRow.length; i++) {
     const cellValue = (headerRow[i] || '').toString().trim();
+    console.log(`Column ${i}: "${cellValue}"`);
     
     if (cellValue) {
       const normalizedDate = normalizeDateString(cellValue);
+      console.log(`Normalized date for "${cellValue}":`, normalizedDate);
       if (normalizedDate) {
         dateColumns.push({ columnIndex: i, date: normalizedDate });
       }
