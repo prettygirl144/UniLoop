@@ -807,6 +807,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register gallery routes
   registerGalleryRoutes(app);
 
+  // Refresh user permissions from database
+  app.post('/api/auth/refresh', checkAuth, async (req: any, res) => {
+    try {
+      const currentUser = req.session.user;
+      if (!currentUser) {
+        return res.status(401).json({ message: "No active session" });
+      }
+
+      // Fetch fresh user data from database
+      const freshUser = await storage.getUser(currentUser.id);
+      if (!freshUser) {
+        return res.status(404).json({ message: "User not found in database" });
+      }
+
+      // Update session with fresh permissions
+      req.session.user = {
+        id: freshUser.id,
+        email: freshUser.email,
+        name: `${freshUser.firstName} ${freshUser.lastName}`.trim(),
+        picture: freshUser.profileImageUrl,
+        role: freshUser.role,
+        permissions: freshUser.permissions,
+        firstName: freshUser.firstName,
+        lastName: freshUser.lastName,
+        profileImageUrl: freshUser.profileImageUrl,
+      };
+
+      console.log('User permissions refreshed:', req.session.user);
+      res.json({ message: "Permissions refreshed successfully", user: req.session.user });
+    } catch (error) {
+      console.error("Error refreshing user permissions:", error);
+      res.status(500).json({ message: "Failed to refresh permissions" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

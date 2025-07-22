@@ -104,21 +104,39 @@ router.get('/callback', async (req, res) => {
       postCreation: true
     } : {};
 
-    (req as any).session.user = {
-      id: user.id,
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
-      picture: user.profileImageUrl,
-      role: sessionRole,
-      permissions: sessionPermissions,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileImageUrl: user.profileImageUrl,
-    };
+    // Always fetch fresh user data from database to get latest permissions
+    const freshUser = await storage.getUser(user.id);
+    
+    if (freshUser) {
+      (req as any).session.user = {
+        id: freshUser.id,
+        email: freshUser.email,
+        name: `${freshUser.firstName} ${freshUser.lastName}`.trim(),
+        picture: freshUser.profileImageUrl,
+        role: freshUser.role, // Use database role, not hardcoded
+        permissions: freshUser.permissions, // Use database permissions, not hardcoded
+        firstName: freshUser.firstName,
+        lastName: freshUser.lastName,
+        profileImageUrl: freshUser.profileImageUrl,
+      };
+    } else {
+      // Fallback if fresh user fetch fails
+      (req as any).session.user = {
+        id: user.id,
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        picture: user.profileImageUrl,
+        role: user.role,
+        permissions: user.permissions,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+      };
+    }
 
     console.log('User session created:', (req as any).session.user);
-    console.log('Admin access granted:', isAdmin);
-    console.log('Database user created:', user);
+    console.log('Admin access granted:', freshUser?.role === 'admin' || user.role === 'admin');
+    console.log('Database user created:', freshUser || user);
 
     // Redirect to home page
     res.redirect('/');
