@@ -88,7 +88,7 @@ export default function Attendance() {
       <div className="p-4 space-y-4">
         <div className="flex items-center space-x-2">
           <ClipboardCheck className="text-primary" size={24} />
-          <h2 className="text-lg font-semibold">Attendance Logging</h2>
+          <h2 className="text-large">Attendance Logging</h2>
         </div>
 
         {/* Event Selection */}

@@ -474,8 +474,8 @@ export default function Amenities() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Amenities</h1>
-          <p className="text-muted-foreground">Campus dining, accommodation, and services</p>
+          <h1 className="text-large">Amenities</h1>
+          <p className="text-small text-muted-foreground">Campus dining, accommodation, and services</p>
         </div>
         {isAdmin && (
           <div className="flex gap-2 flex-wrap">
@@ -495,7 +495,7 @@ export default function Amenities() {
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                     <div className="text-center">
                       <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <div className="text-sm text-gray-600 mb-2">
+                      <div className="text-small text-gray-600 mb-2">
                         Upload Excel file (.xlsx)
                       </div>
                       <Button
@@ -507,7 +507,7 @@ export default function Amenities() {
                         Choose File
                       </Button>
                       {uploadedFile && (
-                        <div className="text-xs text-green-600">
+                        <div className="text-small text-green-600">
                           Selected: {uploadedFile.name}
                         </div>
                       )}
@@ -521,7 +521,7 @@ export default function Amenities() {
                     />
                   </div>
                   
-                  <div className="text-center text-sm text-gray-500">OR</div>
+                  <div className="text-center text-small text-gray-500">OR</div>
                   
                   {/* Manual Form */}
                   <Form {...menuUploadForm}>
@@ -619,7 +619,7 @@ export default function Amenities() {
                   {(todaysMenu as any[]).map((menu: any) => (
                     <div key={`${menu.id}`} className="p-4 border rounded-lg">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold capitalize">{menu.mealType}</h3>
+                        <h3 className="text-medium capitalize">{menu.mealType}</h3>
                         {isAdmin && (
                           <Button
                             size="sm"
@@ -633,7 +633,7 @@ export default function Amenities() {
                       </div>
                       <ul className="space-y-1">
                         {menu.items.map((item: string, index: number) => (
-                          <li key={index} className="text-sm text-muted-foreground">
+                          <li key={index} className="text-small text-muted-foreground">
                             • {item}
                           </li>
                         ))}
@@ -655,13 +655,13 @@ export default function Amenities() {
             {/* Sick Food Booking */}
             <Card className="w-full">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                <CardTitle className="flex items-center gap-3 text-medium">
                   <UserX className="h-5 w-5 flex-shrink-0" />
                   <span>Sick Food Booking</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Request food delivery to your room when you're unwell
                 </p>
                 <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
@@ -752,13 +752,13 @@ export default function Amenities() {
             {/* Leave Application */}
             <Card className="w-full">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                <CardTitle className="flex items-center gap-3 text-medium">
                   <Home className="h-5 w-5 flex-shrink-0" />
                   <span>Leave Application</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
                 <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
@@ -853,13 +853,13 @@ export default function Amenities() {
             {/* Submit Grievance */}
             <Card className="w-full">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                <CardTitle className="flex items-center gap-3 text-medium">
                   <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                   <span>Submit Grievance</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Report issues with mess, hostel, IT, or other services
                 </p>
                 <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
@@ -960,10 +960,10 @@ export default function Amenities() {
                       {(sickFoodBookings as any[]).map((booking: any) => (
                         <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
-                            <p className="font-medium">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
-                            <p className="text-sm text-muted-foreground">Room: {booking.roomNumber}</p>
+                            <p className="text-medium">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                            <p className="text-small text-muted-foreground">Room: {booking.roomNumber}</p>
                             {booking.specialRequirements && (
-                              <p className="text-sm text-muted-foreground">Special: {booking.specialRequirements}</p>
+                              <p className="text-small text-muted-foreground">Special: {booking.specialRequirements}</p>
                             )}
                           </div>
                           <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'}>
@@ -998,12 +998,12 @@ export default function Amenities() {
                       {(leaveApplications as any[]).map((application: any) => (
                         <div key={application.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
-                            <p className="font-medium">
+                            <p className="text-medium">
                               {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
                             </p>
-                            <p className="text-sm text-muted-foreground">Room: {application.roomNumber}</p>
-                            <p className="text-sm text-muted-foreground">Contact: {application.emergencyContact}</p>
-                            <p className="text-sm text-muted-foreground">Reason: {application.reason}</p>
+                            <p className="text-small text-muted-foreground">Room: {application.roomNumber}</p>
+                            <p className="text-small text-muted-foreground">Contact: {application.emergencyContact}</p>
+                            <p className="text-small text-muted-foreground">Reason: {application.reason}</p>
                           </div>
                           <Badge variant={application.status === 'pending' ? 'secondary' : 'default'}>
                             {application.status}
@@ -1046,8 +1046,8 @@ export default function Amenities() {
                             {grievance.status}
                           </Badge>
                         </div>
-                        <p className="text-sm">{grievance.description}</p>
-                        <p className="text-xs text-muted-foreground">Room: {grievance.roomNumber}</p>
+                        <p className="text-small">{grievance.description}</p>
+                        <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
                         {grievance.status === 'pending' && (
                           <Button
                             size="sm"

@@ -91,6 +91,25 @@
     overflow: hidden;
   }
 
+  /* Consistent Typography System - 3 Sizes Only */
+  .text-large {
+    font-size: 1.25rem; /* 20px - like "Welcome Back" */
+    line-height: 1.75rem;
+    font-weight: 600;
+  }
+
+  .text-medium {
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem;
+    font-weight: 500;
+  }
+
+  .text-small {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.25rem;
+    font-weight: 400;
+  }
+
   /* PWA specific styles */
   .app-container {
     max-width: 428px;

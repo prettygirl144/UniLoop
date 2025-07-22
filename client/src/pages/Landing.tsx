@@ -19,8 +19,8 @@ export default function Landing() {
             <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
               <i className="fas fa-graduation-cap text-3xl"></i>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Campus Connect</h1>
-            <p className="text-sm opacity-90">Your University, Connected</p>
+            <h1 className="text-large mb-2">Campus Connect</h1>
+            <p className="text-small opacity-90">Your University, Connected</p>
           </div>
         </div>
       </div>
@@ -28,8 +28,8 @@ export default function Landing() {
       {/* Login Form */}
       <div className="p-6 space-y-6">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Welcome Back</h2>
-          <p className="text-text-secondary text-sm">Sign in with your institutional email</p>
+          <h2 className="text-large mb-2">Welcome Back</h2>
+          <p className="text-text-secondary text-small">Sign in with your institutional email</p>
         </div>
 
         {/* Google OAuth Button */}
@@ -39,20 +39,20 @@ export default function Landing() {
           variant="outline"
         >
           <i className="fab fa-google text-xl text-red-500"></i>
-          <span className="font-medium">Continue with Google</span>
+          <span className="text-medium">Continue with Google</span>
         </Button>
 
         {/* Features Preview */}
         <div className="space-y-3 pt-4">
-          <div className="flex items-center space-x-3 text-sm text-text-secondary">
+          <div className="flex items-center space-x-3 text-small text-text-secondary">
             <i className="fas fa-bullhorn w-5"></i>
             <span>Stay updated with campus announcements</span>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-text-secondary">
+          <div className="flex items-center space-x-3 text-small text-text-secondary">
             <i className="fas fa-calendar-alt w-5"></i>
             <span>Never miss important events</span>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-text-secondary">
+          <div className="flex items-center space-x-3 text-small text-text-secondary">
             <i className="fas fa-users w-5"></i>
             <span>Connect with fellow students</span>
           </div>

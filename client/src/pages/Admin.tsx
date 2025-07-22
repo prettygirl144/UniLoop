@@ -193,7 +193,7 @@ export default function Admin() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <Settings className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-semibold">Admin Dashboard</h1>
+              <h1 className="text-large">Admin Dashboard</h1>
             </div>
             <Badge variant="outline" className="text-primary">
               {users.length} Total Users
@@ -274,13 +274,13 @@ export default function Admin() {
                               />
                             )}
                             <div>
-                              <div className="font-medium">
+                              <div className="text-medium">
                                 {user.firstName || user.lastName 
                                   ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
                                   : 'Unknown'
                                 }
                               </div>
-                              <div className="text-sm text-muted-foreground">{user.email}</div>
+                              <div className="text-small text-muted-foreground">{user.email}</div>
                             </div>
                           </div>
                         </TableCell>

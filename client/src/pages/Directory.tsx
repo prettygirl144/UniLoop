@@ -115,7 +115,7 @@ export default function Directory() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Student Directory</h2>
+        <h2 className="text-large">Student Directory</h2>
         <Button variant="ghost" size="sm" className="text-primary p-2">
           <Filter size={18} />
         </Button>
@@ -141,7 +141,7 @@ export default function Directory() {
             variant={activeFilter === filter ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveFilter(filter)}
-            className={`whitespace-nowrap text-xs ${
+            className={`whitespace-nowrap text-small ${
               activeFilter === filter
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 text-text-secondary'
@@ -173,15 +173,15 @@ export default function Directory() {
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-small">
                       {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
                     </div>
                   )}
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm">
+                    <h4 className="text-medium">
                       {user.firstName} {user.lastName}
                     </h4>
-                    <p className="text-xs text-text-secondary">
+                    <p className="text-small text-text-secondary">
                       {user.email?.includes('cs') ? 'Computer Science' : 
                        user.email?.includes('ece') ? 'Electronics & Communications' :
                        user.email?.includes('me') ? 'Mechanical Engineering' : 'Student'} 
@@ -189,12 +189,12 @@ export default function Directory() {
                        user.email?.includes('2024') ? ' • Batch 2024' :
                        user.email?.includes('2026') ? ' • Batch 2026' : ''}
                     </p>
-                    <p className="text-xs text-text-secondary">{user.email}</p>
+                    <p className="text-small text-text-secondary">{user.email}</p>
                   </div>
                   <Button
                     size="sm"
                     onClick={() => handlePing(user)}
-                    className="bg-primary text-white text-xs font-medium"
+                    className="bg-primary text-white text-small"
                   >
                     <Send size={12} className="mr-1" />
                     Ping
