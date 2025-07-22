@@ -713,7 +713,7 @@ export default function Amenities() {
                       {getNext7DaysMenu().map((dayMenu: any, index: number) => (
                         <div key={dayMenu.dateStr} className="border-b pb-4 last:border-b-0 last:pb-0">
                           <h3 className="text-medium mb-3 font-medium">{dayMenu.displayDate}</h3>
-                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                          <div className="space-y-0">
                             <MealSection title="Breakfast" items={dayMenu.breakfast} />
                             <MealSection title="Lunch" items={dayMenu.lunch} />
                             <MealSection title="Evening Snacks" items={dayMenu.eveningSnacks} />
@@ -1212,29 +1212,27 @@ export default function Amenities() {
   );
 }
 
-// Helper component for individual meal sections
+// Helper component for individual meal sections - Row-based design for mobile
 function MealSection({ title, items }: { title: string; items: string | null }) {
   const menuItems = items ? items.split(',').map(item => item.trim()).filter(item => item) : [];
   
   return (
-    <div className="p-4 border rounded-lg">
-      <h4 className="text-medium capitalize mb-2">{title}</h4>
+    <div className="mb-4 last:mb-0">
+      <div className="flex items-center gap-2 mb-2">
+        <h4 className="text-medium font-medium capitalize">{title}:</h4>
+      </div>
       {menuItems.length > 0 ? (
-        <ul className="space-y-1">
-          {menuItems.map((item: string, index: number) => (
-            <li key={index} className="text-small text-muted-foreground">
-              • {item}
-            </li>
-          ))}
-        </ul>
+        <div className="text-small text-muted-foreground leading-relaxed pl-2">
+          {menuItems.join(' • ')}
+        </div>
       ) : (
-        <p className="text-small text-muted-foreground">No items available</p>
+        <p className="text-small text-muted-foreground pl-2">No items available</p>
       )}
     </div>
   );
 }
 
-// Helper component for weekly menu cards
+// Helper component for weekly menu cards - Row-based mobile-friendly design
 function WeeklyMenuCard({ title, menu, date }: { title: string; menu: any; date: string }) {
   return (
     <Card>
@@ -1246,7 +1244,7 @@ function WeeklyMenuCard({ title, menu, date }: { title: string; menu: any; date:
       </CardHeader>
       <CardContent>
         {menu ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-0">
             <MealSection title="Breakfast" items={menu.breakfast} />
             <MealSection title="Lunch" items={menu.lunch} />
             <MealSection title="Evening Snacks" items={menu.eveningSnacks} />
