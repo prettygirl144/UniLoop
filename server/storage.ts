@@ -3,15 +3,17 @@ import {
   announcements,
   events,
   eventRsvps,
-  forumPosts,
-  forumReactions,
-  forumComments,
+  communityPosts,
+  communityVotes,
+  communityReplies,
+  communityAnnouncements,
   sickFoodBookings,
   hostelLeave,
   grievances,
   weeklyMenu,
   attendance,
   galleryFolders,
+  amenitiesPermissions,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -20,9 +22,14 @@ import {
   type Event,
   type InsertEventRsvp,
   type EventRsvp,
-  type InsertForumPost,
-  type ForumPost,
-  type InsertForumReaction,
+  type InsertCommunityPost,
+  type CommunityPost,
+  type InsertCommunityVote,
+  type CommunityVote,
+  type InsertCommunityReply,
+  type CommunityReply,
+  type InsertCommunityAnnouncement,
+  type CommunityAnnouncement,
   type InsertSickFoodBooking,
   type SickFoodBooking,
   type InsertHostelLeave,
@@ -35,7 +42,6 @@ import {
   type InsertWeeklyMenu,
   type AmenitiesPermissions,
   type InsertAmenitiesPermissions,
-  amenitiesPermissions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
@@ -58,12 +64,21 @@ export interface IStorage {
   rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   getUserRsvps(userId: string): Promise<EventRsvp[]>;
 
-  // Forum
-  getForumPosts(): Promise<ForumPost[]>;
-  createForumPost(post: InsertForumPost): Promise<ForumPost>;
-  getForumPostById(id: number): Promise<ForumPost | undefined>;
-  reactToPost(reaction: InsertForumReaction): Promise<void>;
-  getPostReactions(postId: number): Promise<{ type: string; count: number }[]>;
+  // Community Board (Section 1)
+  getCommunityPosts(): Promise<CommunityPost[]>;
+  createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost>;
+  getCommunityPostById(id: number): Promise<CommunityPost | undefined>;
+  deleteCommunityPost(id: number, userId: string): Promise<void>;
+  voteCommunityPost(vote: InsertCommunityVote): Promise<void>;
+  getCommunityReplies(postId: number): Promise<CommunityReply[]>;
+  createCommunityReply(reply: InsertCommunityReply): Promise<CommunityReply>;
+  deleteCommunityReply(id: number, userId: string): Promise<void>;
+  voteCommunityReply(vote: InsertCommunityVote): Promise<void>;
+  
+  // Community Announcements (Section 2)
+  getCommunityAnnouncements(): Promise<CommunityAnnouncement[]>;
+  createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement>;
+  deleteCommunityAnnouncement(id: number, userId: string): Promise<void>;
 
   // Weekly Menu Management
   getWeeklyMenuByDate(date: string): Promise<WeeklyMenu | undefined>;
@@ -124,7 +139,7 @@ export class DatabaseStorage implements IStorage {
       // Insert new user with default values
       const [user] = await db
         .insert(users)
-        .values(userData)
+        .values([userData])
         .returning();
       return user;
     }
@@ -181,7 +196,7 @@ export class DatabaseStorage implements IStorage {
 
     const [user] = await db
       .insert(users)
-      .values(alternateUserData)
+      .values([alternateUserData])
       .returning();
     return user;
   }
@@ -203,7 +218,7 @@ export class DatabaseStorage implements IStorage {
   async createGalleryFolder(folderData: any): Promise<any> {
     const [folder] = await db
       .insert(galleryFolders)
-      .values(folderData)
+      .values([folderData])
       .returning();
     return folder;
   }
@@ -223,7 +238,7 @@ export class DatabaseStorage implements IStorage {
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
     const [created] = await db
       .insert(announcements)
-      .values(announcement)
+      .values([announcement])
       .returning();
     return created;
   }
@@ -243,7 +258,7 @@ export class DatabaseStorage implements IStorage {
     };
     const [created] = await db
       .insert(events)
-      .values(eventData)
+      .values([eventData])
       .returning();
     return created;
   }
@@ -267,78 +282,196 @@ export class DatabaseStorage implements IStorage {
       .where(eq(eventRsvps.userId, userId));
   }
 
-  // Forum
-  async getForumPosts(): Promise<ForumPost[]> {
+  // Community Board (Section 1) - Reddit-like functionality
+  async getCommunityPosts(): Promise<CommunityPost[]> {
     return await db
       .select()
-      .from(forumPosts)
-      .where(eq(forumPosts.isHidden, false))
-      .orderBy(desc(forumPosts.createdAt));
+      .from(communityPosts)
+      .where(eq(communityPosts.isDeleted, false))
+      .orderBy(desc(communityPosts.createdAt));
   }
 
-  async createForumPost(post: InsertForumPost): Promise<ForumPost> {
+  async createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost> {
     const postData = {
       ...post,
       mediaUrls: post.mediaUrls ? (Array.isArray(post.mediaUrls) ? post.mediaUrls : []) : []
     };
     const [created] = await db
-      .insert(forumPosts)
-      .values(postData)
+      .insert(communityPosts)
+      .values([postData])
       .returning();
     return created;
   }
 
-  async getForumPostById(id: number): Promise<ForumPost | undefined> {
+  async getCommunityPostById(id: number): Promise<CommunityPost | undefined> {
     const [post] = await db
       .select()
-      .from(forumPosts)
-      .where(eq(forumPosts.id, id));
+      .from(communityPosts)
+      .where(and(eq(communityPosts.id, id), eq(communityPosts.isDeleted, false)));
     return post;
   }
 
-  async reactToPost(reaction: InsertForumReaction): Promise<void> {
-    // Check if reaction exists first
-    const [existingReaction] = await db
+  async deleteCommunityPost(id: number, userId: string): Promise<void> {
+    await db
+      .update(communityPosts)
+      .set({ isDeleted: true })
+      .where(eq(communityPosts.id, id));
+  }
+
+  async voteCommunityPost(vote: InsertCommunityVote): Promise<void> {
+    // Check if user already voted on this post
+    const [existingVote] = await db
       .select()
-      .from(forumReactions)
+      .from(communityVotes)
       .where(
         and(
-          eq(forumReactions.postId, reaction.postId),
-          eq(forumReactions.userId, reaction.userId)
+          eq(communityVotes.postId, vote.postId!),
+          eq(communityVotes.userId, vote.userId)
         )
       );
 
-    if (existingReaction) {
-      // Update existing reaction
-      await db
-        .update(forumReactions)
-        .set({ type: reaction.type })
-        .where(
-          and(
-            eq(forumReactions.postId, reaction.postId),
-            eq(forumReactions.userId, reaction.userId)
-          )
-        );
+    if (existingVote) {
+      if (existingVote.voteType === vote.voteType) {
+        // Remove vote if clicking same vote type
+        await db
+          .delete(communityVotes)
+          .where(eq(communityVotes.id, existingVote.id));
+      } else {
+        // Update vote type
+        await db
+          .update(communityVotes)
+          .set({ voteType: vote.voteType })
+          .where(eq(communityVotes.id, existingVote.id));
+      }
     } else {
-      // Insert new reaction
+      // Insert new vote
       await db
-        .insert(forumReactions)
-        .values(reaction);
+        .insert(communityVotes)
+        .values([vote]);
     }
+
+    // Update post score
+    await this.updatePostScore(vote.postId!);
   }
 
-  async getPostReactions(postId: number): Promise<{ type: string; count: number }[]> {
-    const reactions = await db
+  async voteCommunityReply(vote: InsertCommunityVote): Promise<void> {
+    // Check if user already voted on this reply
+    const [existingVote] = await db
       .select()
-      .from(forumReactions)
-      .where(eq(forumReactions.postId, postId));
-    
-    const grouped = reactions.reduce((acc, reaction) => {
-      acc[reaction.type] = (acc[reaction.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+      .from(communityVotes)
+      .where(
+        and(
+          eq(communityVotes.replyId, vote.replyId!),
+          eq(communityVotes.userId, vote.userId)
+        )
+      );
 
-    return Object.entries(grouped).map(([type, count]) => ({ type, count }));
+    if (existingVote) {
+      if (existingVote.voteType === vote.voteType) {
+        // Remove vote if clicking same vote type
+        await db
+          .delete(communityVotes)
+          .where(eq(communityVotes.id, existingVote.id));
+      } else {
+        // Update vote type
+        await db
+          .update(communityVotes)
+          .set({ voteType: vote.voteType })
+          .where(eq(communityVotes.id, existingVote.id));
+      }
+    } else {
+      // Insert new vote
+      await db
+        .insert(communityVotes)
+        .values([vote]);
+    }
+
+    // Update reply score
+    await this.updateReplyScore(vote.replyId!);
+  }
+
+  async getCommunityReplies(postId: number): Promise<CommunityReply[]> {
+    return await db
+      .select()
+      .from(communityReplies)
+      .where(and(eq(communityReplies.postId, postId), eq(communityReplies.isDeleted, false)))
+      .orderBy(desc(communityReplies.createdAt));
+  }
+
+  async createCommunityReply(reply: InsertCommunityReply): Promise<CommunityReply> {
+    const [created] = await db
+      .insert(communityReplies)
+      .values([reply])
+      .returning();
+    return created;
+  }
+
+  async deleteCommunityReply(id: number, userId: string): Promise<void> {
+    await db
+      .update(communityReplies)
+      .set({ isDeleted: true })
+      .where(eq(communityReplies.id, id));
+  }
+
+  // Community Announcements (Section 2) - Admin/Committee only
+  async getCommunityAnnouncements(): Promise<CommunityAnnouncement[]> {
+    return await db
+      .select()
+      .from(communityAnnouncements)
+      .where(eq(communityAnnouncements.isDeleted, false))
+      .orderBy(desc(communityAnnouncements.createdAt));
+  }
+
+  async createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {
+    const announcementData = {
+      ...announcement,
+      mediaUrls: announcement.mediaUrls ? (Array.isArray(announcement.mediaUrls) ? announcement.mediaUrls : []) : []
+    };
+    const [created] = await db
+      .insert(communityAnnouncements)
+      .values([announcementData])
+      .returning();
+    return created;
+  }
+
+  async deleteCommunityAnnouncement(id: number, userId: string): Promise<void> {
+    await db
+      .update(communityAnnouncements)
+      .set({ isDeleted: true })
+      .where(eq(communityAnnouncements.id, id));
+  }
+
+  // Helper methods for vote score calculation
+  private async updatePostScore(postId: number): Promise<void> {
+    const votes = await db
+      .select()
+      .from(communityVotes)
+      .where(eq(communityVotes.postId, postId));
+    
+    const score = votes.reduce((acc, vote) => {
+      return acc + (vote.voteType === 'upvote' ? 1 : -1);
+    }, 0);
+
+    await db
+      .update(communityPosts)
+      .set({ score })
+      .where(eq(communityPosts.id, postId));
+  }
+
+  private async updateReplyScore(replyId: number): Promise<void> {
+    const votes = await db
+      .select()
+      .from(communityVotes)
+      .where(eq(communityVotes.replyId, replyId));
+    
+    const score = votes.reduce((acc, vote) => {
+      return acc + (vote.voteType === 'upvote' ? 1 : -1);
+    }, 0);
+
+    await db
+      .update(communityReplies)
+      .set({ score })
+      .where(eq(communityReplies.id, replyId));
   }
 
   // Weekly Menu Management - Excel Upload Implementation

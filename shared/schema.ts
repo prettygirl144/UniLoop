@@ -95,40 +95,55 @@ export const attendance = pgTable("attendance", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Forum posts table
-export const forumPosts = pgTable("forum_posts", {
+// Community Board Posts table (Section 1)
+export const communityPosts = pgTable("community_posts", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
+  title: text("title"),
   content: text("content").notNull(),
   authorId: varchar("author_id").references(() => users.id),
   isAnonymous: boolean("is_anonymous").default(false),
-  imageUrl: text("image_url"),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
-  category: varchar("category").default("general"), // questions, discussions, events, general
-  isHidden: boolean("is_hidden").default(false),
+  score: integer("score").default(0), // upvotes - downvotes
+  isDeleted: boolean("is_deleted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Forum reactions table
-export const forumReactions = pgTable("forum_reactions", {
+// Community Board Votes table
+export const communityVotes = pgTable("community_votes", {
   id: serial("id").primaryKey(),
-  postId: integer("post_id").notNull().references(() => forumPosts.id),
+  postId: integer("post_id").references(() => communityPosts.id),
+  replyId: integer("reply_id").references(() => communityReplies.id),
   userId: varchar("user_id").notNull().references(() => users.id),
-  type: varchar("type").notNull(), // like, heart, laugh
+  voteType: varchar("vote_type").notNull(), // upvote, downvote
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
-  index("unique_post_user_reaction").on(table.postId, table.userId)
+  unique("unique_user_post_vote").on(table.userId, table.postId),
+  unique("unique_user_reply_vote").on(table.userId, table.replyId)
 ]);
 
-// Forum comments table
-export const forumComments = pgTable("forum_comments", {
+// Community Board Replies table (one level deep only)
+export const communityReplies = pgTable("community_replies", {
   id: serial("id").primaryKey(),
-  postId: integer("post_id").notNull().references(() => forumPosts.id),
+  postId: integer("post_id").notNull().references(() => communityPosts.id),
   authorId: varchar("author_id").references(() => users.id),
   content: text("content").notNull(),
   isAnonymous: boolean("is_anonymous").default(false),
+  score: integer("score").default(0), // upvotes - downvotes
+  isDeleted: boolean("is_deleted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Community Announcements table (Section 2)
+export const communityAnnouncements = pgTable("community_announcements", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
+  isDeleted: boolean("is_deleted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Weekly menu table - stores processed menu data from Excel uploads
@@ -204,9 +219,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   announcements: many(announcements),
   events: many(events),
   eventRsvps: many(eventRsvps),
-  forumPosts: many(forumPosts),
-  forumReactions: many(forumReactions),
-  forumComments: many(forumComments),
+  communityPosts: many(communityPosts),
+  communityVotes: many(communityVotes),
+  communityReplies: many(communityReplies),
+  communityAnnouncements: many(communityAnnouncements),
   sickFoodBookings: many(sickFoodBookings),
   hostelLeave: many(hostelLeave),
   grievances: many(grievances),
@@ -238,33 +254,46 @@ export const eventRsvpsRelations = relations(eventRsvps, ({ one }) => ({
   }),
 }));
 
-export const forumPostsRelations = relations(forumPosts, ({ one, many }) => ({
+// Community Board Relations
+export const communityPostsRelations = relations(communityPosts, ({ one, many }) => ({
   author: one(users, {
-    fields: [forumPosts.authorId],
+    fields: [communityPosts.authorId],
     references: [users.id],
   }),
-  reactions: many(forumReactions),
-  comments: many(forumComments),
+  votes: many(communityVotes),
+  replies: many(communityReplies),
 }));
 
-export const forumReactionsRelations = relations(forumReactions, ({ one }) => ({
-  post: one(forumPosts, {
-    fields: [forumReactions.postId],
-    references: [forumPosts.id],
+export const communityVotesRelations = relations(communityVotes, ({ one }) => ({
+  post: one(communityPosts, {
+    fields: [communityVotes.postId],
+    references: [communityPosts.id],
+  }),
+  reply: one(communityReplies, {
+    fields: [communityVotes.replyId],
+    references: [communityReplies.id],
   }),
   user: one(users, {
-    fields: [forumReactions.userId],
+    fields: [communityVotes.userId],
     references: [users.id],
   }),
 }));
 
-export const forumCommentsRelations = relations(forumComments, ({ one }) => ({
-  post: one(forumPosts, {
-    fields: [forumComments.postId],
-    references: [forumPosts.id],
+export const communityRepliesRelations = relations(communityReplies, ({ one, many }) => ({
+  post: one(communityPosts, {
+    fields: [communityReplies.postId],
+    references: [communityPosts.id],
   }),
   author: one(users, {
-    fields: [forumComments.authorId],
+    fields: [communityReplies.authorId],
+    references: [users.id],
+  }),
+  votes: many(communityVotes),
+}));
+
+export const communityAnnouncementsRelations = relations(communityAnnouncements, ({ one }) => ({
+  author: one(users, {
+    fields: [communityAnnouncements.authorId],
     references: [users.id],
   }),
 }));
@@ -292,15 +321,32 @@ export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
   createdAt: true,
 });
 
-export const insertForumPostSchema = createInsertSchema(forumPosts).omit({
+// Community Board Insert Schemas
+export const insertCommunityPostSchema = createInsertSchema(communityPosts).omit({
   id: true,
+  score: true,
+  isDeleted: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertForumReactionSchema = createInsertSchema(forumReactions).omit({
+export const insertCommunityVoteSchema = createInsertSchema(communityVotes).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertCommunityReplySchema = createInsertSchema(communityReplies).omit({
+  id: true,
+  score: true,
+  isDeleted: true,
+  createdAt: true,
+});
+
+export const insertCommunityAnnouncementSchema = createInsertSchema(communityAnnouncements).omit({
+  id: true,
+  isDeleted: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertSickFoodBookingSchema = createInsertSchema(sickFoodBookings).omit({
@@ -359,10 +405,15 @@ export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
 export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
 export type EventRsvp = typeof eventRsvps.$inferSelect;
-export type InsertForumPost = z.infer<typeof insertForumPostSchema>;
-export type ForumPost = typeof forumPosts.$inferSelect;
-export type InsertForumReaction = z.infer<typeof insertForumReactionSchema>;
-export type ForumReaction = typeof forumReactions.$inferSelect;
+// Community Board Types
+export type InsertCommunityPost = z.infer<typeof insertCommunityPostSchema>;
+export type CommunityPost = typeof communityPosts.$inferSelect;
+export type InsertCommunityVote = z.infer<typeof insertCommunityVoteSchema>;
+export type CommunityVote = typeof communityVotes.$inferSelect;
+export type InsertCommunityReply = z.infer<typeof insertCommunityReplySchema>;
+export type CommunityReply = typeof communityReplies.$inferSelect;
+export type InsertCommunityAnnouncement = z.infer<typeof insertCommunityAnnouncementSchema>;
+export type CommunityAnnouncement = typeof communityAnnouncements.$inferSelect;
 export type InsertSickFoodBooking = z.infer<typeof insertSickFoodBookingSchema>;
 export type SickFoodBooking = typeof sickFoodBookings.$inferSelect;
 export type InsertHostelLeave = z.infer<typeof insertHostelLeaveSchema>;

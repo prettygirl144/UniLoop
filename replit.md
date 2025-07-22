@@ -109,6 +109,30 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Complete Community Forum System Replacement
+- **Two-Section Community Space**: Completely replaced the old forum system with a new community platform featuring:
+  - **Community Board (Section 1)**: Reddit-style discussion board with upvote/downvote system, anonymous posting, and threaded replies
+  - **Official Announcements (Section 2)**: Admin/committee-only announcement board for official campus communications
+- **Database Schema Migration**: New community tables replace old forum infrastructure:
+  - `communityPosts`: User discussions with voting, categories, and anonymous posting support
+  - `communityReplies`: Threaded reply system with voting and moderation
+  - `communityVotes`: Upvote/downvote tracking system with toggle functionality
+  - `communityAnnouncements`: Official announcement system with role-based creation
+- **Enhanced RBAC Integration**: Community features integrated with existing role system:
+  - Students: Can create posts and replies, vote on content
+  - Committee/Club: Can create posts, replies, and official announcements
+  - Admins: Full moderation capabilities including post/reply deletion
+- **Mobile-First UI**: Two-tab interface optimized for mobile with comprehensive form handling:
+  - Category-based organization with predefined options
+  - Anonymous posting toggle for sensitive discussions
+  - Real-time voting with visual feedback
+  - Post detail dialog with reply threading
+- **Complete Backend Implementation**: New API endpoints replacing old forum routes:
+  - `/api/community/posts` - CRUD operations for community discussions
+  - `/api/community/announcements` - Official announcement management
+  - `/api/community/posts/:id/replies` - Threaded reply system
+  - Vote endpoints with anti-spam and toggle functionality
+
 ### January 2025 - Complete Weekly Menu Upload & RBAC System Implementation
 - **Weekly Menu Upload Feature**: Comprehensive Excel-based menu upload system with complete parsing logic
   - Four-tab interface (Today, Tomorrow, Day-After, Next 7 Days) for menu viewing

@@ -8,11 +8,15 @@ import {
   insertAnnouncementSchema,
   insertEventSchema,
   insertEventRsvpSchema,
-  insertForumPostSchema,
-  insertForumReactionSchema,
+  insertCommunityPostSchema,
+  insertCommunityVoteSchema,
+  insertCommunityReplySchema,
+  insertCommunityAnnouncementSchema,
   insertSickFoodBookingSchema,
   insertHostelLeaveSchema,
   insertGrievanceSchema,
+  insertWeeklyMenuSchema,
+  insertGalleryFolderSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -233,62 +237,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Forum routes
-  app.get('/api/forum/posts', async (req, res) => {
+  // Community Board routes (Section 1) - Reddit-like functionality
+  app.get('/api/community/posts', async (req, res) => {
     try {
-      const posts = await storage.getForumPosts();
+      const posts = await storage.getCommunityPosts();
       res.json(posts);
     } catch (error) {
-      console.error("Error fetching forum posts:", error);
-      res.status(500).json({ message: "Failed to fetch forum posts" });
+      console.error("Error fetching community posts:", error);
+      res.status(500).json({ message: "Failed to fetch community posts" });
     }
   });
 
-  app.post('/api/forum/posts', checkAuth, async (req: any, res) => {
+  app.post('/api/community/posts', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       
-      const postData = insertForumPostSchema.parse({
+      const postData = insertCommunityPostSchema.parse({
         ...req.body,
         authorId: req.body.isAnonymous ? null : userId,
       });
       
-      const post = await storage.createForumPost(postData);
+      const post = await storage.createCommunityPost(postData);
       res.json(post);
     } catch (error) {
-      console.error("Error creating forum post:", error);
-      res.status(500).json({ message: "Failed to create forum post" });
+      console.error("Error creating community post:", error);
+      res.status(500).json({ message: "Failed to create community post" });
     }
   });
 
-  app.post('/api/forum/posts/:id/react', checkAuth, async (req: any, res) => {
+  app.post('/api/community/posts/:id/vote', checkAuth, async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
       
-      const reactionData = insertForumReactionSchema.parse({
+      const voteData = insertCommunityVoteSchema.parse({
         postId,
         userId,
-        type: req.body.type,
+        voteType: req.body.voteType, // 'upvote' or 'downvote'
       });
       
-      await storage.reactToPost(reactionData);
-      const reactions = await storage.getPostReactions(postId);
-      res.json(reactions);
+      await storage.voteCommunityPost(voteData);
+      const updatedPost = await storage.getCommunityPostById(postId);
+      res.json(updatedPost);
     } catch (error) {
-      console.error("Error reacting to post:", error);
-      res.status(500).json({ message: "Failed to react to post" });
+      console.error("Error voting on post:", error);
+      res.status(500).json({ message: "Failed to vote on post" });
     }
   });
 
-  app.get('/api/forum/posts/:id/reactions', async (req, res) => {
+  app.delete('/api/community/posts/:id', checkAuth, async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
-      const reactions = await storage.getPostReactions(postId);
-      res.json(reactions);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      // Only admins can delete any post
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can delete posts" });
+      }
+      
+      await storage.deleteCommunityPost(postId, userId);
+      res.json({ message: "Post deleted successfully" });
     } catch (error) {
-      console.error("Error fetching reactions:", error);
-      res.status(500).json({ message: "Failed to fetch reactions" });
+      console.error("Error deleting post:", error);
+      res.status(500).json({ message: "Failed to delete post" });
+    }
+  });
+
+  // Community replies routes
+  app.get('/api/community/posts/:id/replies', async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const replies = await storage.getCommunityReplies(postId);
+      res.json(replies);
+    } catch (error) {
+      console.error("Error fetching replies:", error);
+      res.status(500).json({ message: "Failed to fetch replies" });
+    }
+  });
+
+  app.post('/api/community/posts/:id/replies', checkAuth, async (req: any, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      
+      const replyData = insertCommunityReplySchema.parse({
+        postId,
+        authorId: req.body.isAnonymous ? null : userId,
+        content: req.body.content,
+        isAnonymous: req.body.isAnonymous || false,
+      });
+      
+      const reply = await storage.createCommunityReply(replyData);
+      res.json(reply);
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
+    }
+  });
+
+  app.post('/api/community/replies/:id/vote', checkAuth, async (req: any, res) => {
+    try {
+      const replyId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      
+      const voteData = insertCommunityVoteSchema.parse({
+        replyId,
+        userId,
+        voteType: req.body.voteType,
+      });
+      
+      await storage.voteCommunityReply(voteData);
+      res.json({ message: "Vote recorded" });
+    } catch (error) {
+      console.error("Error voting on reply:", error);
+      res.status(500).json({ message: "Failed to vote on reply" });
+    }
+  });
+
+  app.delete('/api/community/replies/:id', checkAuth, async (req: any, res) => {
+    try {
+      const replyId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      // Only admins can delete any reply
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can delete replies" });
+      }
+      
+      await storage.deleteCommunityReply(replyId, userId);
+      res.json({ message: "Reply deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting reply:", error);
+      res.status(500).json({ message: "Failed to delete reply" });
+    }
+  });
+
+  // Community Announcements routes (Section 2) - Admin/Committee only
+  app.get('/api/community/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getCommunityAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching community announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/community/announcements', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      // Only admin or committee_club role can create announcements
+      if (user?.role !== 'admin' && user?.role !== 'committee_club') {
+        return res.status(403).json({ message: "Only admins and committee members can create announcements" });
+      }
+      
+      const announcementData = insertCommunityAnnouncementSchema.parse({
+        ...req.body,
+        authorId: userId,
+      });
+      
+      const announcement = await storage.createCommunityAnnouncement(announcementData);
+      res.json(announcement);
+    } catch (error) {
+      console.error("Error creating announcement:", error);
+      res.status(500).json({ message: "Failed to create announcement" });
+    }
+  });
+
+  app.delete('/api/community/announcements/:id', checkAuth, async (req: any, res) => {
+    try {
+      const announcementId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      // Only admins can delete announcements
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can delete announcements" });
+      }
+      
+      await storage.deleteCommunityAnnouncement(announcementId, userId);
+      res.json({ message: "Announcement deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting announcement:", error);
+      res.status(500).json({ message: "Failed to delete announcement" });
     }
   });
 
