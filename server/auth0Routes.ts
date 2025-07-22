@@ -72,71 +72,49 @@ router.get('/callback', async (req, res) => {
       throw new Error(`Failed to get user info: ${userInfo.error_description || userInfo.error}`);
     }
 
-    // Create or update user in our database
-    // Grant admin access to pritika.pauli21@iimranchi.ac.in
-    const isAdmin = userInfo.email === 'pritika.pauli21@iimranchi.ac.in';
+    // Create or update user in our database - don't override existing permissions
+    let user = await storage.getUser(userInfo.sub);
     
-    const user = await storage.upsertUser({
-      id: userInfo.sub,
-      email: userInfo.email,
-      firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
-      lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
-      profileImageUrl: userInfo.picture,
-      role: isAdmin ? 'admin' : 'student',
-      permissions: isAdmin ? {
-        calendar: true,
-        attendance: true,
-        gallery: true,
-        forumMod: true,
-        diningHostel: true,
-        postCreation: true
-      } : {},
-    });
-
-    // Set user session with admin role/permissions if applicable
-    const sessionRole = isAdmin ? 'admin' : 'student';
-    const sessionPermissions = isAdmin ? {
-      calendar: true,
-      attendance: true,
-      gallery: true,
-      forumMod: true,
-      diningHostel: true,
-      postCreation: true
-    } : {};
-
-    // Always fetch fresh user data from database to get latest permissions
-    const freshUser = await storage.getUser(user.id);
-    
-    if (freshUser) {
-      (req as any).session.user = {
-        id: freshUser.id,
-        email: freshUser.email,
-        name: `${freshUser.firstName} ${freshUser.lastName}`.trim(),
-        picture: freshUser.profileImageUrl,
-        role: freshUser.role, // Use database role, not hardcoded
-        permissions: freshUser.permissions, // Use database permissions, not hardcoded
-        firstName: freshUser.firstName,
-        lastName: freshUser.lastName,
-        profileImageUrl: freshUser.profileImageUrl,
-      };
+    if (!user) {
+      // New user - create with default student role
+      user = await storage.upsertUser({
+        id: userInfo.sub,
+        email: userInfo.email,
+        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+        profileImageUrl: userInfo.picture,
+        role: 'student',
+        permissions: {},
+      });
     } else {
-      // Fallback if fresh user fetch fails
-      (req as any).session.user = {
-        id: user.id,
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`.trim(),
-        picture: user.profileImageUrl,
-        role: user.role,
-        permissions: user.permissions,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
-      };
+      // Existing user - only update profile info, keep existing role/permissions
+      user = await storage.upsertUser({
+        id: userInfo.sub,
+        email: userInfo.email,
+        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+        profileImageUrl: userInfo.picture,
+        role: user.role, // Keep existing role
+        permissions: user.permissions, // Keep existing permissions
+      });
     }
 
+    // Always use the fresh user data from database (after upsert)
+    (req as any).session.user = {
+      id: user.id,
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      picture: user.profileImageUrl,
+      role: user.role, // Use database role
+      permissions: user.permissions, // Use database permissions
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+    };
+
     console.log('User session created:', (req as any).session.user);
-    console.log('Admin access granted:', freshUser?.role === 'admin' || user.role === 'admin');
-    console.log('Database user created:', freshUser || user);
+    console.log('Admin access granted:', user.role === 'admin');
+    console.log('Database user retrieved:', user);
 
     // Redirect to home page
     res.redirect('/');
