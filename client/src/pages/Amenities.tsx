@@ -651,22 +651,22 @@ export default function Amenities() {
         </TabsContent>
 
         <TabsContent value="services" className="space-y-4">
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-col gap-4">
             {/* Sick Food Booking */}
-            <Card className="flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
-                  <UserX className="h-4 w-4 flex-shrink-0" />
-                  <span className="break-words">Sick Food Booking</span>
+            <Card className="w-full">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                  <UserX className="h-5 w-5 flex-shrink-0" />
+                  <span>Sick Food Booking</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col justify-between flex-1 pt-0">
-                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   Request food delivery to your room when you're unwell
                 </p>
                 <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full text-xs py-2">Book Sick Food</Button>
+                    <Button className="w-full">Book Sick Food</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -750,20 +750,20 @@ export default function Amenities() {
             </Card>
 
             {/* Leave Application */}
-            <Card className="flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
-                  <Home className="h-4 w-4 flex-shrink-0" />
-                  <span className="break-words">Leave Application</span>
+            <Card className="w-full">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                  <Home className="h-5 w-5 flex-shrink-0" />
+                  <span>Leave Application</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col justify-between flex-1 pt-0">
-                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
                 <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full text-xs py-2">Apply for Leave</Button>
+                    <Button className="w-full">Apply for Leave</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -850,21 +850,21 @@ export default function Amenities() {
               </CardContent>
             </Card>
 
-            {/* Grievance */}
-            <Card className="flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium leading-tight">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  <span className="break-words">Submit Grievance</span>
+            {/* Submit Grievance */}
+            <Card className="w-full">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-base font-medium">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                  <span>Submit Grievance</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col justify-between flex-1 pt-0">
-                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   Report issues with mess, hostel, IT, or other services
                 </p>
                 <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full text-xs py-2">Submit Grievance</Button>
+                    <Button className="w-full">Submit Grievance</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
