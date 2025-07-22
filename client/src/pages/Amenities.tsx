@@ -954,26 +954,30 @@ export default function Amenities() {
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  {(sickFoodBookings as any[]).length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {(sickFoodBookings as any[]).map((booking: any) => (
-                        <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
-                            <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
-                            {booking.specialRequirements && (
-                              <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
-                            )}
+                  <div className="h-48 flex flex-col">
+                    {(sickFoodBookings as any[]).length > 0 ? (
+                      <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                        {(sickFoodBookings as any[]).map((booking: any) => (
+                          <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                              <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
+                              {booking.specialRequirements && (
+                                <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
+                              )}
+                            </div>
+                            <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
+                              {booking.status}
+                            </Badge>
                           </div>
-                          <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                            {booking.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8 text-small">No bookings found</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-center text-muted-foreground text-small">No bookings found</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -992,27 +996,31 @@ export default function Amenities() {
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  {(leaveApplications as any[]).length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {(leaveApplications as any[]).map((application: any) => (
-                        <div key={application.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-small font-medium truncate">
-                              {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
-                            </p>
-                            <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
-                            <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
-                            <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
+                  <div className="h-48 flex flex-col">
+                    {(leaveApplications as any[]).length > 0 ? (
+                      <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                        {(leaveApplications as any[]).map((application: any) => (
+                          <div key={application.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-small font-medium truncate">
+                                {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                              </p>
+                              <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
+                              <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
+                              <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
+                            </div>
+                            <Badge variant={application.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
+                              {application.status}
+                            </Badge>
                           </div>
-                          <Badge variant={application.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                            {application.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8 text-small">No applications found</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-center text-muted-foreground text-small">No applications found</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1031,36 +1039,40 @@ export default function Amenities() {
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  {(grievances as any[]).length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {(grievances as any[]).map((grievance: any) => (
-                        <div key={grievance.id} className="p-3 border rounded-lg space-y-2">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Badge variant="outline" className="w-fit">{grievance.category}</Badge>
-                              <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                                {grievance.status}
-                              </Badge>
+                  <div className="h-48 flex flex-col">
+                    {(grievances as any[]).length > 0 ? (
+                      <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                        {(grievances as any[]).map((grievance: any) => (
+                          <div key={grievance.id} className="p-3 border rounded-lg space-y-2 flex-shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Badge variant="outline" className="w-fit">{grievance.category}</Badge>
+                                <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
+                                  {grievance.status}
+                                </Badge>
+                              </div>
+                              {grievance.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
+                                  disabled={resolveGrievanceMutation.isPending}
+                                  className="h-8 px-3"
+                                >
+                                  Mark Resolved
+                                </Button>
+                              )}
                             </div>
-                            {grievance.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
-                                disabled={resolveGrievanceMutation.isPending}
-                                className="h-8 px-3"
-                              >
-                                Mark Resolved
-                              </Button>
-                            )}
+                            <p className="text-small break-words">{grievance.description}</p>
+                            <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
                           </div>
-                          <p className="text-small break-words">{grievance.description}</p>
-                          <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8 text-small">No grievances found</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-center text-muted-foreground text-small">No grievances found</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
