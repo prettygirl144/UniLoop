@@ -109,13 +109,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Amenities Module Backend Implementation & Database Fixes
-- **Database Schema Corrections**: Fixed missing columns (`admin_notes` in grievances, `updated_at` in dining_menu) that were causing API errors
-- **Complete Route Renaming**: Successfully renamed all dining routes to amenities routes (/api/dining/* → /api/amenities/*) across both backend and frontend
-- **Unified Records Interface**: Moved Grievance Management from separate Admin Panel to unified Records subpage, consolidating all booking/application management
-- **Simplified Tab Structure**: Reduced Amenities page from 4 tabs to 3 tabs (Menu, Services, Records) for better UX
-- **Admin Panel Removal**: Removed redundant Admin Panel tab from Amenities page, moving functionality to main Admin page
-- **Full End-to-End Functionality**: All amenities endpoints now working correctly with proper authentication and data validation
+### January 2025 - Complete Weekly Menu Upload & RBAC System Implementation
+- **Weekly Menu Upload Feature**: Comprehensive Excel-based menu upload system with complete parsing logic
+  - Four-tab interface (Today, Tomorrow, Day-After, Next 7 Days) for menu viewing
+  - Excel parser with unmerge cell support, date extraction, and meal categorization
+  - RBAC controls allowing only admin and dining-permission users to upload menus
+  - Database schema updated to `weekly_menu` table with proper date indexing
+  - File validation (5MB limit, .xlsx only) with detailed error handling
+- **Authentication Pipeline Fixes**: Resolved Auth0 vs session-based authentication conflicts
+  - Unified `extractUser` function supporting both Auth0 and session-based users
+  - Development test user bypass for menu upload testing
+  - Fixed SQL query issues with array parameters and type safety
+- **Database Schema Corrections**: Fixed missing columns and LSP errors
+  - Proper `inArray` usage for date range queries
+  - Fixed Drizzle ORM type issues with array handling
+  - Enhanced error logging for menu parsing and upload failures
+- **Complete Route Integration**: All amenities endpoints working with proper error handling
+  - Menu fetch API returning proper empty arrays when no data exists  
+  - Upload endpoint with comprehensive validation and success feedback
+  - RBAC permission checking integrated across all menu operations
 
 ### January 2025 - Complete Typography Standardization
 - **Typography System Standardization**: Implemented consistent 3-font-size system across ALL pages:

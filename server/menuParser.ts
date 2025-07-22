@@ -29,7 +29,7 @@ export function parseExcelMenu(buffer: Buffer): MenuParseResult {
     const worksheet = workbook.Sheets[firstSheetName];
     
     // Convert to JSON format for easier manipulation
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
     
     if (!Array.isArray(jsonData) || jsonData.length === 0) {
       return { success: false, error: 'Empty worksheet found' };

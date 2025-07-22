@@ -38,7 +38,7 @@ import {
   amenitiesPermissions,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, or, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -237,9 +237,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEvent(event: InsertEvent): Promise<Event> {
+    const eventData = {
+      ...event,
+      mediaUrls: event.mediaUrls ? (Array.isArray(event.mediaUrls) ? event.mediaUrls : []) : []
+    };
     const [created] = await db
       .insert(events)
-      .values(event)
+      .values(eventData)
       .returning();
     return created;
   }
@@ -273,9 +277,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createForumPost(post: InsertForumPost): Promise<ForumPost> {
+    const postData = {
+      ...post,
+      mediaUrls: post.mediaUrls ? (Array.isArray(post.mediaUrls) ? post.mediaUrls : []) : []
+    };
     const [created] = await db
       .insert(forumPosts)
-      .values(post)
+      .values(postData)
       .returning();
     return created;
   }
@@ -348,7 +356,7 @@ export class DatabaseStorage implements IStorage {
     const menus = await db
       .select()
       .from(weeklyMenu)
-      .where(sql`${weeklyMenu.date} = ANY(${dates})`);
+      .where(inArray(weeklyMenu.date, dates));
     return menus;
   }
 
