@@ -140,10 +140,14 @@ router.get('/logout', (req, res) => {
     const clientId = process.env.AUTH0_CLIENT_ID;
     const returnTo = `${req.protocol}://${req.get('host')}`;
     
-    const logoutUrl = `https://${auth0Domain}/v2/logout?` +
-      `client_id=${clientId}&` +
-      `returnTo=${encodeURIComponent(returnTo)}`;
-      
+    console.log('Auth0 logout - Domain:', auth0Domain);
+    console.log('Auth0 logout - Client ID:', clientId);
+    console.log('Auth0 logout - Return To:', returnTo);
+    
+    // Simple logout without returnTo to avoid Auth0 configuration issues
+    const logoutUrl = `https://${auth0Domain}/v2/logout?client_id=${clientId}`;
+    
+    console.log('Auth0 logout URL:', logoutUrl);
     res.redirect(logoutUrl);
   });
 });

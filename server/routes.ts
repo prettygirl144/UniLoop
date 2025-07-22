@@ -80,6 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add Auth0 routes
   const auth0Routes = (await import('./auth0Routes')).default;
   app.use('/api', auth0Routes);
+  
+  // Note: /api/logout is handled by Auth0 routes (auth0Routes.ts)
 
   // Auth0 authentication error handler
   app.use(handleAuthError);
