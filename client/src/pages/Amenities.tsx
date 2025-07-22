@@ -941,122 +941,125 @@ export default function Amenities() {
             <div className="grid gap-4">
               {/* Sick Food Bookings */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Sick Food Bookings</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-medium">Sick Food Bookings</CardTitle>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => downloadReports('sick-food')}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1 h-8 px-2"
                   >
-                    <Download className="h-4 w-4" />
-                    Download
+                    <Download className="h-3 w-3" />
+                    <span className="hidden sm:inline">Download</span>
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-2">
                   {(sickFoodBookings as any[]).length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {(sickFoodBookings as any[]).map((booking: any) => (
-                        <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="text-medium">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
-                            <p className="text-small text-muted-foreground">Room: {booking.roomNumber}</p>
+                        <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                            <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
                             {booking.specialRequirements && (
-                              <p className="text-small text-muted-foreground">Special: {booking.specialRequirements}</p>
+                              <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
                             )}
                           </div>
-                          <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'}>
+                          <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
                             {booking.status}
                           </Badge>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">No bookings found</p>
+                    <p className="text-center text-muted-foreground py-8 text-small">No bookings found</p>
                   )}
                 </CardContent>
               </Card>
 
               {/* Leave Applications */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Leave Applications</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-medium">Leave Applications</CardTitle>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => downloadReports('leave-applications')}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1 h-8 px-2"
                   >
-                    <Download className="h-4 w-4" />
-                    Download
+                    <Download className="h-3 w-3" />
+                    <span className="hidden sm:inline">Download</span>
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-2">
                   {(leaveApplications as any[]).length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {(leaveApplications as any[]).map((application: any) => (
-                        <div key={application.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="text-medium">
+                        <div key={application.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-small font-medium truncate">
                               {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
                             </p>
-                            <p className="text-small text-muted-foreground">Room: {application.roomNumber}</p>
-                            <p className="text-small text-muted-foreground">Contact: {application.emergencyContact}</p>
-                            <p className="text-small text-muted-foreground">Reason: {application.reason}</p>
+                            <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
+                            <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
+                            <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
                           </div>
-                          <Badge variant={application.status === 'pending' ? 'secondary' : 'default'}>
+                          <Badge variant={application.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
                             {application.status}
                           </Badge>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">No applications found</p>
+                    <p className="text-center text-muted-foreground py-8 text-small">No applications found</p>
                   )}
                 </CardContent>
               </Card>
 
               {/* Grievance Management */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Grievance Management</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-medium">Grievance Management</CardTitle>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => downloadReports('grievances')}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1 h-8 px-2"
                   >
-                    <Download className="h-4 w-4" />
-                    Download
+                    <Download className="h-3 w-3" />
+                    <span className="hidden sm:inline">Download</span>
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-2">
                   {(grievances as any[]).length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {(grievances as any[]).map((grievance: any) => (
-                        <div key={grievance.id} className="p-4 border rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline">{grievance.category}</Badge>
-                            <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'}>
-                              {grievance.status}
-                            </Badge>
+                        <div key={grievance.id} className="p-3 border rounded-lg space-y-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Badge variant="outline" className="w-fit">{grievance.category}</Badge>
+                              <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
+                                {grievance.status}
+                              </Badge>
+                            </div>
+                            {grievance.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
+                                disabled={resolveGrievanceMutation.isPending}
+                                className="h-8 px-3"
+                              >
+                                Mark Resolved
+                              </Button>
+                            )}
                           </div>
-                          <p className="text-small">{grievance.description}</p>
+                          <p className="text-small break-words">{grievance.description}</p>
                           <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
-                          {grievance.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
-                              disabled={resolveGrievanceMutation.isPending}
-                            >
-                              Mark as Resolved
-                            </Button>
-                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">No grievances found</p>
+                    <p className="text-center text-muted-foreground py-8 text-small">No grievances found</p>
                   )}
                 </CardContent>
               </Card>
