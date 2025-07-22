@@ -18,30 +18,43 @@ export interface MenuParseResult {
 
 export function parseExcelMenu(buffer: Buffer): MenuParseResult {
   try {
+    // Starting Excel parsing
+    
     // Read the Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const firstSheetName = workbook.SheetNames[0];
     
     if (!firstSheetName) {
+
       return { success: false, error: 'No sheets found in Excel file' };
     }
+    
+
 
     const worksheet = workbook.Sheets[firstSheetName];
+    
+    // Note: XLSX library doesn't provide sheet_unmerge_all, but forward-fill handles merged cells
     
     // Convert to JSON format for easier manipulation
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
     
     if (!Array.isArray(jsonData) || jsonData.length === 0) {
+
       return { success: false, error: 'Empty worksheet found' };
     }
+    
+
 
     // Step 1: Forward-fill column A downward to handle merged cells
     const processedData = forwardFillColumnA(jsonData);
+
     
     // Step 2: Extract dates from row 1 (starting from column C)
     const dateColumns = extractDateColumns(processedData[0] as string[]);
+
     
     if (dateColumns.length === 0) {
+
       return { success: false, error: 'No valid dates found in first row starting from column C' };
     }
 
@@ -63,6 +76,8 @@ export function parseExcelMenu(buffer: Buffer): MenuParseResult {
         const menuItem = (row[columnIndex] || '').toString().trim();
         
         if (menuItem && mealLabel) {
+
+          
           if (mealLabel.includes('breakfast')) {
             parsedMenu[date].breakfast = addMenuItem(parsedMenu[date].breakfast || '', menuItem);
           } else if (mealLabel.includes('lunch')) {
@@ -76,9 +91,11 @@ export function parseExcelMenu(buffer: Buffer): MenuParseResult {
       }
     }
 
+
     return { success: true, menu: parsedMenu };
     
   } catch (error) {
+    console.error('Excel parsing error:', error);
     return { 
       success: false, 
       error: 'Failed to parse Excel file', 
@@ -120,6 +137,7 @@ function forwardFillColumnA(data: any[][]): string[][] {
 
 function extractDateColumns(headerRow: string[]): Array<{ columnIndex: number; date: string }> {
   const dateColumns: Array<{ columnIndex: number; date: string }> = [];
+
   
   // Start from column C (index 2)
   for (let i = 2; i < headerRow.length; i++) {
