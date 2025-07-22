@@ -7,7 +7,7 @@ const navItems = [
   { path: '/calendar', icon: Calendar, label: 'Events', id: 'calendar' },
   { path: '/gallery', icon: Image, label: 'Gallery', id: 'gallery' },
   { path: '/forum', icon: MessageSquare, label: 'Forum', id: 'forum' },
-  { path: '/dining', icon: Utensils, label: 'Amenities', id: 'dining' },
+  { path: '/amenities', icon: Utensils, label: 'Amenities', id: 'amenities' },
 ];
 
 const adminNavItem = { path: '/admin', icon: Settings, label: 'Admin', id: 'admin' };
