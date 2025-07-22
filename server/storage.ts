@@ -35,6 +35,7 @@ import {
   type InsertDiningMenu,
   type AmenitiesPermissions,
   type InsertAmenitiesPermissions,
+  amenitiesPermissions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql } from "drizzle-orm";
@@ -124,7 +125,7 @@ export class DatabaseStorage implements IStorage {
       // Insert new user with default values
       const [user] = await db
         .insert(users)
-        .values([userData])
+        .values(userData)
         .returning();
       return user;
     }
@@ -133,23 +134,10 @@ export class DatabaseStorage implements IStorage {
   async updateUserPermissions(userId: string, permissions: any): Promise<User | undefined> {
     const [user] = await db
       .update(users)
-      .set({ permissions, updatedAt: new Date() })
+      .set({ permissions })
       .where(eq(users.id, userId))
       .returning();
     return user;
-  }
-
-  async updateUserRoleAndPermissions(userId: string, role: string, permissions: any): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set({ role, permissions, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
-  }
-
-  async getAllUsersForAdmin(): Promise<User[]> {
-    return await db.select().from(users).orderBy(users.createdAt);
   }
 
   async getEventById(id: number): Promise<Event | undefined> {
@@ -194,7 +182,7 @@ export class DatabaseStorage implements IStorage {
 
     const [user] = await db
       .insert(users)
-      .values([alternateUserData])
+      .values(alternateUserData)
       .returning();
     return user;
   }
@@ -216,7 +204,7 @@ export class DatabaseStorage implements IStorage {
   async createGalleryFolder(folderData: any): Promise<any> {
     const [folder] = await db
       .insert(galleryFolders)
-      .values([folderData])
+      .values(folderData)
       .returning();
     return folder;
   }
@@ -252,17 +240,9 @@ export class DatabaseStorage implements IStorage {
   async createEvent(event: InsertEvent): Promise<Event> {
     const [created] = await db
       .insert(events)
-      .values([event])
+      .values(event)
       .returning();
     return created;
-  }
-
-  async getEventById(id: number): Promise<Event | undefined> {
-    const [event] = await db
-      .select()
-      .from(events)
-      .where(eq(events.id, id));
-    return event;
   }
 
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
@@ -296,7 +276,7 @@ export class DatabaseStorage implements IStorage {
   async createForumPost(post: InsertForumPost): Promise<ForumPost> {
     const [created] = await db
       .insert(forumPosts)
-      .values([post])
+      .values(post)
       .returning();
     return created;
   }
@@ -398,7 +378,7 @@ export class DatabaseStorage implements IStorage {
   async updateMenu(date: Date, mealType: string, items: string[]): Promise<DiningMenu> {
     const [updated] = await db
       .update(diningMenu)
-      .set({ items, updatedAt: new Date() })
+      .set({ items })
       .where(and(
         eq(diningMenu.date, date),
         eq(diningMenu.mealType, mealType)
@@ -410,7 +390,7 @@ export class DatabaseStorage implements IStorage {
   async updateMenuById(id: number, items: string[]): Promise<DiningMenu> {
     const [updated] = await db
       .update(diningMenu)
-      .set({ items, updatedAt: new Date() })
+      .set({ items })
       .where(eq(diningMenu.id, id))
       .returning();
     return updated;
@@ -425,21 +405,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]> {
-    let query = db.select().from(sickFoodBookings);
-    
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
       
-      query = query.where(and(
+      return await db.select().from(sickFoodBookings).where(and(
         gte(sickFoodBookings.date, startDate),
         lte(sickFoodBookings.date, endDate)
-      ));
+      )).orderBy(desc(sickFoodBookings.createdAt));
     }
     
-    return await query.orderBy(desc(sickFoodBookings.createdAt));
+    return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
   }
 
   async applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave> {
@@ -460,13 +438,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLeaveApplications(status?: string): Promise<HostelLeave[]> {
-    let query = db.select().from(hostelLeave);
-    
     if (status) {
-      query = query.where(eq(hostelLeave.status, status));
+      return await db.select().from(hostelLeave).where(eq(hostelLeave.status, status)).orderBy(desc(hostelLeave.createdAt));
     }
     
-    return await query.orderBy(desc(hostelLeave.createdAt));
+    return await db.select().from(hostelLeave).orderBy(desc(hostelLeave.createdAt));
   }
 
   async approveLeave(id: number, token: string): Promise<HostelLeave> {
@@ -504,13 +480,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGrievances(category?: string): Promise<Grievance[]> {
-    let query = db.select().from(grievances);
-    
     if (category) {
-      query = query.where(eq(grievances.category, category));
+      return await db.select().from(grievances).where(eq(grievances.category, category)).orderBy(desc(grievances.createdAt));
     }
     
-    return await query.orderBy(desc(grievances.createdAt));
+    return await db.select().from(grievances).orderBy(desc(grievances.createdAt));
   }
 
   async resolveGrievance(id: number, adminNotes?: string): Promise<Grievance> {
@@ -547,7 +521,6 @@ export class DatabaseStorage implements IStorage {
           leaveApplicationAccess: permissions.leaveApplicationAccess,
           grievanceAccess: permissions.grievanceAccess,
           adminAccess: permissions.adminAccess,
-          updatedAt: new Date(),
         },
       })
       .returning();
@@ -597,8 +570,7 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ 
         role, 
-        permissions,
-        updatedAt: new Date() 
+        permissions
       })
       .where(eq(users.id, userId))
       .returning();

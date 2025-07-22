@@ -290,10 +290,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced Amenities (Dining) routes
+  // Enhanced Amenities routes
   
   // Get today's menu (public)
-  app.get('/api/dining/menu', async (req, res) => {
+  app.get('/api/amenities/menu', async (req, res) => {
     try {
       const menu = await storage.getTodaysMenu();
       res.json(menu);
@@ -304,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get menu by date (public)
-  app.get('/api/dining/menu/:date', async (req, res) => {
+  app.get('/api/amenities/menu/:date', async (req, res) => {
     try {
       const date = new Date(req.params.date);
       const menu = await storage.getMenuByDate(date);
@@ -316,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload menu (admin only)
-  app.post('/api/dining/menu/upload', checkAuth, async (req: any, res) => {
+  app.post('/api/amenities/menu/upload', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       
@@ -341,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update menu item (admin only)
-  app.put('/api/dining/menu/:date/:mealType', checkAuth, async (req: any, res) => {
+  app.put('/api/amenities/menu/:date/:mealType', checkAuth, async (req: any, res) => {
     try {
       // Check admin permissions
       if (req.session.user.role !== 'admin') {
@@ -361,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update menu by ID (admin only)
-  app.put('/api/dining/menu/:id', checkAuth, async (req: any, res) => {
+  app.put('/api/amenities/menu/:id', checkAuth, async (req: any, res) => {
     try {
       // Check admin permissions
       if (req.session.user.role !== 'admin') {
@@ -384,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Book sick food
-  app.post('/api/dining/sick-food', checkAuth, async (req: any, res) => {
+  app.post('/api/amenities/sick-food', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       
@@ -403,7 +403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get sick food bookings (admin only)
-  app.get('/api/dining/sick-food', checkAuth, async (req: any, res) => {
+  app.get('/api/amenities/sick-food', checkAuth, async (req: any, res) => {
     try {
       // Check admin permissions
       if (req.session.user.role !== 'admin') {

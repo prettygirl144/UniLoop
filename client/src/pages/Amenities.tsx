@@ -133,11 +133,11 @@ export default function Amenities() {
 
   // Data queries
   const { data: todaysMenu = [], isLoading: menuLoading } = useQuery({
-    queryKey: ['/api/dining/menu'],
+    queryKey: ['/api/amenities/menu'],
   });
 
   const { data: sickFoodBookings = [] } = useQuery({
-    queryKey: ['/api/dining/sick-food'],
+    queryKey: ['/api/amenities/sick-food'],
     enabled: isAdmin,
   });
 
@@ -154,7 +154,7 @@ export default function Amenities() {
   // Mutations
   const sickFoodMutation = useMutation({
     mutationFn: async (data: SickFoodForm) => {
-      await apiRequest('POST', '/api/dining/sick-food', data);
+      await apiRequest('POST', '/api/amenities/sick-food', data);
     },
     onSuccess: () => {
       setShowSickFoodDialog(false);
@@ -163,7 +163,7 @@ export default function Amenities() {
         title: 'Success',
         description: 'Sick food booking submitted successfully!',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/dining/sick-food'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -255,14 +255,14 @@ export default function Amenities() {
     mutationFn: async (data: MenuUploadForm | { menuItems: any[] }) => {
       if ('menuItems' in data) {
         // Excel file upload
-        await apiRequest('POST', '/api/dining/menu/upload', data);
+        await apiRequest('POST', '/api/amenities/menu/upload', data);
       } else {
         // Manual text input - validate required fields only if no file uploaded
         if (!uploadedFile && (!data.date || !data.mealType || !data.items)) {
           throw new Error('All fields are required when not uploading an Excel file');
         }
         const items = (data.items || '').split('\n').filter(item => item.trim() !== '');
-        await apiRequest('POST', '/api/dining/menu/upload', {
+        await apiRequest('POST', '/api/amenities/menu/upload', {
           menuItems: [{
             date: data.date,
             mealType: data.mealType,
@@ -279,7 +279,7 @@ export default function Amenities() {
         title: 'Success',
         description: 'Menu uploaded successfully!',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/dining/menu'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/amenities/menu'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -426,7 +426,7 @@ export default function Amenities() {
   // Edit menu functionality
   const editMenuMutation = useMutation({
     mutationFn: async ({ id, items }: { id: number; items: string[] }) => {
-      await apiRequest('PUT', `/api/dining/menu/${id}`, { items });
+      await apiRequest('PUT', `/api/amenities/menu/${id}`, { items });
     },
     onSuccess: () => {
       setShowEditDialog(false);
@@ -436,7 +436,7 @@ export default function Amenities() {
         title: 'Success',
         description: 'Menu updated successfully!',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/dining/menu'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/amenities/menu'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -599,7 +599,7 @@ export default function Amenities() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="menu">Today's Menu</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
-          {isAdmin && <TabsTrigger value="bookings">Bookings</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="records">Records</TabsTrigger>}
           {isAdmin && <TabsTrigger value="admin">Admin Panel</TabsTrigger>}
         </TabsList>
 
@@ -938,7 +938,7 @@ export default function Amenities() {
         </TabsContent>
 
         {isAdmin && (
-          <TabsContent value="bookings" className="space-y-4">
+          <TabsContent value="records" className="space-y-4">
             <div className="grid gap-4">
               {/* Sick Food Bookings */}
               <Card>
