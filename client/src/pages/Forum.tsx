@@ -147,7 +147,7 @@ export default function Forum() {
   // Mutations
   const createPostMutation = useMutation({
     mutationFn: async (data: z.infer<typeof CommunityPostSchema>) => {
-      return await apiRequest('/api/community/posts', 'POST', data);
+      return await apiRequest('POST', '/api/community/posts', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
@@ -180,7 +180,7 @@ export default function Forum() {
 
   const createAnnouncementMutation = useMutation({
     mutationFn: async (data: z.infer<typeof CommunityAnnouncementSchema>) => {
-      return await apiRequest('/api/community/announcements', 'POST', data);
+      return await apiRequest('POST', '/api/community/announcements', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/community/announcements'] });
@@ -213,7 +213,7 @@ export default function Forum() {
 
   const createReplyMutation = useMutation({
     mutationFn: async (data: z.infer<typeof ReplySchema>) => {
-      return await apiRequest(`/api/community/posts/${selectedPost?.id}/replies`, 'POST', data);
+      return await apiRequest('POST', `/api/community/posts/${selectedPost?.id}/replies`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/community/posts', selectedPost?.id, 'replies'] });
@@ -245,7 +245,7 @@ export default function Forum() {
 
   const voteMutation = useMutation({
     mutationFn: async ({ postId, voteType }: { postId: number; voteType: 'upvote' | 'downvote' }) => {
-      return await apiRequest(`/api/community/posts/${postId}/vote`, 'POST', { voteType });
+      return await apiRequest('POST', `/api/community/posts/${postId}/vote`, { voteType });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });

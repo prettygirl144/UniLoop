@@ -248,10 +248,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts', checkAuth, async (req: any, res) => {
+  app.post('/api/community/posts', authorize(), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
-      const user = await storage.getUser(userId);
+      const user = req.currentUser;
       
       const postData = insertCommunityPostSchema.parse({
         ...req.body,
@@ -267,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts/:id/vote', checkAuth, async (req: any, res) => {
+  app.post('/api/community/posts/:id/vote', authorize(), async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/posts/:id', checkAuth, async (req: any, res) => {
+  app.delete('/api/community/posts/:id', authorize(), async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -387,10 +387,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/announcements', checkAuth, async (req: any, res) => {
+  app.post('/api/community/announcements', authorize(), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
-      const user = await storage.getUser(userId);
+      const user = req.currentUser;
       
       // Only admin or committee_club role can create announcements
       if (user?.role !== 'admin' && user?.role !== 'committee_club') {
