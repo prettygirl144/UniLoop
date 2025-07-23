@@ -1,6 +1,30 @@
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 export default function Landing() {
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check for error parameters in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorType = urlParams.get('error');
+    const errorMessage = urlParams.get('message');
+
+    if (errorType && errorMessage) {
+      // Show error toast based on the error type
+      toast({
+        title: "Login Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [toast]);
+
   const handleGoogleLogin = () => {
     window.location.href = '/api/login';
   };

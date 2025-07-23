@@ -109,6 +109,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Admin Override System and Student Directory Integration (COMPLETED)
+- **Admin Override Authentication**: Implemented hardcoded admin user list with automatic role assignment:
+  - Added `ADMIN_OVERRIDE_EMAILS` array containing: pritika.pauli21@iimranchi.ac.in, pritika.paul4@gmail.com, kislay.ui@gmail.com
+  - These users automatically receive admin role and full permissions upon first login
+  - Existing admin users get upgraded if they're in the override list
+  - Enhanced error handling with specific error types for authentication failures
+- **Database Schema Fixes**: Resolved "batch column does not exist" errors by:
+  - Added missing batch and section columns to users table
+  - Created student_directory and student_upload_logs tables
+  - Successfully pushed all schema changes to production database
+- **Enhanced Authentication Error Handling**: 
+  - Auth0 callback now provides detailed error messages with specific error types
+  - Frontend Landing page displays authentication failure toasts with proper reasons
+  - URL error parameters are automatically cleaned up after displaying toast messages
+- **Complete Student Directory System**: Three-tab admin interface with:
+  - User Management: Edit roles and permissions for all users
+  - Student Directory: Upload Excel files with batch management and student viewing
+  - Upload History: Track all student directory uploads with detailed logs
+
 ### January 2025 - Complete Community Forum System Replacement (COMPLETED)
 - **Two-Section Community Space**: Completely replaced the old forum system with a new community platform featuring:
   - **Community Board (Section 1)**: Reddit-style discussion board with upvote/downvote system, anonymous posting, and threaded replies

@@ -3,6 +3,13 @@ import { storage } from './storage';
 
 const router = express.Router();
 
+// Admin override users - these emails get admin role automatically
+const ADMIN_OVERRIDE_EMAILS = [
+  'pritika.pauli21@iimranchi.ac.in',
+  'pritika.paul4@gmail.com', 
+  'kislay.ui@gmail.com'
+];
+
 // Auth0 login route - redirects to Auth0 Google login
 router.get('/login', (req, res) => {
   const auth0Domain = process.env.AUTH0_DOMAIN;
@@ -72,30 +79,52 @@ router.get('/callback', async (req, res) => {
       throw new Error(`Failed to get user info: ${userInfo.error_description || userInfo.error}`);
     }
 
-    // Create or update user in our database - don't override existing permissions
+    // Check if user is an admin override
+    const isAdminOverride = ADMIN_OVERRIDE_EMAILS.includes(userInfo.email.toLowerCase());
+    
+    // Create or update user in our database
     let user = await storage.getUser(userInfo.sub);
     
     if (!user) {
-      // New user - create with default student role
+      // New user - create with appropriate role
+      const role = isAdminOverride ? 'admin' : 'student';
+      const permissions = isAdminOverride ? {
+        calendar: true,
+        attendance: true,
+        gallery: true,
+        forumMod: true,
+        diningHostel: true,
+        postCreation: true,
+      } : {};
+      
       user = await storage.upsertUser({
         id: userInfo.sub,
         email: userInfo.email,
         firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
         lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
         profileImageUrl: userInfo.picture,
-        role: 'student',
-        permissions: {},
+        role: role,
+        permissions: permissions,
       });
     } else {
-      // Existing user - only update profile info, keep existing role/permissions
+      // Existing user - update profile info and upgrade to admin if in override list
+      const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
+      
       user = await storage.upsertUser({
         id: userInfo.sub,
         email: userInfo.email,
         firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
         lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
         profileImageUrl: userInfo.picture,
-        role: user.role, // Keep existing role
-        permissions: user.permissions, // Keep existing permissions
+        role: shouldUpgradeToAdmin ? 'admin' : user.role,
+        permissions: shouldUpgradeToAdmin ? {
+          calendar: true,
+          attendance: true,
+          gallery: true,
+          forumMod: true,
+          diningHostel: true,
+          postCreation: true,
+        } : user.permissions,
       });
     }
 
@@ -119,9 +148,31 @@ router.get('/callback', async (req, res) => {
     // Redirect to home page
     res.redirect('/');
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Auth0 callback error:', error);
-    res.redirect('/?error=auth_failed');
+    
+    // Create error message based on error type
+    let errorType = 'auth_failed';
+    let errorMessage = 'Authentication failed';
+    
+    if (error?.message?.includes('column') && error?.message?.includes('does not exist')) {
+      errorType = 'database_error';
+      errorMessage = 'Database configuration error. Please contact administrator.';
+    } else if (error?.message?.includes('Token exchange failed')) {
+      errorType = 'token_error';
+      errorMessage = 'Authentication token error. Please try again.';
+    } else if (error?.message?.includes('Failed to get user info')) {
+      errorType = 'user_info_error';
+      errorMessage = 'Unable to retrieve user information from Google.';
+    }
+    
+    // Redirect with error parameters for toast display
+    const errorParams = new URLSearchParams({
+      error: errorType,
+      message: errorMessage
+    });
+    
+    res.redirect(`/?${errorParams.toString()}`);
   }
 });
 
