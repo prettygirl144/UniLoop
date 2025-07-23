@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image } from 'lucide-react';
+import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image, Filter, Calendar, User, Heart, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,14 +92,37 @@ const CATEGORIES = [
   'Clubs & Societies'
 ];
 
+const TIME_FILTERS = [
+  { label: 'All Time', value: 'all' },
+  { label: 'Today', value: 'today' },
+  { label: 'This Week', value: 'week' },
+  { label: 'This Month', value: 'month' },
+  { label: 'This Year', value: 'year' }
+];
+
+const SORT_OPTIONS = [
+  { label: 'Recent', value: 'recent' },
+  { label: 'Most Upvoted', value: 'upvotes' },
+  { label: 'Most Discussed', value: 'replies' },
+  { label: 'Trending', value: 'trending' }
+];
+
 export default function Forum() {
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [postsPage, setPostsPage] = useState(1);
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('recent');
+  const [showFilters, setShowFilters] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const POSTS_PER_PAGE = 10;
 
   // Queries
   const { data: communityPosts = [], isLoading: postsLoading } = useQuery<CommunityPost[]>({
@@ -287,25 +310,128 @@ export default function Forum() {
   const canCreateAnnouncement = (user as any)?.role === 'admin' || (user as any)?.role === 'committee_club';
   const canDeletePosts = (user as any)?.role === 'admin';
 
-  // Filter posts based on search query
-  const filteredPosts = useMemo(() => {
-    if (!searchQuery.trim()) return communityPosts;
-    const query = searchQuery.toLowerCase();
-    return communityPosts.filter((post: CommunityPost) =>
-      post.title.toLowerCase().includes(query) ||
-      post.content.toLowerCase().includes(query)
-    );
-  }, [communityPosts, searchQuery]);
+  // Helper function to check if date is within time filter
+  const isWithinTimeFilter = (dateString: string, filter: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (filter) {
+      case 'today':
+        return date >= today;
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return date >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        return date >= monthAgo;
+      case 'year':
+        const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        return date >= yearAgo;
+      default:
+        return true;
+    }
+  };
 
-  // Filter announcements based on search query
+  // Enhanced filter and sort posts
+  const filteredAndSortedPosts = useMemo(() => {
+    let filtered = [...communityPosts];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((post: CommunityPost) =>
+        post.title.toLowerCase().includes(query) ||
+        post.content.toLowerCase().includes(query) ||
+        (post.authorName && post.authorName.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply time filter
+    if (timeFilter !== 'all') {
+      filtered = filtered.filter((post: CommunityPost) => 
+        isWithinTimeFilter(post.createdAt, timeFilter)
+      );
+    }
+
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((post: CommunityPost) => 
+        post.category === categoryFilter
+      );
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'upvotes':
+        filtered.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+        break;
+      case 'replies':
+        // Would need reply count from backend, for now sort by upvotes
+        filtered.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+        break;
+      case 'trending':
+        // Basic trending algorithm: recent posts with high engagement
+        filtered.sort((a, b) => {
+          const aScore = (a.upvotes || 0) + (a.downvotes || 0) + 
+                        (isWithinTimeFilter(a.createdAt, 'week') ? 10 : 0);
+          const bScore = (b.upvotes || 0) + (b.downvotes || 0) + 
+                        (isWithinTimeFilter(b.createdAt, 'week') ? 10 : 0);
+          return bScore - aScore;
+        });
+        break;
+      case 'recent':
+      default:
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+    }
+
+    return filtered;
+  }, [communityPosts, searchQuery, timeFilter, categoryFilter, sortBy]);
+
+  // Enhanced filter announcements
   const filteredAnnouncements = useMemo(() => {
-    if (!searchQuery.trim()) return communityAnnouncements;
-    const query = searchQuery.toLowerCase();
-    return communityAnnouncements.filter((announcement: CommunityAnnouncement) =>
-      announcement.title.toLowerCase().includes(query) ||
-      announcement.content.toLowerCase().includes(query)
-    );
-  }, [communityAnnouncements, searchQuery]);
+    let filtered = [...communityAnnouncements];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((announcement: CommunityAnnouncement) =>
+        announcement.title.toLowerCase().includes(query) ||
+        announcement.content.toLowerCase().includes(query) ||
+        announcement.authorName.toLowerCase().includes(query)
+      );
+    }
+
+    if (timeFilter !== 'all') {
+      filtered = filtered.filter((announcement: CommunityAnnouncement) => 
+        isWithinTimeFilter(announcement.createdAt, timeFilter)
+      );
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((announcement: CommunityAnnouncement) => 
+        announcement.category === categoryFilter
+      );
+    }
+
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [communityAnnouncements, searchQuery, timeFilter, categoryFilter]);
+
+  // Pagination logic
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (postsPage - 1) * POSTS_PER_PAGE;
+    const endIndex = startIndex + POSTS_PER_PAGE;
+    return filteredAndSortedPosts.slice(0, endIndex);
+  }, [filteredAndSortedPosts, postsPage]);
+
+  const paginatedAnnouncements = useMemo(() => {
+    const startIndex = (announcementsPage - 1) * POSTS_PER_PAGE;
+    const endIndex = startIndex + POSTS_PER_PAGE;
+    return filteredAnnouncements.slice(0, endIndex);
+  }, [filteredAnnouncements, announcementsPage]);
+
+  const hasMorePosts = filteredAndSortedPosts.length > paginatedPosts.length;
+  const hasMoreAnnouncements = filteredAnnouncements.length > paginatedAnnouncements.length;
 
   if (authLoading) {
     return (
@@ -321,20 +447,114 @@ export default function Forum() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-8">
-        
-        
-        
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search posts and announcements..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 text-small"
-          />
+      <div className="mb-8 space-y-4">
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search posts, announcements, and users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 text-small"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-small"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </Button>
         </div>
+
+        {/* Advanced Filters */}
+        {showFilters && (
+          <Card className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-small font-medium mb-2 block">Time Range</label>
+                <Select value={timeFilter} onValueChange={setTimeFilter}>
+                  <SelectTrigger className="text-small">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_FILTERS.map((filter) => (
+                      <SelectItem key={filter.value} value={filter.value} className="text-small">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-3 w-3" />
+                          {filter.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-small font-medium mb-2 block">Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="text-small">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-small">All Categories</SelectItem>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category} className="text-small">
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-small font-medium mb-2 block">Sort By</label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="text-small">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-small">
+                        <div className="flex items-center gap-2">
+                          {option.value === 'upvotes' && <Heart className="h-3 w-3" />}
+                          {option.value === 'recent' && <Calendar className="h-3 w-3" />}
+                          {option.value === 'replies' && <Reply className="h-3 w-3" />}
+                          {option.value === 'trending' && <TrendingUp className="h-3 w-3" />}
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t">
+              <div className="text-small text-gray-500">
+                Showing {paginatedPosts.length} of {filteredAndSortedPosts.length} posts
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setTimeFilter('all');
+                  setCategoryFilter('all');
+                  setSortBy('recent');
+                  setPostsPage(1);
+                  setAnnouncementsPage(1);
+                }}
+                className="text-small"
+              >
+                Clear All
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
 
       <Tabs defaultValue="board" className="space-y-6">
@@ -356,7 +576,7 @@ export default function Forum() {
               <TrendingUp className="h-5 w-5 text-blue-600" />
               <h2 className="text-medium font-medium">Community Discussions</h2>
               <Badge variant="secondary" className="text-small">
-                {filteredPosts.length} posts
+                {filteredAndSortedPosts.length} posts
               </Badge>
             </div>
             {isAuthenticated && (
@@ -484,8 +704,9 @@ export default function Forum() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredPosts.map((post: CommunityPost) => (
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                {paginatedPosts.map((post: CommunityPost) => (
                 <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedPost(post)}>
                   <CardContent className="p-4">
                     <div className="flex gap-3">
@@ -555,13 +776,9 @@ export default function Forum() {
                           {post.content}
                         </FormattedText>
                         {post.mediaUrls && post.mediaUrls.length > 0 && (
-                          <div className="flex gap-2 mt-2">
-                            <div className="flex items-center gap-1">
-                              <Image className="h-3 w-3 text-gray-500" />
-                              <span className="text-small text-gray-500">
-                                {post.mediaUrls.length} image{post.mediaUrls.length > 1 ? 's' : ''}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-1 mt-2">
+                            <Image className="h-3 w-3" />
+                            <span className="text-small text-gray-500">{post.mediaUrls.length} image{post.mediaUrls.length > 1 ? 's' : ''}</span>
                           </div>
                         )}
                       </div>
@@ -569,7 +786,21 @@ export default function Forum() {
                   </CardContent>
                 </Card>
               ))}
-              {filteredPosts.length === 0 && (
+              </div>
+
+              {/* Load More Button for Posts */}
+              {hasMorePosts && (
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setPostsPage(postsPage + 1)}
+                    className="text-small"
+                  >
+                    Load More Posts ({filteredAndSortedPosts.length - paginatedPosts.length} remaining)
+                  </Button>
+                </div>
+              )}
+              {paginatedPosts.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-8">
                     <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -706,8 +937,9 @@ export default function Forum() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredAnnouncements.map((announcement: CommunityAnnouncement) => (
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                {paginatedAnnouncements.map((announcement: CommunityAnnouncement) => (
                 <Card key={announcement.id} className="border-l-4 border-l-green-500">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -756,12 +988,31 @@ export default function Forum() {
                   </CardContent>
                 </Card>
               ))}
-              {filteredAnnouncements.length === 0 && (
+              </div>
+
+              {/* Load More Button for Announcements */}
+              {hasMoreAnnouncements && (
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAnnouncementsPage(announcementsPage + 1)}
+                    className="text-small"
+                  >
+                    Load More Announcements ({filteredAnnouncements.length - paginatedAnnouncements.length} remaining)
+                  </Button>
+                </div>
+              )}
+
+              {paginatedAnnouncements.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-8">
                     <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-medium text-gray-500 mb-2">No announcements yet</p>
-                    <p className="text-small text-gray-400">Official updates will appear here</p>
+                    <p className="text-medium text-gray-500 mb-2">
+                      {searchQuery ? 'No announcements found' : 'No announcements yet'}
+                    </p>
+                    <p className="text-small text-gray-400">
+                      {searchQuery ? 'Try a different search term' : 'Official updates will appear here'}
+                    </p>
                   </CardContent>
                 </Card>
               )}
