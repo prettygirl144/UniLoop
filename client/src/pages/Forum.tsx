@@ -323,9 +323,7 @@ export default function Forum() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
         
-        <p className="text-small text-gray-600 dark:text-gray-400 mb-4">
-          Connect, discuss, and stay updated with the campus community
-        </p>
+        
         
         {/* Search Bar */}
         <div className="relative">
