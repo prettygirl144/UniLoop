@@ -1,0 +1,38 @@
+Goal  
+Add a new “Student Upload” tool on the admin page. When the admin supplies a batch name and selects a multi‑sheet Excel file, the system must read every sheet, extract every email it finds, tag each email with (a) the sheet name as Section and (b) the batch name entered in the form, and then store or update those students so they can sign in with Google (Auth0). 
+
+Upload flow  
+1. Admin chooses a *Batch* name in a text field (required).  
+2. Admin selects an .xlsx file (< 5 MB) and clicks *Upload*.  
+3. Backend reads the workbook:  
+   – Iterate through every sheet individually.  
+   – Treat the sheet’s name verbatim as the *Section* label.  
+   – Scan all cells row‑by‑row; any string containing “@” counts as a student email.  
+4. For each email found:  
+   – Create (or update) a user record with fields: email, section, batch.  
+   – Store section = sheet name, batch = value from the Batch field. 
+5. If duplicate email records are found in newer file uploads, update the backend list to reflect the new details for the duplicate
+  6. Return a success response showing the number of students imported and the list of sections created.
+
+Login rules  
+• Google sign‑in (Auth0) remains the only login path.  
+• During login, compare the returned Google email against the stored student list.  
+  – If a match exists, let the user in and attach batch + section details to their profile.  
+  – If no match, deny access with a clear message.  
+• Students inherit the role “student” automatically; only admins may upload sheets.
+
+Profile display  
+When a student logs in successfully, their profile page must always show:  
+• Email
+- Profile photo pulled from google auth  
+• Batch (from the upload)  
+• Section (sheet name)
+
+Admin safeguards  
+• Reject uploads without a batch name.  
+• Reject non‑xlsx files or files exceeding 5 MB.  
+• Show a toast on success or a descriptive error on failure.  
+• Keep an audit log entry with upload timestamp, admin user ID, batch name, sheet count, and total students processed.
+
+Replace existing logic  
+Remove any prior student‑import or email‑whitelist code so this new workflow is the only way students are provisioned.
