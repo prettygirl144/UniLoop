@@ -184,6 +184,26 @@
   .status-bar-safe {
     padding-top: env(safe-area-inset-top);
   }
+
+  /* Enhanced word breaking for long content */
+  .break-words {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Enhanced line clamp for better text truncation */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Force break for extremely long words */
+  .break-all {
+    word-break: break-all;
+  }
 }
 
 

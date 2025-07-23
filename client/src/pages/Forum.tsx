@@ -118,6 +118,8 @@ export default function Forum() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedPosts, setExpandedPosts] = useState<Set<number>>(new Set());
+  const [expandedAnnouncements, setExpandedAnnouncements] = useState<Set<number>>(new Set());
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -398,6 +400,42 @@ export default function Forum() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // Helper functions for content expansion
+  const togglePostExpansion = (postId: number) => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAnnouncementExpansion = (announcementId: number) => {
+    setExpandedAnnouncements(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(announcementId)) {
+        newSet.delete(announcementId);
+      } else {
+        newSet.add(announcementId);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to check if content should be truncated
+  const shouldTruncateContent = (content: string) => {
+    return content.length > 200; // Adjust threshold as needed
+  };
+
+  // Helper function to get truncated content
+  const getTruncatedContent = (content: string) => {
+    if (content.length <= 200) return content;
+    return content.substring(0, 200) + '...';
   };
 
   const canCreateAnnouncement = (user as any)?.role === 'admin' || (user as any)?.role === 'committee_club';
@@ -888,7 +926,7 @@ export default function Forum() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-medium font-medium line-clamp-2 flex-1">
+                          <h3 className="text-medium font-medium line-clamp-2 flex-1 break-words">
                             {post.title}
                           </h3>
                           {canDeletePost(post) && (
@@ -908,9 +946,24 @@ export default function Forum() {
                             </Button>
                           )}
                         </div>
-                        <FormattedText className="text-gray-600 dark:text-gray-400 line-clamp-3">
-                          {post.content}
-                        </FormattedText>
+                        <div className="text-gray-600 dark:text-gray-400">
+                          <FormattedText 
+                            className={expandedPosts.has(post.id) ? "break-words" : "break-words line-clamp-3"}
+                          >
+                            {expandedPosts.has(post.id) ? post.content : getTruncatedContent(post.content)}
+                          </FormattedText>
+                          {shouldTruncateContent(post.content) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePostExpansion(post.id);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-small mt-1 font-medium"
+                            >
+                              {expandedPosts.has(post.id) ? 'Show less' : 'Show more'}
+                            </button>
+                          )}
+                        </div>
                         {post.mediaUrls && post.mediaUrls.length > 0 && (
                           <div className="flex items-center gap-1 mt-2">
                             <Image className="h-3 w-3" />
@@ -1091,7 +1144,7 @@ export default function Forum() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-medium font-medium flex-1">
+                      <h3 className="text-medium font-medium flex-1 break-words line-clamp-2">
                         {announcement.title}
                       </h3>
                       {canDeletePosts && (
@@ -1111,9 +1164,24 @@ export default function Forum() {
                         </Button>
                       )}
                     </div>
-                    <FormattedText className="text-gray-600 dark:text-gray-400">
-                      {announcement.content}
-                    </FormattedText>
+                    <div className="text-gray-600 dark:text-gray-400">
+                      <FormattedText 
+                        className={expandedAnnouncements.has(announcement.id) ? "break-words" : "break-words line-clamp-3"}
+                      >
+                        {expandedAnnouncements.has(announcement.id) ? announcement.content : getTruncatedContent(announcement.content)}
+                      </FormattedText>
+                      {shouldTruncateContent(announcement.content) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAnnouncementExpansion(announcement.id);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-small mt-1 font-medium"
+                        >
+                          {expandedAnnouncements.has(announcement.id) ? 'Show less' : 'Show more'}
+                        </button>
+                      )}
+                    </div>
                     {announcement.mediaUrls && announcement.mediaUrls.length > 0 && (
                       <div className="flex gap-2 mt-2">
                         <div className="flex items-center gap-1">
@@ -1198,7 +1266,7 @@ export default function Forum() {
                 </div>
               </div>
               
-              <FormattedText className="text-small">
+              <FormattedText className="text-small break-words">
                 {selectedPost.content}
               </FormattedText>
               
@@ -1324,7 +1392,7 @@ export default function Forum() {
                               )}
                             </div>
                           </div>
-                          <FormattedText className="text-small">
+                          <FormattedText className="text-small break-words">
                             {reply.content}
                           </FormattedText>
                         </CardContent>
