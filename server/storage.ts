@@ -252,13 +252,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEvent(event: InsertEvent): Promise<Event> {
-    const eventData = {
-      ...event,
-      mediaUrls: event.mediaUrls ? (Array.isArray(event.mediaUrls) ? event.mediaUrls : []) : []
-    };
     const [created] = await db
       .insert(events)
-      .values([eventData])
+      .values(event)
       .returning();
     return created;
   }
@@ -292,13 +288,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost> {
-    const postData = {
-      ...post,
-      mediaUrls: post.mediaUrls ? (Array.isArray(post.mediaUrls) ? post.mediaUrls : []) : []
-    };
     const [created] = await db
       .insert(communityPosts)
-      .values([postData])
+      .values(post)
       .returning();
     return created;
   }
@@ -420,6 +412,21 @@ export class DatabaseStorage implements IStorage {
       .from(communityAnnouncements)
       .where(eq(communityAnnouncements.isDeleted, false))
       .orderBy(desc(communityAnnouncements.createdAt));
+  }
+
+  async createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {
+    const [created] = await db
+      .insert(communityAnnouncements)
+      .values(announcement)
+      .returning();
+    return created;
+  }
+
+  async deleteCommunityAnnouncement(id: number, userId: string): Promise<void> {
+    await db
+      .update(communityAnnouncements)
+      .set({ isDeleted: true })
+      .where(eq(communityAnnouncements.id, id));
   }
 
   async createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {

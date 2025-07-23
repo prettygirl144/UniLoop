@@ -98,11 +98,13 @@ export const attendance = pgTable("attendance", {
 // Community Board Posts table (Section 1)
 export const communityPosts = pgTable("community_posts", {
   id: serial("id").primaryKey(),
-  title: text("title"),
+  title: varchar("title").notNull(),
   content: text("content").notNull(),
+  category: varchar("category").notNull(),
   authorId: varchar("author_id").references(() => users.id),
+  authorName: varchar("author_name"),
   isAnonymous: boolean("is_anonymous").default(false),
-  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
+  mediaUrls: text("media_urls").array(),
   score: integer("score").default(0), // upvotes - downvotes
   isDeleted: boolean("is_deleted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -127,6 +129,7 @@ export const communityReplies = pgTable("community_replies", {
   id: serial("id").primaryKey(),
   postId: integer("post_id").notNull().references(() => communityPosts.id),
   authorId: varchar("author_id").references(() => users.id),
+  authorName: varchar("author_name"),
   content: text("content").notNull(),
   isAnonymous: boolean("is_anonymous").default(false),
   score: integer("score").default(0), // upvotes - downvotes
@@ -137,10 +140,12 @@ export const communityReplies = pgTable("community_replies", {
 // Community Announcements table (Section 2)
 export const communityAnnouncements = pgTable("community_announcements", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
+  title: varchar("title").notNull(),
   content: text("content").notNull(),
+  category: varchar("category").notNull(),
   authorId: varchar("author_id").notNull().references(() => users.id),
-  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
+  authorName: varchar("author_name").notNull(),
+  mediaUrls: text("media_urls").array(),
   isDeleted: boolean("is_deleted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

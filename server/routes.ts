@@ -16,7 +16,7 @@ import {
   insertHostelLeaveSchema,
   insertGrievanceSchema,
   insertWeeklyMenuSchema,
-  insertGalleryFolderSchema,
+  InsertGalleryFolder,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -251,10 +251,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/community/posts', checkAuth, async (req: any, res) => {
     try {
       const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
       
       const postData = insertCommunityPostSchema.parse({
         ...req.body,
         authorId: req.body.isAnonymous ? null : userId,
+        authorName: req.body.isAnonymous ? null : (user?.firstName + ' ' + user?.lastName || user?.email || 'Anonymous'),
       });
       
       const post = await storage.createCommunityPost(postData);
@@ -398,6 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const announcementData = insertCommunityAnnouncementSchema.parse({
         ...req.body,
         authorId: userId,
+        authorName: user?.firstName + ' ' + user?.lastName || user?.email || 'Unknown',
       });
       
       const announcement = await storage.createCommunityAnnouncement(announcementData);
