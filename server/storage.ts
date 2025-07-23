@@ -280,11 +280,34 @@ export class DatabaseStorage implements IStorage {
 
   // Community Board (Section 1) - Reddit-like functionality
   async getCommunityPosts(): Promise<CommunityPost[]> {
-    return await db
+    const posts = await db
       .select()
       .from(communityPosts)
       .where(eq(communityPosts.isDeleted, false))
       .orderBy(desc(communityPosts.createdAt));
+
+    // Add vote counts to each post
+    const postsWithVotes = await Promise.all(
+      posts.map(async (post) => {
+        const upvotes = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(communityVotes)
+          .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'upvote')));
+        
+        const downvotes = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(communityVotes)
+          .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'downvote')));
+
+        return {
+          ...post,
+          upvotes: Number(upvotes[0]?.count || 0),
+          downvotes: Number(downvotes[0]?.count || 0),
+        };
+      })
+    );
+
+    return postsWithVotes;
   }
 
   async createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost> {
@@ -300,7 +323,25 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(communityPosts)
       .where(and(eq(communityPosts.id, id), eq(communityPosts.isDeleted, false)));
-    return post;
+    
+    if (!post) return undefined;
+
+    // Add vote counts
+    const upvotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(communityVotes)
+      .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'upvote')));
+    
+    const downvotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(communityVotes)
+      .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'downvote')));
+
+    return {
+      ...post,
+      upvotes: Number(upvotes[0]?.count || 0),
+      downvotes: Number(downvotes[0]?.count || 0),
+    };
   }
 
   async deleteCommunityPost(id: number, userId: string): Promise<void> {
@@ -383,11 +424,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCommunityReplies(postId: number): Promise<CommunityReply[]> {
-    return await db
+    const replies = await db
       .select()
       .from(communityReplies)
       .where(and(eq(communityReplies.postId, postId), eq(communityReplies.isDeleted, false)))
       .orderBy(desc(communityReplies.createdAt));
+
+    // Add vote counts to each reply
+    const repliesWithVotes = await Promise.all(
+      replies.map(async (reply) => {
+        const upvotes = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(communityVotes)
+          .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'upvote')));
+        
+        const downvotes = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(communityVotes)
+          .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'downvote')));
+
+        return {
+          ...reply,
+          upvotes: Number(upvotes[0]?.count || 0),
+          downvotes: Number(downvotes[0]?.count || 0),
+        };
+      })
+    );
+
+    return repliesWithVotes;
   }
 
   async createCommunityReply(reply: InsertCommunityReply): Promise<CommunityReply> {

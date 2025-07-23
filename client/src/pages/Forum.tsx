@@ -52,6 +52,8 @@ type CommunityPost = {
   authorName: string | null;
   isAnonymous: boolean;
   score: number;
+  upvotes: number;
+  downvotes: number;
   createdAt: string;
   mediaUrls?: string[];
 };
@@ -75,6 +77,8 @@ type CommunityReply = {
   authorName: string | null;
   isAnonymous: boolean;
   score: number;
+  upvotes: number;
+  downvotes: number;
   createdAt: string;
 };
 
@@ -503,7 +507,10 @@ export default function Forum() {
                         >
                           <ArrowUp className="h-4 w-4" />
                         </Button>
-                        <span className="text-small font-medium">{post.score || 0}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-small font-medium text-green-600">{post.upvotes || 0}</span>
+                          <span className="text-small font-medium text-red-600">{post.downvotes || 0}</span>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -793,10 +800,15 @@ export default function Forum() {
                 <span className="text-small text-gray-400">
                   {formatDate(selectedPost.createdAt)}
                 </span>
-                <div className="flex items-center gap-1">
-                  <ArrowUp className="h-3 w-3" />
-                  <span className="text-small font-medium">{selectedPost.score || 0}</span>
-                  <ArrowDown className="h-3 w-3" />
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <ArrowUp className="h-3 w-3 text-green-600" />
+                    <span className="text-small font-medium text-green-600">{selectedPost.upvotes || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <ArrowDown className="h-3 w-3 text-red-600" />
+                    <span className="text-small font-medium text-red-600">{selectedPost.downvotes || 0}</span>
+                  </div>
                 </div>
               </div>
               
@@ -899,10 +911,15 @@ export default function Forum() {
                             <span className="text-small text-gray-400">
                               {formatDate(reply.createdAt)}
                             </span>
-                            <div className="flex items-center gap-1">
-                              <ArrowUp className="h-3 w-3" />
-                              <span className="text-small font-medium">{reply.score || 0}</span>
-                              <ArrowDown className="h-3 w-3" />
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <ArrowUp className="h-3 w-3 text-green-600" />
+                                <span className="text-small font-medium text-green-600">{reply.upvotes || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <ArrowDown className="h-3 w-3 text-red-600" />
+                                <span className="text-small font-medium text-red-600">{reply.downvotes || 0}</span>
+                              </div>
                             </div>
                           </div>
                           <FormattedText className="text-small">
