@@ -17,9 +17,12 @@ import {
   insertGrievanceSchema,
   insertWeeklyMenuSchema,
   InsertGalleryFolder,
+  insertStudentDirectorySchema,
+  insertStudentUploadLogSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
+import { parseStudentExcel } from "./studentParser";
 import multer from "multer";
 
 // Helper function to check if a date is within one hour
@@ -1021,6 +1024,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error refreshing user permissions:", error);
       res.status(500).json({ message: "Failed to refresh permissions" });
+    }
+  });
+
+  // Student Directory Management Routes
+  
+  // Get student directory (Admin only)
+  app.get('/api/admin/students', adminOnly(), async (req: any, res) => {
+    try {
+      const students = await storage.getStudentDirectory();
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching student directory:", error);
+      res.status(500).json({ message: "Failed to fetch student directory" });
+    }
+  });
+
+  // Get upload logs (Admin only)
+  app.get('/api/admin/student-uploads', adminOnly(), async (req: any, res) => {
+    try {
+      const logs = await storage.getUploadLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching upload logs:", error);
+      res.status(500).json({ message: "Failed to fetch upload logs" });
+    }
+  });
+
+  // Student directory upload (Admin only)
+  app.post('/api/admin/upload-students', adminOnly(), upload.single('studentsFile'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { batchName } = req.body;
+      if (!batchName || typeof batchName !== 'string' || batchName.trim().length === 0) {
+        return res.status(400).json({ message: "Batch name is required" });
+      }
+
+      // Validate file type and size
+      if (!req.file.originalname.toLowerCase().endsWith('.xlsx')) {
+        return res.status(400).json({ message: "Only .xlsx files are allowed" });
+      }
+
+      if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
+        return res.status(400).json({ message: "File size must be less than 5MB" });
+      }
+
+      console.log(`Processing student upload: ${req.file.originalname}, Batch: ${batchName}`);
+
+      // Parse the Excel file
+      const parseResult = parseStudentExcel(req.file.buffer, batchName.trim());
+      
+      if (parseResult.students.length === 0) {
+        return res.status(400).json({ message: "No valid email addresses found in the uploaded file" });
+      }
+
+      // Prepare student records for database
+      const studentRecords = parseResult.students.map(student => ({
+        email: student.email,
+        batch: student.batch,
+        section: student.section,
+        uploadedBy: req.currentUser.id
+      }));
+
+      // Batch upsert students
+      const savedStudents = await storage.batchUpsertStudents(studentRecords);
+
+      // Create upload log
+      await storage.createUploadLog({
+        adminUserId: req.currentUser.id,
+        batchName: batchName.trim(),
+        fileName: req.file.originalname,
+        sheetsProcessed: parseResult.sectionsProcessed.length,
+        studentsProcessed: savedStudents.length,
+        sectionsCreated: parseResult.sectionsProcessed
+      });
+
+      console.log(`Successfully processed ${savedStudents.length} students from ${parseResult.sectionsProcessed.length} sections`);
+
+      res.json({
+        message: "Student directory uploaded successfully",
+        studentsProcessed: savedStudents.length,
+        sectionsCreated: parseResult.sectionsProcessed,
+        batchName: batchName.trim()
+      });
+
+    } catch (error) {
+      console.error("Error uploading student directory:", error);
+      res.status(500).json({ 
+        message: "Failed to upload student directory",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Check if email is in student directory (used during login)
+  app.get('/api/student-check/:email', async (req, res) => {
+    try {
+      const { email } = req.params;
+      const student = await storage.getStudentByEmail(email.toLowerCase());
+      
+      if (student) {
+        res.json({
+          isAuthorized: true,
+          batch: student.batch,
+          section: student.section
+        });
+      } else {
+        res.json({
+          isAuthorized: false
+        });
+      }
+    } catch (error) {
+      console.error("Error checking student authorization:", error);
+      res.status(500).json({ message: "Failed to check authorization" });
     }
   });
 

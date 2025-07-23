@@ -14,6 +14,8 @@ import {
   attendance,
   galleryFolders,
   amenitiesPermissions,
+  studentDirectory,
+  studentUploadLogs,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -42,6 +44,10 @@ import {
   type InsertWeeklyMenu,
   type AmenitiesPermissions,
   type InsertAmenitiesPermissions,
+  type StudentDirectory,
+  type InsertStudentDirectory,
+  type StudentUploadLog,
+  type InsertStudentUploadLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
@@ -108,6 +114,14 @@ export interface IStorage {
   // Admin functions
   getAllUsersForAdmin(): Promise<User[]>;
   updateUserRoleAndPermissions(userId: string, role: string, permissions: any): Promise<User | undefined>;
+
+  // Student Directory operations
+  getStudentDirectory(): Promise<StudentDirectory[]>;
+  getStudentByEmail(email: string): Promise<StudentDirectory | undefined>;
+  upsertStudentDirectory(student: InsertStudentDirectory): Promise<StudentDirectory>;
+  batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]>;
+  createUploadLog(log: InsertStudentUploadLog): Promise<StudentUploadLog>;
+  getUploadLogs(): Promise<StudentUploadLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -772,6 +786,72 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  // Student Directory operations
+  async getStudentDirectory(): Promise<StudentDirectory[]> {
+    return await db.select().from(studentDirectory).orderBy(desc(studentDirectory.createdAt));
+  }
+
+  async getStudentByEmail(email: string): Promise<StudentDirectory | undefined> {
+    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.email, email));
+    return student;
+  }
+
+  async upsertStudentDirectory(student: InsertStudentDirectory): Promise<StudentDirectory> {
+    const [result] = await db
+      .insert(studentDirectory)
+      .values(student)
+      .onConflictDoUpdate({
+        target: studentDirectory.email,
+        set: {
+          batch: student.batch,
+          section: student.section,
+          uploadedBy: student.uploadedBy,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]> {
+    if (students.length === 0) return [];
+    
+    const results: StudentDirectory[] = [];
+    
+    // Process in batches to avoid SQL statement size limits
+    const batchSize = 100;
+    for (let i = 0; i < students.length; i += batchSize) {
+      const batch = students.slice(i, i + batchSize);
+      
+      const batchResults = await db
+        .insert(studentDirectory)
+        .values(batch)
+        .onConflictDoUpdate({
+          target: studentDirectory.email,
+          set: {
+            batch: sql`excluded.batch`,
+            section: sql`excluded.section`,
+            uploadedBy: sql`excluded.uploaded_by`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      
+      results.push(...batchResults);
+    }
+    
+    return results;
+  }
+
+  async createUploadLog(log: InsertStudentUploadLog): Promise<StudentUploadLog> {
+    const [result] = await db.insert(studentUploadLogs).values(log).returning();
+    return result;
+  }
+
+  async getUploadLogs(): Promise<StudentUploadLog[]> {
+    return await db.select().from(studentUploadLogs).orderBy(desc(studentUploadLogs.uploadTimestamp));
   }
 }
 

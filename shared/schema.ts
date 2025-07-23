@@ -44,6 +44,9 @@ export const users = pgTable("users", {
   accountType: varchar("account_type").default("primary"), // primary, alternate
   linkedAccountId: varchar("linked_account_id"), // References primary account for alternates
   isActive: boolean("is_active").default(true),
+  // Student directory fields
+  batch: varchar("batch"), // From admin upload
+  section: varchar("section"), // Sheet name from Excel
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -385,9 +388,48 @@ export const insertAmenitiesPermissionsSchema = createInsertSchema(amenitiesPerm
   updatedAt: true,
 });
 
+// Student directory table - stores approved students who can log in
+export const studentDirectory = pgTable("student_directory", {
+  id: serial("id").primaryKey(),
+  email: varchar("email").notNull().unique(),
+  batch: varchar("batch").notNull(),
+  section: varchar("section").notNull(),
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Student upload audit log
+export const studentUploadLogs = pgTable("student_upload_logs", {
+  id: serial("id").primaryKey(),
+  adminUserId: varchar("admin_user_id").notNull().references(() => users.id),
+  batchName: varchar("batch_name").notNull(),
+  fileName: varchar("file_name").notNull(),
+  sheetsProcessed: integer("sheets_processed").notNull(),
+  studentsProcessed: integer("students_processed").notNull(),
+  sectionsCreated: text("sections_created").array().notNull(), // Array of section names
+  uploadTimestamp: timestamp("upload_timestamp").defaultNow(),
+});
+
+// Student directory schemas
+export const insertStudentDirectorySchema = createInsertSchema(studentDirectory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStudentUploadLogSchema = createInsertSchema(studentUploadLogs).omit({
+  id: true,
+  uploadTimestamp: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertStudentDirectory = z.infer<typeof insertStudentDirectorySchema>;
+export type StudentDirectory = typeof studentDirectory.$inferSelect;
+export type InsertStudentUploadLog = z.infer<typeof insertStudentUploadLogSchema>;
+export type StudentUploadLog = typeof studentUploadLogs.$inferSelect;
 
 // Google Drive gallery folders
 export const galleryFolders = pgTable("gallery_folders", {

@@ -13,7 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Settings, Shield, Search } from "lucide-react";
+import { Users, Settings, Shield, Search, Upload, Database, FileText, History } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
   id: string;
@@ -34,6 +35,27 @@ interface User {
   updatedAt: string;
 }
 
+interface StudentDirectory {
+  id: number;
+  email: string;
+  batch: string;
+  section: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StudentUploadLog {
+  id: number;
+  adminUserId: string;
+  batchName: string;
+  fileName: string;
+  sheetsProcessed: number;
+  studentsProcessed: number;
+  sectionsCreated: string[];
+  uploadTimestamp: string;
+}
+
 export default function Admin() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -41,6 +63,8 @@ export default function Admin() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [batchName, setBatchName] = useState("");
   const [editForm, setEditForm] = useState({
     role: "",
     permissions: {
@@ -114,6 +138,85 @@ export default function Admin() {
       });
     },
   });
+
+  // Fetch student directory
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ["/api/admin/students"],
+    retry: false,
+    enabled: isAuthenticated && user?.role === 'admin',
+  });
+
+  // Fetch upload logs
+  const { data: uploadLogs = [], isLoading: logsLoading } = useQuery({
+    queryKey: ["/api/admin/student-uploads"],
+    retry: false,
+    enabled: isAuthenticated && user?.role === 'admin',
+  });
+
+  // Student upload mutation
+  const uploadStudentsMutation = useMutation({
+    mutationFn: async ({ file, batchName }: { file: File; batchName: string }) => {
+      const formData = new FormData();
+      formData.append('studentsFile', file);
+      formData.append('batchName', batchName);
+      
+      const response = await fetch('/api/admin/upload-students', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Upload Successful",
+        description: `Processed ${data.studentsProcessed} students from batch "${data.batchName}"`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/student-uploads"] });
+      setSelectedFile(null);
+      setBatchName("");
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStudentUpload = () => {
+    if (!selectedFile || !batchName.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a file and enter a batch name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    uploadStudentsMutation.mutate({
+      file: selectedFile,
+      batchName: batchName.trim(),
+    });
+  };
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
@@ -195,45 +298,62 @@ export default function Admin() {
               <Settings className="h-6 w-6 text-primary" />
               <h1 className="text-large">Admin Dashboard</h1>
             </div>
-            <Badge variant="outline" className="text-primary">
-              {users.length} Total Users
-            </Badge>
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="text-primary">
+                {users.length} Users
+              </Badge>
+              <Badge variant="outline" className="text-primary">
+                {students.length} Students
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
               User Management
-            </CardTitle>
-            <CardDescription>
-              Manage user roles and permissions across the platform
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users by email or name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </TabsTrigger>
+            <TabsTrigger value="students" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Student Directory
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Upload History
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Users Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
+          {/* User Management Tab */}
+          <TabsContent value="users" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+                <CardDescription>
+                  Manage user roles and permissions across the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users by email or name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
@@ -334,8 +454,158 @@ export default function Admin() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Student Directory Tab */}
+          <TabsContent value="students" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Upload Student Directory
+                </CardTitle>
+                <CardDescription>
+                  Upload an Excel file to add students to the directory
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="batchName">Batch Name</Label>
+                  <Input
+                    id="batchName"
+                    placeholder="e.g., 2024 B.Tech CSE"
+                    value={batchName}
+                    onChange={(e) => setBatchName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="studentsFile">Excel File</Label>
+                  <Input
+                    id="studentsFile"
+                    type="file"
+                    accept=".xlsx"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  />
+                  <p className="text-small text-muted-foreground">
+                    Each sheet represents a section. Include emails in the cells.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleStudentUpload}
+                  disabled={!selectedFile || !batchName.trim() || uploadStudentsMutation.isPending}
+                  className="w-full"
+                >
+                  {uploadStudentsMutation.isPending ? "Uploading..." : "Upload Students"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Student Directory ({students.length})
+                </CardTitle>
+                <CardDescription>
+                  All students in the system
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {studentsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                    Loading students...
+                  </div>
+                ) : students.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No students found. Upload an Excel file to add students.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Batch</TableHead>
+                          <TableHead>Section</TableHead>
+                          <TableHead>Uploaded</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((student: StudentDirectory) => (
+                          <TableRow key={student.id}>
+                            <TableCell className="text-small">{student.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{student.batch}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{student.section}</Badge>
+                            </TableCell>
+                            <TableCell className="text-small text-muted-foreground">
+                              {new Date(student.createdAt).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Upload Logs Tab */}
+          <TabsContent value="logs" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Upload History
+                </CardTitle>
+                <CardDescription>
+                  History of student directory uploads
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {logsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                    Loading upload logs...
+                  </div>
+                ) : uploadLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No upload history found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {uploadLogs.map((log: StudentUploadLog) => (
+                      <Card key={log.id} className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-medium">{log.fileName}</span>
+                            </div>
+                            <div className="space-y-1 text-small text-muted-foreground">
+                              <p>Batch: <span className="text-foreground">{log.batchName}</span></p>
+                              <p>Students: <span className="text-foreground">{log.studentsProcessed}</span></p>
+                              <p>Sections: <span className="text-foreground">{log.sectionsCreated.join(', ')}</span></p>
+                            </div>
+                          </div>
+                          <div className="text-right text-small text-muted-foreground">
+                            {new Date(log.uploadTimestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Edit User Modal */}
