@@ -82,11 +82,20 @@ router.get('/callback', async (req, res) => {
     // Check if user is an admin override
     const isAdminOverride = ADMIN_OVERRIDE_EMAILS.includes(userInfo.email.toLowerCase());
     
+    // Check if user is in student directory (required for non-admin access)
+    const studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
+    
+    if (!isAdminOverride && !studentRecord) {
+      // User not authorized - redirect with error
+      const errorMessage = `Access denied. Email ${userInfo.email} is not in the approved student directory.`;
+      return res.redirect(`/?error=unauthorized&message=${encodeURIComponent(errorMessage)}`);
+    }
+    
     // Create or update user in our database
     let user = await storage.getUser(userInfo.sub);
     
     if (!user) {
-      // New user - create with appropriate role
+      // New user - create with appropriate role and student info
       const role = isAdminOverride ? 'admin' : 'student';
       const permissions = isAdminOverride ? {
         calendar: true,
@@ -105,6 +114,8 @@ router.get('/callback', async (req, res) => {
         profileImageUrl: userInfo.picture,
         role: role,
         permissions: permissions,
+        batch: studentRecord?.batch || null,
+        section: studentRecord?.section || null,
       });
     } else {
       // Existing user - update profile info and upgrade to admin if in override list
@@ -125,6 +136,8 @@ router.get('/callback', async (req, res) => {
           diningHostel: true,
           postCreation: true,
         } : user.permissions,
+        batch: studentRecord?.batch || user.batch,
+        section: studentRecord?.section || user.section,
       });
     }
 
@@ -139,6 +152,8 @@ router.get('/callback', async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       profileImageUrl: user.profileImageUrl,
+      batch: user.batch,
+      section: user.section,
     };
 
     console.log('User session created:', (req as any).session.user);

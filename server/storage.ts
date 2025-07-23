@@ -803,12 +803,12 @@ export class DatabaseStorage implements IStorage {
       .insert(studentDirectory)
       .values(student)
       .onConflictDoUpdate({
-        target: studentDirectory.email,
+        target: [studentDirectory.email],
         set: {
           batch: student.batch,
           section: student.section,
           uploadedBy: student.uploadedBy,
-          updatedAt: new Date(),
+          updatedAt: sql`now()`,
         },
       })
       .returning();
@@ -829,12 +829,12 @@ export class DatabaseStorage implements IStorage {
         .insert(studentDirectory)
         .values(batch)
         .onConflictDoUpdate({
-          target: studentDirectory.email,
+          target: [studentDirectory.email],
           set: {
             batch: sql`excluded.batch`,
             section: sql`excluded.section`,
             uploadedBy: sql`excluded.uploaded_by`,
-            updatedAt: new Date(),
+            updatedAt: sql`now()`,
           },
         })
         .returning();
