@@ -22,6 +22,14 @@ import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
 import multer from "multer";
 
+// Helper function to check if a date is within one hour
+function isWithinOneHour(dateString: string): boolean {
+  const createdAt = new Date(dateString);
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  return createdAt >= oneHourAgo;
+}
+
 // Authorization middleware
 function authorize(permission?: string) {
   return async (req: any, res: any, next: any) => {
@@ -293,9 +301,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.user.id;
       const user = await storage.getUser(userId);
       
-      // Only admins can delete any post
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only admins can delete posts" });
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get the post to check ownership and creation time
+      const post = await storage.getCommunityPostById(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      // Check deletion permissions
+      const canDelete = 
+        user.role === 'admin' || // Admins can delete any post at any time
+        (post.authorId === userId && isWithinOneHour(post.createdAt)); // Users can delete their own posts within 1 hour
+
+      if (!canDelete) {
+        return res.status(403).json({ 
+          message: user.role === 'admin' 
+            ? "Insufficient permissions" 
+            : "You can only delete your own posts within 1 hour of posting"
+        });
       }
       
       await storage.deleteCommunityPost(postId, userId);
@@ -357,15 +383,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/replies/:id', checkAuth, async (req: any, res) => {
+  app.delete('/api/community/replies/:id', authorize(), async (req: any, res) => {
     try {
       const replyId = parseInt(req.params.id);
       const userId = req.session.user.id;
       const user = await storage.getUser(userId);
       
-      // Only admins can delete any reply
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only admins can delete replies" });
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get the reply to check ownership and creation time
+      const reply = await storage.getCommunityReplyById(replyId);
+      if (!reply) {
+        return res.status(404).json({ message: "Reply not found" });
+      }
+
+      // Check deletion permissions
+      const canDelete = 
+        user.role === 'admin' || // Admins can delete any reply at any time
+        (reply.authorId === userId && isWithinOneHour(reply.createdAt)); // Users can delete their own replies within 1 hour
+
+      if (!canDelete) {
+        return res.status(403).json({ 
+          message: user.role === 'admin' 
+            ? "Insufficient permissions" 
+            : "You can only delete your own replies within 1 hour of posting"
+        });
       }
       
       await storage.deleteCommunityReply(replyId, userId);
@@ -411,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/announcements/:id', checkAuth, async (req: any, res) => {
+  app.delete('/api/community/announcements/:id', authorize(), async (req: any, res) => {
     try {
       const announcementId = parseInt(req.params.id);
       const userId = req.session.user.id;

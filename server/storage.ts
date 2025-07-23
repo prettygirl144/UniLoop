@@ -462,6 +462,32 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async getCommunityReplyById(id: number): Promise<CommunityReply | undefined> {
+    const [reply] = await db
+      .select()
+      .from(communityReplies)
+      .where(and(eq(communityReplies.id, id), eq(communityReplies.isDeleted, false)));
+    
+    if (!reply) return undefined;
+
+    // Add vote counts
+    const upvotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(communityVotes)
+      .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'upvote')));
+    
+    const downvotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(communityVotes)
+      .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'downvote')));
+
+    return {
+      ...reply,
+      upvotes: Number(upvotes[0]?.count || 0),
+      downvotes: Number(downvotes[0]?.count || 0),
+    };
+  }
+
   async deleteCommunityReply(id: number, userId: string): Promise<void> {
     await db
       .update(communityReplies)
@@ -476,21 +502,6 @@ export class DatabaseStorage implements IStorage {
       .from(communityAnnouncements)
       .where(eq(communityAnnouncements.isDeleted, false))
       .orderBy(desc(communityAnnouncements.createdAt));
-  }
-
-  async createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {
-    const [created] = await db
-      .insert(communityAnnouncements)
-      .values(announcement)
-      .returning();
-    return created;
-  }
-
-  async deleteCommunityAnnouncement(id: number, userId: string): Promise<void> {
-    await db
-      .update(communityAnnouncements)
-      .set({ isDeleted: true })
-      .where(eq(communityAnnouncements.id, id));
   }
 
   async createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {

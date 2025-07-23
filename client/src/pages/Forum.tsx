@@ -238,6 +238,37 @@ export default function Forum() {
     },
   });
 
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: async (announcementId: number) => {
+      return await apiRequest('DELETE', `/api/community/announcements/${announcementId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/announcements'] });
+      toast({
+        title: 'Success',
+        description: 'Announcement has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete announcement. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const createReplyMutation = useMutation({
     mutationFn: async (data: z.infer<typeof ReplySchema>) => {
       return await apiRequest('POST', `/api/community/posts/${selectedPost?.id}/replies`, data);
@@ -265,6 +296,68 @@ export default function Forum() {
       toast({
         title: 'Error',
         description: 'Failed to post reply. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      return await apiRequest('DELETE', `/api/community/posts/${postId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      toast({
+        title: 'Success',
+        description: 'Post has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete post. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteReplyMutation = useMutation({
+    mutationFn: async (replyId: number) => {
+      return await apiRequest('DELETE', `/api/community/replies/${replyId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts', selectedPost?.id, 'replies'] });
+      toast({
+        title: 'Success',
+        description: 'Reply has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete reply. Please try again.',
         variant: 'destructive',
       });
     },
@@ -309,6 +402,46 @@ export default function Forum() {
 
   const canCreateAnnouncement = (user as any)?.role === 'admin' || (user as any)?.role === 'committee_club';
   const canDeletePosts = (user as any)?.role === 'admin';
+
+  // Helper function to check if user can delete a specific post
+  const canDeletePost = (post: CommunityPost) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can delete any post at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can delete their own posts within 1 hour
+    if (post.authorId === userId) {
+      const createdAt = new Date(post.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if user can delete a specific reply
+  const canDeleteReply = (reply: CommunityReply) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can delete any reply at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can delete their own replies within 1 hour
+    if (reply.authorId === userId) {
+      const createdAt = new Date(reply.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
 
   // Helper function to check if date is within time filter
   const isWithinTimeFilter = (dateString: string, filter: string) => {
@@ -758,15 +891,18 @@ export default function Forum() {
                           <h3 className="text-medium font-medium line-clamp-2 flex-1">
                             {post.title}
                           </h3>
-                          {canDeletePosts && (
+                          {canDeletePost(post) && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // TODO: Implement delete functionality
+                                if (confirm('Are you sure you want to delete this post?')) {
+                                  deletePostMutation.mutate(post.id);
+                                }
                               }}
+                              disabled={deletePostMutation.isPending}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -965,8 +1101,11 @@ export default function Forum() {
                           className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // TODO: Implement delete functionality
+                            if (confirm('Are you sure you want to delete this announcement?')) {
+                              deleteAnnouncementMutation.mutate(announcement.id);
+                            }
                           }}
+                          disabled={deleteAnnouncementMutation.isPending}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -1167,6 +1306,22 @@ export default function Forum() {
                                 <ArrowDown className="h-3 w-3 text-red-600" />
                                 <span className="text-small font-medium text-red-600">{reply.downvotes || 0}</span>
                               </div>
+                              {canDeleteReply(reply) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 ml-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this reply?')) {
+                                      deleteReplyMutation.mutate(reply.id);
+                                    }
+                                  }}
+                                  disabled={deleteReplyMutation.isPending}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                           <FormattedText className="text-small">
