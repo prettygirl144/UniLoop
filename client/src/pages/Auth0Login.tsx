@@ -1,22 +1,4 @@
 import { useAuth0 } from '@auth0/auth0-react';
-import { 
-  IonPage, 
-  IonContent, 
-  IonCard, 
-  IonCardHeader, 
-  IonCardTitle, 
-  IonCardSubtitle, 
-  IonCardContent, 
-  IonButton, 
-  IonIcon,
-  IonText,
-  IonGrid,
-  IonRow,
-  IonCol,
-  IonChip,
-  IonProgressBar
-} from '@ionic/react';
-import { logoGoogle, shieldCheckmark, school, lockClosed } from 'ionicons/icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogIn, Shield } from 'lucide-react';
@@ -34,98 +16,34 @@ export default function Auth0Login() {
   };
 
   return (
-    <IonPage>
-      <IonContent className="ion-padding" style={{ '--background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <IonGrid className="h-full">
-          <IonRow className="ion-justify-content-center ion-align-items-center h-full">
-            <IonCol size="12" sizeMd="6" sizeLg="4">
-              
-              {/* Campus Connect Logo Section */}
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-white bg-opacity-20 rounded-3xl backdrop-blur-sm mb-4">
-                  <IonIcon icon={school} style={{ fontSize: '2.5rem', color: 'white' }} />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-2">Campus Connect</h1>
-                <IonText color="light">
-                  <p className="text-lg opacity-90">Your University, Connected</p>
-                </IonText>
-              </div>
-
-              {/* Main Login Card */}
-              <IonCard className="ion-no-margin">
-                <IonCardHeader className="text-center pb-2">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-3 rounded-full bg-blue-50">
-                      <IonIcon icon={shieldCheckmark} style={{ fontSize: '2rem', color: '#3b82f6' }} />
-                    </div>
-                  </div>
-                  <IonCardTitle className="text-large font-semibold">Welcome Back</IonCardTitle>
-                  <IonCardSubtitle className="text-small mt-2">
-                    Sign in with your institutional Google account to access the campus management system
-                  </IonCardSubtitle>
-                </IonCardHeader>
-
-                <IonCardContent>
-                  {/* Loading Progress */}
-                  {isLoading && (
-                    <IonProgressBar type="indeterminate" className="mb-4" />
-                  )}
-
-                  {/* Google Sign In Button */}
-                  <IonButton
-                    expand="block"
-                    size="large"
-                    onClick={handleLogin}
-                    disabled={isLoading}
-                    className="mb-4"
-                    style={{
-                      '--background': '#4285f4',
-                      '--background-hover': '#357ae8',
-                      '--background-activated': '#357ae8',
-                      '--color': 'white',
-                      '--border-radius': '12px',
-                      height: '56px'
-                    }}
-                  >
-                    <IonIcon icon={logoGoogle} slot="start" />
-                    {isLoading ? 'Signing you in...' : 'Continue with Google'}
-                  </IonButton>
-
-                  {/* Features Preview */}
-                  <div className="space-y-3 mt-6">
-                    <div className="flex items-center space-x-3 text-small">
-                      <IonChip color="primary" outline>
-                        <IonIcon icon={lockClosed} />
-                        <span>Secure Auth</span>
-                      </IonChip>
-                      <IonText color="medium">Powered by Auth0</IonText>
-                    </div>
-                  </div>
-
-                  {/* Security Notice */}
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <IonText color="medium">
-                      <p className="text-small text-center">
-                        <strong>Secure Access:</strong> Only institutional Google accounts are supported for enhanced security.
-                      </p>
-                    </IonText>
-                  </div>
-                </IonCardContent>
-              </IonCard>
-
-              {/* Footer Features */}
-              <div className="mt-6 text-center">
-                <IonText color="light">
-                  <p className="text-small opacity-80">
-                    Access announcements, events, dining services, and more
-                  </p>
-                </IonText>
-              </div>
-
-            </IonCol>
-          </IonRow>
-        </IonGrid>
-      </IonContent>
-    </IonPage>
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/30 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
+            <Shield className="h-8 w-8 text-primary" />
+          </div>
+          <CardTitle className="text-large">Welcome to Campus Connect</CardTitle>
+          <CardDescription>
+            Sign in with your Google account to access the campus management system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleLogin}
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            {isLoading ? 'Signing in...' : 'Sign in with Google'}
+          </Button>
+          
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            <p>Secure authentication powered by Auth0</p>
+            <p className="mt-1">Only Google accounts are supported</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
