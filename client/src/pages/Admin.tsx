@@ -102,12 +102,9 @@ export default function Admin() {
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: async (userData: { userId: string; role: string; permissions: any }) => {
-      return await apiRequest(`/api/admin/users/${userData.userId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          role: userData.role,
-          permissions: userData.permissions
-        }),
+      return await apiRequest("PUT", `/api/admin/users/${userData.userId}`, {
+        role: userData.role,
+        permissions: userData.permissions
       });
     },
     onSuccess: () => {
@@ -205,9 +202,7 @@ export default function Admin() {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest(`/api/admin/users/${userId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/admin/users/${userId}`);
     },
     onSuccess: () => {
       toast({
@@ -322,6 +317,16 @@ export default function Admin() {
         forumMod: true,
         diningHostel: false,
         postCreation: true,
+      };
+    } else if (role === 'student') {
+      // Students start with basic view permissions but can be customized
+      defaultPermissions = {
+        calendar: false,
+        attendance: false,
+        gallery: false,
+        forumMod: false,
+        diningHostel: false,
+        postCreation: false,
       };
     }
 
@@ -723,7 +728,7 @@ export default function Admin() {
             {/* Role Selection */}
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={editForm.role} onValueChange={(value) => setEditForm(prev => ({ ...prev, role: value }))}>
+              <Select value={editForm.role} onValueChange={handleRoleChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -735,8 +740,8 @@ export default function Admin() {
               </Select>
             </div>
 
-            {/* Permissions (only shown for committee_club) */}
-            {editForm.role === 'committee_club' && (
+            {/* Permissions (shown for all roles except admin) */}
+            {editForm.role !== 'admin' && (
               <div className="space-y-4">
                 <Label>Permissions</Label>
                 <div className="grid grid-cols-1 gap-4">
@@ -833,7 +838,15 @@ export default function Admin() {
             {editForm.role === 'student' && (
               <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Student role provides view-only access to most features.
+                  Student role now supports individual permissions that can be customized as needed.
+                </p>
+              </div>
+            )}
+
+            {editForm.role === 'committee_club' && (
+              <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Committee/Club role has expanded permissions and access to additional features.
                 </p>
               </div>
             )}

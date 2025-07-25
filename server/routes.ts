@@ -317,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check deletion permissions
       const canDelete = 
         user.role === 'admin' || // Admins can delete any post at any time
-        (post.authorId === userId && isWithinOneHour(post.createdAt)); // Users can delete their own posts within 1 hour
+        (post.authorId === userId && isWithinOneHour(post.createdAt?.toISOString() ?? new Date().toISOString())); // Users can delete their own posts within 1 hour
 
       if (!canDelete) {
         return res.status(403).json({ 
@@ -405,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check deletion permissions
       const canDelete = 
         user.role === 'admin' || // Admins can delete any reply at any time
-        (reply.authorId === userId && isWithinOneHour(reply.createdAt)); // Users can delete their own replies within 1 hour
+        (reply.authorId === userId && isWithinOneHour(reply.createdAt?.toISOString() ?? new Date().toISOString())); // Users can delete their own replies within 1 hour
 
       if (!canDelete) {
         return res.status(403).json({ 
