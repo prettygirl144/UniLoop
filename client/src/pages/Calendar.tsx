@@ -156,8 +156,15 @@ export default function Calendar() {
     (batchesAndSections as any[])?.map((student: any) => student.batch).filter(Boolean) || []
   ));
   
+  // Filter sections based on selected batches
+  const selectedBatches = form.watch('targetBatches') || [];
   const availableSections = Array.from(new Set(
-    (batchesAndSections as any[])?.map((student: any) => student.section).filter(Boolean) || []
+    (batchesAndSections as any[])
+      ?.filter((student: any) => 
+        selectedBatches.length === 0 || selectedBatches.includes(student.batch)
+      )
+      ?.map((student: any) => student.section)
+      .filter(Boolean) || []
   ));
 
   const onSubmit = (data: CreateEventForm) => {
@@ -417,7 +424,27 @@ export default function Calendar() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Target Sections</FormLabel>
+                              {selectedBatches.length === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Select batches first to filter sections
+                                </p>
+                              )}
                               <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
+                                {availableSections.length > 0 && (
+                                  <div className="flex items-center space-x-2 pb-2 border-b">
+                                    <Checkbox
+                                      checked={field.value?.length === availableSections.length}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          field.onChange(availableSections);
+                                        } else {
+                                          field.onChange([]);
+                                        }
+                                      }}
+                                    />
+                                    <label className="text-sm font-medium">Select All</label>
+                                  </div>
+                                )}
                                 {availableSections.map((section) => (
                                   <div key={section} className="flex items-center space-x-2">
                                     <Checkbox
@@ -432,6 +459,16 @@ export default function Calendar() {
                                     <label className="text-sm">{section}</label>
                                   </div>
                                 ))}
+                                {availableSections.length === 0 && selectedBatches.length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    No sections found for selected batches
+                                  </p>
+                                )}
+                                {selectedBatches.length === 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Please select target batches first
+                                  </p>
+                                )}
                               </div>
                               <FormMessage />
                             </FormItem>
