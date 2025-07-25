@@ -1,5 +1,5 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from "@tanstack/react-query";
 import type { User } from '@shared/schema';
 
 interface AuthContextType {
@@ -11,10 +11,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  // Session-based authentication using Auth0 Google OAuth
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated }}>
+    <AuthContext.Provider value={{ 
+      user: user as User | null, 
+      isLoading, 
+      isAuthenticated: !!user 
+    }}>
       {children}
     </AuthContext.Provider>
   );
