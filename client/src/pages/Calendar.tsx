@@ -35,6 +35,7 @@ const createEventSchema = z.object({
   isMandatory: z.boolean().default(false),
   targetBatches: z.array(z.string()).default([]),
   targetSections: z.array(z.string()).default([]),
+  targetBatchSections: z.array(z.string()).default([]), // Store batch::section pairs
 }).refine((data) => {
   // Validate end time is after start time
   const [startHour, startMin] = data.startTime.split(':').map(Number);
@@ -202,17 +203,22 @@ export default function Calendar() {
 
   // Helper function to check if user is eligible for event based on batch/section
   const isUserEligibleForEvent = (event: Event) => {
-    if (!event.targetBatches?.length && !event.targetSections?.length) {
-      return true; // Event is for everyone
+    // If no targeting specified, event is for everyone
+    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length) {
+      return true;
     }
     
     const userBatch = user?.batch;
     const userSection = user?.section;
     
-    // Check if user's batch is in target batches
-    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userBatch || '');
+    // If batch-section pairs are specified, check them first (most specific)
+    if (event.targetBatchSections?.length) {
+      const userBatchSection = `${userBatch}::${userSection}`;
+      return event.targetBatchSections.includes(userBatchSection);
+    }
     
-    // Check if user's section is in target sections
+    // Fallback to legacy batch/section checks
+    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userBatch || '');
     const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(userSection || '');
     
     return batchMatch && sectionMatch;
@@ -243,14 +249,27 @@ export default function Calendar() {
       isMandatory: false,
       targetBatches: [],
       targetSections: [],
+      targetBatchSections: [],
     },
   });
 
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm) => {
+      // Generate batch-section pairs from selected batches and sections
+      const batchSectionPairs: string[] = [];
+      data.targetBatches.forEach(batch => {
+        data.targetSections.forEach(section => {
+          // Only include sections that actually exist for this batch
+          if (batchSectionMap[batch]?.includes(section)) {
+            batchSectionPairs.push(`${batch}::${section}`);
+          }
+        });
+      });
+
       await apiRequest('POST', '/api/events', {
         ...data,
         date: new Date(data.date).toISOString(),
+        targetBatchSections: batchSectionPairs,
       });
     },
     onSuccess: () => {
@@ -284,9 +303,21 @@ export default function Calendar() {
 
   const updateEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm & { id: number }) => {
+      // Generate batch-section pairs from selected batches and sections
+      const batchSectionPairs: string[] = [];
+      data.targetBatches.forEach(batch => {
+        data.targetSections.forEach(section => {
+          // Only include sections that actually exist for this batch
+          if (batchSectionMap[batch]?.includes(section)) {
+            batchSectionPairs.push(`${batch}::${section}`);
+          }
+        });
+      });
+
       await apiRequest('PUT', `/api/events/${data.id}`, {
         ...data,
         date: new Date(data.date).toISOString(),
+        targetBatchSections: batchSectionPairs,
       });
     },
     onSuccess: () => {
@@ -335,18 +366,44 @@ export default function Calendar() {
     enabled: selectedBatches.length > 0 && (user?.role === 'admin' || user?.permissions?.calendar),
   });
 
+  // Process sections with batch context to maintain uniqueness per batch
   const availableSections = Array.isArray(batchSectionsData) 
-    ? Array.from(new Set(
-        batchSectionsData.map((item: any) => item.section).filter(Boolean)
-      )).sort((a: string, b: string) => {
-        const indexA = sectionOrder.indexOf(a);
-        const indexB = sectionOrder.indexOf(b);
-        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-      })
+    ? (() => {
+        // Group sections by batch for context awareness
+        const sectionsByBatch = batchSectionsData.reduce((acc: Record<string, string[]>, item: any) => {
+          if (!acc[item.batch]) acc[item.batch] = [];
+          acc[item.batch].push(item.section);
+          return acc;
+        }, {});
+
+        // Get unique sections across all selected batches (without losing batch context)
+        const allSections = new Set<string>();
+        selectedBatches.forEach(batch => {
+          if (sectionsByBatch[batch]) {
+            sectionsByBatch[batch].forEach(section => allSections.add(section));
+          }
+        });
+
+        // Sort sections using custom order
+        return Array.from(allSections).sort((a: string, b: string) => {
+          const indexA = sectionOrder.indexOf(a);
+          const indexB = sectionOrder.indexOf(b);
+          if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+      })()
     : [];
+
+  // Store batch-section mapping for form validation and submission
+  const batchSectionMap = Array.isArray(batchSectionsData) 
+    ? batchSectionsData.reduce((acc: Record<string, string[]>, item: any) => {
+        if (!acc[item.batch]) acc[item.batch] = [];
+        acc[item.batch].push(item.section);
+        return acc;
+      }, {})
+    : {};
 
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: number) => {

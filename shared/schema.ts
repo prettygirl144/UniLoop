@@ -79,6 +79,7 @@ export const events = pgTable("events", {
   isMandatory: boolean("is_mandatory").default(false),
   targetBatches: text("target_batches").array().default([]), // Array of batches
   targetSections: text("target_sections").array().default([]), // Array of sections
+  targetBatchSections: text("target_batch_sections").array().default([]), // Array of "batch::section" pairs
   authorId: varchar("author_id").notNull().references(() => users.id),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
