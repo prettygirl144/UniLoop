@@ -125,6 +125,14 @@ export interface IStorage {
   batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]>;
   createUploadLog(log: InsertStudentUploadLog): Promise<StudentUploadLog>;
   getUploadLogs(): Promise<StudentUploadLog[]>;
+  
+  // Batch-Section Management
+  upsertBatchSections(batchSectionData: InsertBatchSection[]): Promise<BatchSection[]>;
+  getSectionsForBatches(batches: string[]): Promise<{ batch: string; section: string }[]>;
+  getAllBatches(): Promise<string[]>;
+  
+  // Event Management Extended
+  deleteEvent(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
