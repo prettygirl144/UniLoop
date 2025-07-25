@@ -15,9 +15,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { z } from 'zod';
 import type { Event } from '@shared/schema';
 
@@ -48,7 +49,136 @@ const createEventSchema = z.object({
 
 type CreateEventForm = z.infer<typeof createEventSchema>;
 
+// Calendar Grid Component
+function CalendarGrid({ events, onEventClick }: { events: Event[], onEventClick: (event: Event) => void }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewType, setViewType] = useState<'month' | 'week' | 'day'>('month');
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) {
+      const day = new Date(startDate);
+      day.setDate(startDate.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const getEventsForDate = (date: Date) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + (direction === 'next' ? 1 : -1));
+    setCurrentDate(newDate);
+  };
+
+  const days = getDaysInMonth(currentDate);
+  const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-medium">{monthYear}</CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <Button
+                variant={viewType === 'month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewType('month')}
+              >
+                Month
+              </Button>
+              <Button
+                variant={viewType === 'week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewType('week')}
+              >
+                Week
+              </Button>
+              <Button
+                variant={viewType === 'day' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewType('day')}
+              >
+                Day
+              </Button>
+            </div>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {viewType === 'month' && (
+          <div className="grid grid-cols-7 gap-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
+                {day}
+              </div>
+            ))}
+            {days.map((day, index) => {
+              const dayEvents = getEventsForDate(day);
+              const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+              const isToday = day.toDateString() === new Date().toDateString();
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[80px] p-1 border rounded-sm ${
+                    isCurrentMonth ? 'bg-white' : 'bg-gray-50'
+                  } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <div className={`text-xs ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {day.getDate()}
+                  </div>
+                  <div className="space-y-1">
+                    {dayEvents.slice(0, 2).map(event => (
+                      <div
+                        key={event.id}
+                        onClick={() => onEventClick(event)}
+                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200 truncate"
+                      >
+                        {event.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 2 && (
+                      <div className="text-xs text-gray-500">
+                        +{dayEvents.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Calendar() {
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -203,22 +333,20 @@ export default function Calendar() {
   const { data: batchSectionsData = [] } = useQuery({
     queryKey: ['/api/batch-sections', selectedBatches],
     enabled: selectedBatches.length > 0 && (user?.role === 'admin' || user?.permissions?.calendar),
-    queryFn: () => {
-      if (selectedBatches.length === 0) return [];
-      return apiRequest(`/api/batch-sections?batches=${selectedBatches.join(',')}`);
-    },
   });
 
-  const availableSections = Array.from(new Set(
-    batchSectionsData.map((item: any) => item.section).filter(Boolean)
-  )).sort((a, b) => {
-    const indexA = sectionOrder.indexOf(a);
-    const indexB = sectionOrder.indexOf(b);
-    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
+  const availableSections = Array.isArray(batchSectionsData) 
+    ? Array.from(new Set(
+        batchSectionsData.map((item: any) => item.section).filter(Boolean)
+      )).sort((a: string, b: string) => {
+        const indexA = sectionOrder.indexOf(a);
+        const indexB = sectionOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      })
+    : [];
 
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: number) => {
@@ -335,6 +463,13 @@ export default function Calendar() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-large">Events Calendar</h2>
+        <div className="flex items-center gap-3">
+          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'calendar')}>
+            <TabsList>
+              <TabsTrigger value="list">List View</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+            </TabsList>
+          </Tabs>
         {canCreateEvents && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
@@ -538,7 +673,7 @@ export default function Calendar() {
                             <FormItem>
                               <FormLabel>Target Batches</FormLabel>
                               <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
-                                {availableBatches.map((batch) => (
+                                {Array.isArray(availableBatches) && availableBatches.map((batch: string) => (
                                   <div key={batch} className="flex items-center space-x-2">
                                     <Checkbox
                                       checked={field.value?.includes(batch)}
@@ -586,7 +721,7 @@ export default function Calendar() {
                                     <label className="text-sm font-medium">Select All</label>
                                   </div>
                                 )}
-                                {availableSections.map((section) => (
+                                {availableSections.map((section: string) => (
                                   <div key={section} className="flex items-center space-x-2">
                                     <Checkbox
                                       checked={field.value?.includes(section)}
@@ -597,7 +732,7 @@ export default function Calendar() {
                                         field.onChange(updatedSections);
                                       }}
                                     />
-                                    <label className="text-sm">{section}</label>
+                                    <label className="text-sm">{String(section)}</label>
                                   </div>
                                 ))}
                                 {availableSections.length === 0 && selectedBatches.length > 0 && (
@@ -821,7 +956,7 @@ export default function Calendar() {
                             <FormItem>
                               <FormLabel>Target Batches</FormLabel>
                               <div className="space-y-2 max-h-24 overflow-y-auto border rounded p-2">
-                                {availableBatches.map((batch) => (
+                                {Array.isArray(availableBatches) && availableBatches.map((batch: string) => (
                                   <div key={batch} className="flex items-center space-x-2">
                                     <Checkbox
                                       checked={field.value?.includes(batch)}
@@ -880,7 +1015,7 @@ export default function Calendar() {
                                           field.onChange(updatedSections);
                                         }}
                                       />
-                                      <label className="text-sm">{section}</label>
+                                      <label className="text-sm">{String(section)}</label>
                                     </div>
                                   ))}
                                   {availableSections.length === 0 && selectedBatches.length > 0 && (
@@ -918,10 +1053,14 @@ export default function Calendar() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
-      {/* Today's Events */}
-      {todaysEvents && todaysEvents.length > 0 && (
+      {/* Main Content - List or Calendar View */}
+      {viewMode === 'list' ? (
+        <>
+          {/* Today's Events */}
+          {todaysEvents && todaysEvents.length > 0 && (
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader>
             <CardTitle className="text-medium flex items-center gap-2">
@@ -929,7 +1068,8 @@ export default function Calendar() {
               Today's Events
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="max-h-[400px] overflow-y-auto">
+            <div className="space-y-3">
             {todaysEvents.map((event) => {
               const isEligible = isUserEligibleForEvent(event);
               return (
@@ -1018,6 +1158,7 @@ export default function Calendar() {
                 </div>
               );
             })}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1027,7 +1168,7 @@ export default function Calendar() {
         <CardHeader>
           <CardTitle className="text-medium">All Events</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="max-h-[400px] overflow-y-auto">
           {events && events.length > 0 ? (
             <div className="space-y-3">
               {events.map((event) => {
@@ -1133,6 +1274,14 @@ export default function Calendar() {
           )}
         </CardContent>
       </Card>
+        </>
+      ) : (
+        /* Calendar View */
+        <CalendarGrid events={events || []} onEventClick={(event) => {
+          setSelectedEvent(event);
+          setShowEventDetails(true);
+        }} />
+      )}
 
       {/* Event Details Modal */}
       <Dialog open={showEventDetails} onOpenChange={setShowEventDetails}>
