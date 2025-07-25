@@ -217,6 +217,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update existing event
+  app.put('/api/events/:id', checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const existingEvent = await storage.getEventById(eventId);
+      
+      if (!existingEvent) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Check if user can edit this event (owner or admin)
+      if (user.role !== 'admin' && existingEvent.authorId !== userId) {
+        return res.status(403).json({ message: 'You can only edit events you created' });
+      }
+
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        date: new Date(req.body.date),
+      });
+      
+      const updatedEvent = await storage.updateEvent(eventId, eventData);
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ message: 'Failed to update event' });
+    }
+  });
+
   // Event RSVP routes
   app.post('/api/events/:id/rsvp', checkAuth, async (req: any, res) => {
     try {

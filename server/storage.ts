@@ -285,6 +285,22 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async getEventById(id: number): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event;
+  }
+
+  async updateEvent(id: number, eventData: Partial<InsertEvent>): Promise<Event> {
+    const [event] = await db.update(events)
+      .set({
+        ...eventData,
+        updatedAt: new Date(),
+      })
+      .where(eq(events.id, id))
+      .returning();
+    return event;
+  }
+
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
     const [created] = await db
       .insert(eventRsvps)

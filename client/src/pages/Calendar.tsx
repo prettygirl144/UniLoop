@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +50,7 @@ type CreateEventForm = z.infer<typeof createEventSchema>;
 
 export default function Calendar() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -151,13 +152,52 @@ export default function Calendar() {
     },
   });
 
+  const updateEventMutation = useMutation({
+    mutationFn: async (data: CreateEventForm & { id: number }) => {
+      await apiRequest('PUT', `/api/events/${data.id}`, {
+        ...data,
+        date: new Date(data.date).toISOString(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      setShowEditDialog(false);
+      setShowEventDetails(false);
+      form.reset();
+      toast({
+        title: 'Success',
+        description: 'Event updated successfully!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to update event. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Get unique batches and sections for admin selection
   const availableBatches = Array.from(new Set(
     (batchesAndSections as any[])?.map((student: any) => student.batch).filter(Boolean) || []
   ));
   
-  // Filter sections based on selected batches
+  // Filter sections based on selected batches with custom ordering
   const selectedBatches = form.watch('targetBatches') || [];
+  const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'BA', 'HRM'];
+  
   const availableSections = Array.from(new Set(
     (batchesAndSections as any[])
       ?.filter((student: any) => 
@@ -165,10 +205,54 @@ export default function Calendar() {
       )
       ?.map((student: any) => student.section)
       .filter(Boolean) || []
-  ));
+  )).sort((a, b) => {
+    const indexA = sectionOrder.indexOf(a);
+    const indexB = sectionOrder.indexOf(b);
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
 
   const onSubmit = (data: CreateEventForm) => {
-    createEventMutation.mutate(data);
+    if (showEditDialog && selectedEvent) {
+      updateEventMutation.mutate({ ...data, id: selectedEvent.id });
+    } else {
+      createEventMutation.mutate(data);
+    }
+  };
+
+  const handleEditEvent = (event: Event) => {
+    // Check if user can edit this event
+    const canEdit = user?.role === 'admin' || event.authorId === user?.id;
+    if (!canEdit) {
+      toast({
+        title: 'Permission Denied',
+        description: 'You can only edit events you created.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Populate form with existing event data
+    form.reset({
+      title: event.title,
+      description: event.description || '',
+      date: new Date(event.date).toISOString().split('T')[0],
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location,
+      hostCommittee: event.hostCommittee,
+      category: event.category,
+      rsvpEnabled: event.rsvpEnabled || false,
+      isMandatory: event.isMandatory || false,
+      targetBatches: event.targetBatches || [],
+      targetSections: event.targetSections || [],
+    });
+
+    setSelectedEvent(event);
+    setShowEventDetails(false);
+    setShowEditDialog(true);
   };
 
   const canCreateEvents = user?.permissions?.calendar || user?.role === 'admin';
@@ -426,10 +510,11 @@ export default function Calendar() {
                               <FormLabel>Target Sections</FormLabel>
                               {selectedBatches.length === 0 && (
                                 <p className="text-xs text-muted-foreground">
-                                  Select batches first to filter sections
+                                  Select batches first to see available sections
                                 </p>
                               )}
-                              <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
+                              {selectedBatches.length > 0 && (
+                                <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
                                 {availableSections.length > 0 && (
                                   <div className="flex items-center space-x-2 pb-2 border-b">
                                     <Checkbox
@@ -464,12 +549,8 @@ export default function Calendar() {
                                     No sections found for selected batches
                                   </p>
                                 )}
-                                {selectedBatches.length === 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Please select target batches first
-                                  </p>
-                                )}
-                              </div>
+                                </div>
+                              )}
                               <FormMessage />
                             </FormItem>
                           )}
@@ -479,11 +560,301 @@ export default function Calendar() {
                   )}
 
                   <div className="flex justify-end space-x-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowCreateDialog(false);
+                        form.reset();
+                      }}
+                    >
                       Cancel
                     </Button>
                     <Button type="submit" disabled={createEventMutation.isPending}>
                       {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Edit Event Dialog */}
+        {showEditDialog && selectedEvent && (
+          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-large">Edit Event</DialogTitle>
+              </DialogHeader>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Event Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter event title" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter event description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="startTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Time</FormLabel>
+                          <FormControl>
+                            <Input type="time" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="endTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End Time</FormLabel>
+                          <FormControl>
+                            <Input type="time" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Location</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter event location" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="hostCommittee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Host Committee</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter hosting committee" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="academic">Academic</SelectItem>
+                              <SelectItem value="cultural">Cultural</SelectItem>
+                              <SelectItem value="sports">Sports</SelectItem>
+                              <SelectItem value="social">Social</SelectItem>
+                              <SelectItem value="professional">Professional</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-4">
+                    <FormField
+                      control={form.control}
+                      name="rsvpEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormControl>
+                            <Checkbox 
+                              checked={field.value} 
+                              onCheckedChange={field.onChange} 
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Enable RSVP</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="isMandatory"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormControl>
+                            <Checkbox 
+                              checked={field.value} 
+                              onCheckedChange={field.onChange} 
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Mandatory Event</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Target Batch/Section Selection */}
+                  {(user?.role === 'admin' || user?.permissions?.calendar) && (
+                    <div className="space-y-4">
+                      <h3 className="text-medium font-medium">Target Audience (Optional)</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="targetBatches"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Target Batches</FormLabel>
+                              <div className="space-y-2 max-h-24 overflow-y-auto border rounded p-2">
+                                {availableBatches.map((batch) => (
+                                  <div key={batch} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      checked={field.value?.includes(batch)}
+                                      onCheckedChange={(checked) => {
+                                        const updatedBatches = checked
+                                          ? [...(field.value || []), batch]
+                                          : field.value?.filter(b => b !== batch) || [];
+                                        field.onChange(updatedBatches);
+                                      }}
+                                    />
+                                    <label className="text-sm">{batch}</label>
+                                  </div>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="targetSections"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Target Sections</FormLabel>
+                              {selectedBatches.length === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Select batches first to see available sections
+                                </p>
+                              )}
+                              {selectedBatches.length > 0 && (
+                                <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
+                                  {availableSections.length > 0 && (
+                                    <div className="flex items-center space-x-2 pb-2 border-b">
+                                      <Checkbox
+                                        checked={field.value?.length === availableSections.length}
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            field.onChange(availableSections);
+                                          } else {
+                                            field.onChange([]);
+                                          }
+                                        }}
+                                      />
+                                      <label className="text-sm font-medium">Select All</label>
+                                    </div>
+                                  )}
+                                  {availableSections.map((section) => (
+                                    <div key={section} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        checked={field.value?.includes(section)}
+                                        onCheckedChange={(checked) => {
+                                          const updatedSections = checked
+                                            ? [...(field.value || []), section]
+                                            : field.value?.filter(s => s !== section) || [];
+                                          field.onChange(updatedSections);
+                                        }}
+                                      />
+                                      <label className="text-sm">{section}</label>
+                                    </div>
+                                  ))}
+                                  {availableSections.length === 0 && selectedBatches.length > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      No sections found for selected batches
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowEditDialog(false);
+                        form.reset();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={updateEventMutation.isPending}>
+                      {updateEventMutation.isPending ? 'Updating...' : 'Update Event'}
                     </Button>
                   </div>
                 </form>
@@ -598,11 +969,26 @@ export default function Calendar() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <Badge variant="outline" className="text-xs mb-2">
-                        {event.category}
-                      </Badge>
+                      <div className="flex items-center gap-2 justify-end mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {event.category}
+                        </Badge>
+                        {(user?.role === 'admin' || event.authorId === user?.id) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditEvent(event);
+                            }}
+                            className="p-1 h-6 w-6"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                       {isEligible && (
-                        <div className="flex items-center gap-1 text-green-600">
+                        <div className="flex items-center gap-1 text-green-600 justify-end">
                           <Check className="w-3 h-3" />
                           <span className="text-xs">Eligible</span>
                         </div>
@@ -690,12 +1076,12 @@ export default function Calendar() {
               {/* Target Audience Info */}
               {(selectedEvent.targetBatches?.length || selectedEvent.targetSections?.length) && (
                 <div className="text-xs text-muted-foreground space-y-1">
-                  {selectedEvent.targetBatches?.length > 0 && (
+                  {selectedEvent.targetBatches && selectedEvent.targetBatches.length > 0 && (
                     <div>
                       <strong>Target Batches:</strong> {selectedEvent.targetBatches.join(', ')}
                     </div>
                   )}
-                  {selectedEvent.targetSections?.length > 0 && (
+                  {selectedEvent.targetSections && selectedEvent.targetSections.length > 0 && (
                     <div>
                       <strong>Target Sections:</strong> {selectedEvent.targetSections.join(', ')}
                     </div>
