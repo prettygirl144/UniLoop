@@ -109,6 +109,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Enhanced Batch-Section Targeting & Mobile UI Optimization (COMPLETED)
+- **Complete Batch-Section Storage System**: Fixed fundamental issue where sections were shared across batches
+  - Updated database schema to store sections as "Batch::Section" format (e.g., "MBA 2024-26::A")
+  - Modified student parser and upload system to maintain batch context
+  - Updated 1,049+ student records and 16 batch-section relationships in production database
+- **Enhanced Event Targeting**: Implemented precise batch-section relationship system
+  - Events now store `targetBatchSections` array with specific batch::section pairs
+  - User eligibility checking uses exact section matching to prevent cross-batch conflicts
+  - Form logic generates proper batch-section combinations automatically
+- **Mobile-Optimized Calendar Header**: Improved mobile responsiveness and visual design
+  - Replaced "List View" and "Calendar View" text with List and Grid3X3 icons
+  - Reduced toggle bar width with compact icon-only design
+  - "Add Event" button shows "Add" on mobile, "Add Event" on desktop to prevent overflow
+  - Consistent 8px height for all header elements
+
 ### January 2025 - Complete Events Page Calendar System with Edit/Delete Functionality (COMPLETED)
 - **Fixed Delete Event Functionality**: Resolved fetch API error by correcting parameter order in queryClient.ts
   - Updated deleteEventMutation to use proper `apiRequest('DELETE', '/api/events/{id}')` syntax

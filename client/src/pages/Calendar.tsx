@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2, List, Grid3X3, MapPin } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -519,21 +519,26 @@ export default function Calendar() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-large">Events Calendar</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'calendar')}>
-            <TabsList>
-              <TabsTrigger value="list">List View</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+            <TabsList className="h-8">
+              <TabsTrigger value="list" className="px-2 py-1">
+                <List size={16} />
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="px-2 py-1">
+                <Grid3X3 size={16} />
+              </TabsTrigger>
             </TabsList>
           </Tabs>
-        {canCreateEvents && (
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary text-white text-small">
-                <Plus size={16} className="mr-1" />
-                Add Event
-              </Button>
-            </DialogTrigger>
+          {canCreateEvents && (
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary text-white text-small px-3 py-2 h-8">
+                  <Plus size={14} className="mr-1" />
+                  <span className="hidden sm:inline">Add Event</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Event</DialogTitle>
