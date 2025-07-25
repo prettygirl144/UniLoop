@@ -778,8 +778,25 @@ export default function Calendar() {
                                 <div className="space-y-4 max-h-64 overflow-y-auto border rounded p-3">
                                   {selectedBatches.map((batch: string) => (
                                     <div key={batch} className="space-y-2">
-                                      <div className="font-medium text-sm text-primary border-b pb-1">
-                                        {batch}
+                                      <div className="flex items-center justify-between border-b pb-1">
+                                        <div className="font-medium text-sm text-primary">
+                                          {batch}
+                                        </div>
+                                        {sectionsByBatch[batch]?.length > 0 && (
+                                          <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                              checked={field.value?.[batch]?.length === sectionsByBatch[batch]?.length}
+                                              onCheckedChange={(checked) => {
+                                                const currentBatchSections = field.value || {};
+                                                field.onChange({
+                                                  ...currentBatchSections,
+                                                  [batch]: checked ? sectionsByBatch[batch] : []
+                                                });
+                                              }}
+                                            />
+                                            <label className="text-xs font-medium">Select All</label>
+                                          </div>
+                                        )}
                                       </div>
                                       {sectionsByBatch[batch]?.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-2 pl-2">
