@@ -813,6 +813,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid role" });
       }
       
+      // Prevent admin from demoting themselves
+      if (targetUserId === req.currentUser.id && role !== 'admin') {
+        return res.status(400).json({ message: "Cannot change your own admin role" });
+      }
+      
       const updatedUser = await storage.updateUserRoleAndPermissions(targetUserId, role, permissions);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
@@ -822,6 +827,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Delete user (Admin only)
+  app.delete('/api/admin/users/:id', adminOnly(), async (req: any, res) => {
+    try {
+      const targetUserId = req.params.id;
+      
+      // Prevent admin from deleting themselves
+      if (targetUserId === req.currentUser.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      
+      const deleted = await storage.deleteUser(targetUserId);
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
     }
   });
 

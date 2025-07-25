@@ -781,11 +781,20 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ 
         role, 
-        permissions
+        permissions,
+        updatedAt: new Date()
       })
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    const result = await db
+      .delete(users)
+      .where(eq(users.id, userId))
+      .returning();
+    return result.length > 0;
   }
 
   // Student Directory operations

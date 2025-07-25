@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ interface StudentUploadLog {
 }
 
 export default function Admin() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user: currentUser, isAuthenticated, isLoading } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,7 +79,7 @@ export default function Admin() {
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'admin')) {
+    if (!isLoading && (!isAuthenticated || currentUser?.role !== 'admin')) {
       toast({
         title: "Unauthorized",
         description: "Admin access required. Redirecting...",
@@ -90,13 +90,13 @@ export default function Admin() {
       }, 1000);
       return;
     }
-  }, [isAuthenticated, isLoading, user, toast]);
+  }, [isAuthenticated, isLoading, currentUser, toast]);
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ["/api/admin/users"],
     retry: false,
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAuthenticated && currentUser?.role === 'admin',
   });
 
   // Update user mutation
@@ -143,14 +143,14 @@ export default function Admin() {
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["/api/admin/students"],
     retry: false,
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAuthenticated && currentUser?.role === 'admin',
   });
 
   // Fetch upload logs
   const { data: uploadLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ["/api/admin/student-uploads"],
     retry: false,
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAuthenticated && currentUser?.role === 'admin',
   });
 
   // Student upload mutation
@@ -202,6 +202,40 @@ export default function Admin() {
     },
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStudentUpload = () => {
     if (!selectedFile || !batchName.trim()) {
       toast({
@@ -234,6 +268,22 @@ export default function Admin() {
     setIsEditModalOpen(true);
   };
 
+  const handleUpdateUser = () => {
+    if (!selectedUser) return;
+    
+    updateUserMutation.mutate({
+      userId: selectedUser.id,
+      role: editForm.role,
+      permissions: editForm.permissions
+    });
+  };
+
+  const handleDeleteUser = (userId: string, userEmail: string) => {
+    if (confirm(`Are you sure you want to delete user ${userEmail}? This action cannot be undone.`)) {
+      deleteUserMutation.mutate(userId);
+    }
+  };
+
   const handleSaveUser = () => {
     if (!selectedUser) return;
     
@@ -242,6 +292,44 @@ export default function Admin() {
       role: editForm.role,
       permissions: editForm.permissions
     });
+  };
+
+  const handleRoleChange = (role: string) => {
+    // Set default permissions based on role
+    let defaultPermissions = {
+      calendar: false,
+      attendance: false,
+      gallery: false,
+      forumMod: false,
+      diningHostel: false,
+      postCreation: false,
+    };
+
+    if (role === 'admin') {
+      defaultPermissions = {
+        calendar: true,
+        attendance: true,
+        gallery: true,
+        forumMod: true,
+        diningHostel: true,
+        postCreation: true,
+      };
+    } else if (role === 'committee_club') {
+      defaultPermissions = {
+        calendar: true,
+        attendance: false,
+        gallery: true,
+        forumMod: true,
+        diningHostel: false,
+        postCreation: true,
+      };
+    }
+
+    setEditForm(prev => ({
+      ...prev,
+      role,
+      permissions: defaultPermissions
+    }));
   };
 
   const filteredUsers = users.filter((user: User) =>
@@ -270,7 +358,7 @@ export default function Admin() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'admin') {
+  if (!isAuthenticated || currentUser?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96">
@@ -440,13 +528,26 @@ export default function Admin() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            Edit
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditUser(user)}
+                              disabled={updateUserMutation.isPending}
+                            >
+                              Edit
+                            </Button>
+                            {user.id !== currentUser?.id && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteUser(user.id, user.email)}
+                                disabled={deleteUserMutation.isPending}
+                              >
+                                Delete
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
