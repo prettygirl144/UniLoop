@@ -930,43 +930,94 @@ export default function Calendar() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {todaysEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  setSelectedEvent(event);
-                  setShowEventDetails(true);
-                }}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-small font-medium">{event.title}</h4>
-                    {event.isMandatory && (
-                      <Badge variant="destructive" className="text-xs">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Mandatory
-                      </Badge>
+            {todaysEvents.map((event) => {
+              const isEligible = isUserEligibleForEvent(event);
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
+                  onClick={() => {
+                    setSelectedEvent(event);
+                    setShowEventDetails(true);
+                  }}
+                >
+                  <div className="space-y-3">
+                    {/* Header with title, badges, and action buttons */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-small font-medium truncate">{event.title}</h4>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {event.isMandatory && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Mandatory
+                            </Badge>
+                          )}
+                          {!isEligible && (
+                            <Badge variant="secondary" className="text-xs">
+                              Not Applicable
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">
+                            {event.category}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      {(user?.role === 'admin' || event.authorId === user?.id) && (
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditEvent(event);
+                            }}
+                            className="p-1 h-6 w-6"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEvent(event);
+                            }}
+                            className="p-1 h-6 w-6 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Event details */}
+                    <div className="text-xs text-muted-foreground space-y-2">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          {event.startTime} - {event.endTime}
+                        </span>
+                        <span className="truncate">{event.location}</span>
+                      </div>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="truncate">Host: {event.hostCommittee}</span>
+                      </div>
+                    </div>
+
+                    {/* Eligible status */}
+                    {isEligible && (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <Check className="w-3 h-3" />
+                        <span className="text-xs">Eligible</span>
+                      </div>
                     )}
-                    {!isUserEligibleForEvent(event) && (
-                      <Badge variant="secondary" className="text-xs">
-                        Not Applicable
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-4 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {event.startTime} - {event.endTime}
-                    </span>
-                    <span>{event.location}</span>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {event.category}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
