@@ -64,7 +64,21 @@ export const getQueryFn: <T>(options: {
       }
     }
 
-    const res = await fetch(queryKey.join("/") as string, {
+    // Construct URL with proper query parameter handling
+    let url: string;
+    const [baseUrl, ...params] = queryKey as [string, ...any[]];
+    
+    if (baseUrl === '/api/batch-sections' && params.length > 0 && Array.isArray(params[0])) {
+      // Special handling for batch-sections endpoint
+      const batches = params[0] as string[];
+      const encodedBatches = batches.map(batch => encodeURIComponent(batch)).join(',');
+      url = `${baseUrl}?batches=${encodedBatches}`;
+    } else {
+      // Default behavior for other endpoints
+      url = queryKey.join("/") as string;
+    }
+
+    const res = await fetch(url, {
       headers,
       credentials: "include",
     });
