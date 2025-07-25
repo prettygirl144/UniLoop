@@ -70,10 +70,15 @@ export const events = pgTable("events", {
   title: text("title").notNull(),
   description: text("description"),
   date: timestamp("date").notNull(),
+  startTime: varchar("start_time").notNull(), // HH:MM format
+  endTime: varchar("end_time").notNull(), // HH:MM format
   location: text("location").notNull(),
   hostCommittee: text("host_committee").notNull(),
   category: varchar("category").notNull(),
   rsvpEnabled: boolean("rsvp_enabled").default(false),
+  isMandatory: boolean("is_mandatory").default(false),
+  targetBatches: text("target_batches").array().default([]), // Array of batches
+  targetSections: text("target_sections").array().default([]), // Array of sections
   authorId: varchar("author_id").notNull().references(() => users.id),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),

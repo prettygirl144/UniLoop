@@ -151,9 +151,21 @@ export class DatabaseStorage implements IStorage {
       return user;
     } else {
       // Insert new user with default values
+      const defaultPermissions = {
+        calendar: false,
+        attendance: false,
+        gallery: false,
+        forumMod: false,
+        diningHostel: false,
+        postCreation: false,
+      };
+      
       const [user] = await db
         .insert(users)
-        .values([userData])
+        .values([{
+          ...userData,
+          permissions: userData.permissions || defaultPermissions,
+        }])
         .returning();
       return user;
     }
@@ -268,7 +280,7 @@ export class DatabaseStorage implements IStorage {
   async createEvent(event: InsertEvent): Promise<Event> {
     const [created] = await db
       .insert(events)
-      .values(event)
+      .values([event])
       .returning();
     return created;
   }
@@ -317,7 +329,7 @@ export class DatabaseStorage implements IStorage {
           ...post,
           upvotes: Number(upvotes[0]?.count || 0),
           downvotes: Number(downvotes[0]?.count || 0),
-        };
+        } as CommunityPost & { upvotes: number; downvotes: number };
       })
     );
 
@@ -461,7 +473,7 @@ export class DatabaseStorage implements IStorage {
           ...reply,
           upvotes: Number(upvotes[0]?.count || 0),
           downvotes: Number(downvotes[0]?.count || 0),
-        };
+        } as CommunityReply & { upvotes: number; downvotes: number };
       })
     );
 

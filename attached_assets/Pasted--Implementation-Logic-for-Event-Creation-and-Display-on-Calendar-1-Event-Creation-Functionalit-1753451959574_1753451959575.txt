@@ -1,0 +1,65 @@
+# Implementation Logic for Event Creation and Display on Calendar
+
+## 1. Event Creation Functionality
+
+* Implement event creation functionality on the *Calendar Page* using the provided *New Event Configuration*.
+* Ensure all existing input fields (e.g., Event Title, Date, Start Time, Description) are fully operational, correctly validated, and stored.
+
+## 2. Additional Input Fields
+
+### a. Batch and Section Integration
+
+* On the *Admin Page, add a new input field labeled **"Batch and Sections"*.
+* Fetch available batches and their respective sections from the existing *Student Directory* on Admin page.
+* Enable admins to select multiple batches and sections for event attendees.
+* Validate selections to ensure accurate event attendee mapping.
+
+### b. Mandatory Event Toggle
+
+* Introduce a new toggle input field labeled *"Is Event Mandatory?"* within the New Event Configuration.
+* Allow admins to specify whether the event is mandatory or optional.
+
+### c. Event End Time and Duration
+
+* Add a new input field labeled *"End Time"* in the event creation form.
+* Automatically calculate and display the event duration based on Start and End times.
+* Validate input to ensure End Time is logically after Start Time.
+
+## 3. Display Logic on User Calendar
+
+### a. Event Visibility
+
+* Events created by admins must appear on the calendar of *all users*.
+* Clicking on an event should open a modal or details panel clearly indicating if the current user is among the intended attendees based on their Batch and Section.
+* If a user is *not* an attendee, clearly display a message like: "You are not registered for this event."
+
+### b. Mandatory vs. Non-Mandatory Events
+
+* Visually distinguish mandatory and non-mandatory events on user calendars.
+
+  * *Mandatory events*: Use a prominent color or icon (e.g., red dot or exclamation).
+  * *Non-mandatory events*: Use a neutral or softer indicator (e.g., grey dot or neutral icon).
+* Clearly show mandatory status within event details for quick reference.
+
+## 4. Validation and Error Handling
+
+* Implement comprehensive client-side and server-side validation for all input fields.
+* Provide clear and user-friendly error messages if validation fails.
+* Ensure reliable synchronization between Admin inputs and User calendar displays.
+
+## 5. Technical Integration
+
+* Ensure compatibility with existing Replit application architecture.
+* Modularize all added functionality clearly, using separate files/components where applicable.
+* Document code clearly for ease of future maintenance and enhancements.
+
+## 6. Testing and Quality Assurance
+
+* Test rigorously across multiple use-cases:
+
+  * Creating events with varying batches and sections.
+  * Mandatory vs. Non-mandatory events.
+  * Events spanning different time durations.
+* Validate correct calendar rendering and attendee visibility across multiple user roles.
+
+Follow these structured guidelines meticulously for implementation on Replit.
