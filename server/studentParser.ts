@@ -47,7 +47,7 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
               
               students.push({
                 email: cellValue.toLowerCase(), // Normalize email to lowercase
-                section: sheetName, // Sheet name becomes the section
+                section: `${batchName}::${sheetName}`, // Store as batch::section combination
                 batch: batchName
               });
               

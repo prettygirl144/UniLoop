@@ -213,13 +213,16 @@ export default function Calendar() {
     
     // If batch-section pairs are specified, check them first (most specific)
     if (event.targetBatchSections?.length) {
-      const userBatchSection = `${userBatch}::${userSection}`;
-      return event.targetBatchSections.includes(userBatchSection);
+      // User section is already in batch::section format, compare directly
+      return event.targetBatchSections.includes(userSection || '');
     }
     
     // Fallback to legacy batch/section checks
+    // Extract just the section part from batch::section format for legacy comparison
+    const extractedSection = userSection?.includes('::') ? userSection.split('::')[1] : userSection;
+    
     const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userBatch || '');
-    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(userSection || '');
+    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(extractedSection || '');
     
     return batchMatch && sectionMatch;
   };
@@ -259,10 +262,8 @@ export default function Calendar() {
       const batchSectionPairs: string[] = [];
       data.targetBatches.forEach(batch => {
         data.targetSections.forEach(section => {
-          // Only include sections that actually exist for this batch
-          if (batchSectionMap[batch]?.includes(section)) {
-            batchSectionPairs.push(`${batch}::${section}`);
-          }
+          // Create batch::section pairs for storage
+          batchSectionPairs.push(`${batch}::${section}`);
         });
       });
 
@@ -307,10 +308,8 @@ export default function Calendar() {
       const batchSectionPairs: string[] = [];
       data.targetBatches.forEach(batch => {
         data.targetSections.forEach(section => {
-          // Only include sections that actually exist for this batch
-          if (batchSectionMap[batch]?.includes(section)) {
-            batchSectionPairs.push(`${batch}::${section}`);
-          }
+          // Create batch::section pairs for storage
+          batchSectionPairs.push(`${batch}::${section}`);
         });
       });
 
@@ -369,10 +368,12 @@ export default function Calendar() {
   // Process sections with batch context to maintain uniqueness per batch
   const availableSections = Array.isArray(batchSectionsData) 
     ? (() => {
-        // Group sections by batch for context awareness
+        // Group sections by batch for context awareness, extracting display names
         const sectionsByBatch = batchSectionsData.reduce((acc: Record<string, string[]>, item: any) => {
           if (!acc[item.batch]) acc[item.batch] = [];
-          acc[item.batch].push(item.section);
+          // Extract just the section name from batch::section format for display
+          const displaySection = item.section.includes('::') ? item.section.split('::')[1] : item.section;
+          acc[item.batch].push(displaySection);
           return acc;
         }, {});
 

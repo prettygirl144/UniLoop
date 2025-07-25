@@ -1216,10 +1216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Batch upsert students
       const savedStudents = await storage.batchUpsertStudents(studentRecords);
 
-      // Create batch-section relationships
+      // Create batch-section relationships with batch-specific section names
       const batchSectionData = parseResult.sectionsProcessed.map(section => ({
         batch: batchName.trim(),
-        section: section,
+        section: `${batchName.trim()}::${section}`, // Store as batch::section combination
       }));
       
       await storage.upsertBatchSections(batchSectionData);
