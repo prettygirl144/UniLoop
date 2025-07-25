@@ -34,7 +34,7 @@ const createEventSchema = z.object({
   rsvpEnabled: z.boolean().default(false),
   isMandatory: z.boolean().default(false),
   targetBatches: z.array(z.string()).default([]),
-  targetSections: z.array(z.string()).default([]),
+  batchSections: z.record(z.array(z.string())).default({}), // batch -> sections mapping
   targetBatchSections: z.array(z.string()).default([]), // Store batch::section pairs
 }).refine((data) => {
   // Validate end time is after start time
@@ -251,18 +251,17 @@ export default function Calendar() {
       rsvpEnabled: false,
       isMandatory: false,
       targetBatches: [],
-      targetSections: [],
+      batchSections: {},
       targetBatchSections: [],
     },
   });
 
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm) => {
-      // Generate batch-section pairs from selected batches and sections
+      // Generate batch-section pairs from batch-specific selections
       const batchSectionPairs: string[] = [];
-      data.targetBatches.forEach(batch => {
-        data.targetSections.forEach(section => {
-          // Create batch::section pairs for storage
+      Object.entries(data.batchSections).forEach(([batch, sections]) => {
+        sections.forEach(section => {
           batchSectionPairs.push(`${batch}::${section}`);
         });
       });
@@ -270,6 +269,8 @@ export default function Calendar() {
       await apiRequest('POST', '/api/events', {
         ...data,
         date: new Date(data.date).toISOString(),
+        targetBatches: data.targetBatches,
+        targetSections: [], // Legacy field, keep empty
         targetBatchSections: batchSectionPairs,
       });
     },
@@ -304,11 +305,10 @@ export default function Calendar() {
 
   const updateEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm & { id: number }) => {
-      // Generate batch-section pairs from selected batches and sections
+      // Generate batch-section pairs from batch-specific selections
       const batchSectionPairs: string[] = [];
-      data.targetBatches.forEach(batch => {
-        data.targetSections.forEach(section => {
-          // Create batch::section pairs for storage
+      Object.entries(data.batchSections).forEach(([batch, sections]) => {
+        sections.forEach(section => {
           batchSectionPairs.push(`${batch}::${section}`);
         });
       });
@@ -316,6 +316,8 @@ export default function Calendar() {
       await apiRequest('PUT', `/api/events/${data.id}`, {
         ...data,
         date: new Date(data.date).toISOString(),
+        targetBatches: data.targetBatches,
+        targetSections: [], // Legacy field, keep empty
         targetBatchSections: batchSectionPairs,
       });
     },
@@ -365,37 +367,32 @@ export default function Calendar() {
     enabled: selectedBatches.length > 0 && (user?.role === 'admin' || user?.permissions?.calendar),
   });
 
-  // Process sections with batch context to maintain uniqueness per batch
-  const availableSections = Array.isArray(batchSectionsData) 
-    ? (() => {
-        // Group sections by batch for context awareness, extracting display names
-        const sectionsByBatch = batchSectionsData.reduce((acc: Record<string, string[]>, item: any) => {
-          if (!acc[item.batch]) acc[item.batch] = [];
-          // Extract just the section name from batch::section format for display
-          const displaySection = item.section.includes('::') ? item.section.split('::')[1] : item.section;
-          acc[item.batch].push(displaySection);
-          return acc;
-        }, {});
-
-        // Get unique sections across all selected batches (without losing batch context)
-        const allSections = new Set<string>();
-        selectedBatches.forEach(batch => {
-          if (sectionsByBatch[batch]) {
-            sectionsByBatch[batch].forEach(section => allSections.add(section));
-          }
-        });
-
-        // Sort sections using custom order
-        return Array.from(allSections).sort((a: string, b: string) => {
-          const indexA = sectionOrder.indexOf(a);
-          const indexB = sectionOrder.indexOf(b);
-          if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
-          return indexA - indexB;
-        });
-      })()
-    : [];
+  // Process sections by batch to maintain independence
+  const sectionsByBatch: Record<string, string[]> = {};
+  if (Array.isArray(batchSectionsData)) {
+    batchSectionsData.forEach((item: any) => {
+      if (!sectionsByBatch[item.batch]) {
+        sectionsByBatch[item.batch] = [];
+      }
+      // Extract just the section name from batch::section format for display
+      const displaySection = item.section.includes('::') ? item.section.split('::')[1] : item.section;
+      if (!sectionsByBatch[item.batch].includes(displaySection)) {
+        sectionsByBatch[item.batch].push(displaySection);
+      }
+    });
+    
+    // Sort sections for each batch using custom order
+    Object.keys(sectionsByBatch).forEach(batch => {
+      sectionsByBatch[batch].sort((a: string, b: string) => {
+        const indexA = sectionOrder.indexOf(a);
+        const indexB = sectionOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    });
+  }
 
   // Store batch-section mapping for form validation and submission
   const batchSectionMap = Array.isArray(batchSectionsData) 
@@ -475,6 +472,18 @@ export default function Calendar() {
     }
 
     // Populate form with existing event data
+    // Convert targetBatchSections back to batch-specific sections for editing
+    const batchSections: Record<string, string[]> = {};
+    if (event.targetBatchSections?.length) {
+      event.targetBatchSections.forEach(batchSection => {
+        const [batch, section] = batchSection.split('::');
+        if (batch && section) {
+          if (!batchSections[batch]) batchSections[batch] = [];
+          batchSections[batch].push(section);
+        }
+      });
+    }
+    
     form.reset({
       title: event.title,
       description: event.description || '',
@@ -487,7 +496,7 @@ export default function Calendar() {
       rsvpEnabled: event.rsvpEnabled || false,
       isMandatory: event.isMandatory || false,
       targetBatches: event.targetBatches || [],
-      targetSections: event.targetSections || [],
+      batchSections,
     });
 
     setSelectedEvent(event);
@@ -756,51 +765,56 @@ export default function Calendar() {
 
                         <FormField
                           control={form.control}
-                          name="targetSections"
+                          name="batchSections"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Target Sections</FormLabel>
+                              <FormLabel>Target Sections by Batch</FormLabel>
                               {selectedBatches.length === 0 && (
                                 <p className="text-xs text-muted-foreground">
                                   Select batches first to see available sections
                                 </p>
                               )}
                               {selectedBatches.length > 0 && (
-                                <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
-                                {availableSections.length > 0 && (
-                                  <div className="flex items-center space-x-2 pb-2 border-b">
-                                    <Checkbox
-                                      checked={field.value?.length === availableSections.length}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          field.onChange(availableSections);
-                                        } else {
-                                          field.onChange([]);
-                                        }
-                                      }}
-                                    />
-                                    <label className="text-sm font-medium">Select All</label>
-                                  </div>
-                                )}
-                                {availableSections.map((section: string) => (
-                                  <div key={section} className="flex items-center space-x-2">
-                                    <Checkbox
-                                      checked={field.value?.includes(section)}
-                                      onCheckedChange={(checked) => {
-                                        const updatedSections = checked
-                                          ? [...(field.value || []), section]
-                                          : field.value?.filter(s => s !== section) || [];
-                                        field.onChange(updatedSections);
-                                      }}
-                                    />
-                                    <label className="text-sm">{String(section)}</label>
-                                  </div>
-                                ))}
-                                {availableSections.length === 0 && selectedBatches.length > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    No sections found for selected batches
-                                  </p>
-                                )}
+                                <div className="space-y-4 max-h-64 overflow-y-auto border rounded p-3">
+                                  {selectedBatches.map((batch: string) => (
+                                    <div key={batch} className="space-y-2">
+                                      <div className="font-medium text-sm text-primary border-b pb-1">
+                                        {batch}
+                                      </div>
+                                      {sectionsByBatch[batch]?.length > 0 ? (
+                                        <div className="grid grid-cols-2 gap-2 pl-2">
+                                          {sectionsByBatch[batch].map((section: string) => (
+                                            <div key={`${batch}-${section}`} className="flex items-center space-x-2">
+                                              <Checkbox
+                                                checked={field.value?.[batch]?.includes(section) || false}
+                                                onCheckedChange={(checked) => {
+                                                  const currentBatchSections = field.value || {};
+                                                  const currentSections = currentBatchSections[batch] || [];
+                                                  
+                                                  let updatedSections;
+                                                  if (checked) {
+                                                    updatedSections = [...currentSections, section];
+                                                  } else {
+                                                    updatedSections = currentSections.filter(s => s !== section);
+                                                  }
+                                                  
+                                                  field.onChange({
+                                                    ...currentBatchSections,
+                                                    [batch]: updatedSections
+                                                  });
+                                                }}
+                                              />
+                                              <label className="text-sm">{section}</label>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground pl-2">
+                                          No sections found for this batch
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                               <FormMessage />
