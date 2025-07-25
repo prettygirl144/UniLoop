@@ -48,6 +48,9 @@ import {
   type InsertStudentDirectory,
   type StudentUploadLog,
   type InsertStudentUploadLog,
+  batchSections,
+  type BatchSection,
+  type InsertBatchSection,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
@@ -299,6 +302,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(events.id, id))
       .returning();
     return event;
+  }
+
+  async deleteEvent(id: number): Promise<void> {
+    // First delete related RSVPs
+    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+    
+    // Then delete the event
+    await db.delete(events).where(eq(events.id, id));
   }
 
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
@@ -889,6 +900,46 @@ export class DatabaseStorage implements IStorage {
 
   async getUploadLogs(): Promise<StudentUploadLog[]> {
     return await db.select().from(studentUploadLogs).orderBy(desc(studentUploadLogs.uploadTimestamp));
+  }
+
+  // Batch-Section management
+  async upsertBatchSections(batchSectionData: InsertBatchSection[]): Promise<BatchSection[]> {
+    if (batchSectionData.length === 0) return [];
+    
+    const results: BatchSection[] = [];
+    
+    for (const data of batchSectionData) {
+      const [result] = await db
+        .insert(batchSections)
+        .values(data)
+        .onConflictDoNothing()
+        .returning();
+      
+      if (result) {
+        results.push(result);
+      }
+    }
+    
+    return results;
+  }
+
+  async getSectionsForBatches(batches: string[]): Promise<{ batch: string; section: string }[]> {
+    if (batches.length === 0) return [];
+    
+    return await db
+      .select({ batch: batchSections.batch, section: batchSections.section })
+      .from(batchSections)
+      .where(inArray(batchSections.batch, batches))
+      .orderBy(batchSections.batch, batchSections.section);
+  }
+
+  async getAllBatches(): Promise<string[]> {
+    const results = await db
+      .selectDistinct({ batch: batchSections.batch })
+      .from(batchSections)
+      .orderBy(batchSections.batch);
+    
+    return results.map(r => r.batch);
   }
 }
 

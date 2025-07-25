@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -189,22 +189,28 @@ export default function Calendar() {
     },
   });
 
-  // Get unique batches and sections for admin selection
-  const availableBatches = Array.from(new Set(
-    (batchesAndSections as any[])?.map((student: any) => student.batch).filter(Boolean) || []
-  ));
-  
+  // Fetch batches for form
+  const { data: availableBatches = [] } = useQuery({
+    queryKey: ['/api/batches'],
+    enabled: user?.role === 'admin' || user?.permissions?.calendar,
+  });
+
   // Filter sections based on selected batches with custom ordering
   const selectedBatches = form.watch('targetBatches') || [];
   const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'BA', 'HRM'];
-  
+
+  // Fetch sections for selected batches
+  const { data: batchSectionsData = [] } = useQuery({
+    queryKey: ['/api/batch-sections', selectedBatches],
+    enabled: selectedBatches.length > 0,
+    queryFn: () => {
+      if (selectedBatches.length === 0) return [];
+      return apiRequest(`/api/batch-sections?batches=${selectedBatches.join(',')}`);
+    },
+  });
+
   const availableSections = Array.from(new Set(
-    (batchesAndSections as any[])
-      ?.filter((student: any) => 
-        selectedBatches.length === 0 || selectedBatches.includes(student.batch)
-      )
-      ?.map((student: any) => student.section)
-      .filter(Boolean) || []
+    batchSectionsData.map((item: any) => item.section).filter(Boolean)
   )).sort((a, b) => {
     const indexA = sectionOrder.indexOf(a);
     const indexB = sectionOrder.indexOf(b);
@@ -213,6 +219,56 @@ export default function Calendar() {
     if (indexB === -1) return -1;
     return indexA - indexB;
   });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async (eventId: number) => {
+      return apiRequest(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      toast({
+        title: "Success",
+        description: "Event deleted successfully!",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Error",
+        description: "Failed to delete event. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteEvent = (event: Event) => {
+    const canDelete = user?.role === 'admin' || event.authorId === user?.id;
+    if (!canDelete) {
+      toast({
+        title: 'Permission Denied',
+        description: 'You can only delete events you created.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete "${event.title}"? This action cannot be undone.`)) {
+      deleteEventMutation.mutate(event.id);
+    }
+  };
 
   const onSubmit = (data: CreateEventForm) => {
     if (showEditDialog && selectedEvent) {
@@ -974,17 +1030,30 @@ export default function Calendar() {
                           {event.category}
                         </Badge>
                         {(user?.role === 'admin' || event.authorId === user?.id) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditEvent(event);
-                            }}
-                            className="p-1 h-6 w-6"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditEvent(event);
+                              }}
+                              className="p-1 h-6 w-6"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteEvent(event);
+                              }}
+                              className="p-1 h-6 w-6 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
                         )}
                       </div>
                       {isEligible && (

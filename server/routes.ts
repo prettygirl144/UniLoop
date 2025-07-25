@@ -253,6 +253,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete event
+  app.delete('/api/events/:id', checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const existingEvent = await storage.getEventById(eventId);
+      
+      if (!existingEvent) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Check if user can delete this event (owner or admin)
+      if (user.role !== 'admin' && existingEvent.authorId !== userId) {
+        return res.status(403).json({ message: 'You can only delete events you created' });
+      }
+      
+      await storage.deleteEvent(eventId);
+      res.json({ message: 'Event deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      res.status(500).json({ message: 'Failed to delete event' });
+    }
+  });
+
+  // Get sections for batches
+  app.get('/api/batch-sections', checkAuth, async (req: any, res) => {
+    try {
+      const batches = req.query.batches as string;
+      
+      if (!batches) {
+        return res.json([]);
+      }
+
+      const batchArray = batches.split(',').filter(Boolean);
+      const sections = await storage.getSectionsForBatches(batchArray);
+      res.json(sections);
+    } catch (error) {
+      console.error('Error fetching batch sections:', error);
+      res.status(500).json({ message: 'Failed to fetch sections' });
+    }
+  });
+
+  // Get all batches
+  app.get('/api/batches', checkAuth, async (req: any, res) => {
+    try {
+      const batches = await storage.getAllBatches();
+      res.json(batches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      res.status(500).json({ message: 'Failed to fetch batches' });
+    }
+  });
+
   // Event RSVP routes
   app.post('/api/events/:id/rsvp', checkAuth, async (req: any, res) => {
     try {
@@ -1154,6 +1214,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Batch upsert students
       const savedStudents = await storage.batchUpsertStudents(studentRecords);
+
+      // Create batch-section relationships
+      const batchSectionData = parseResult.sectionsProcessed.map(section => ({
+        batch: batchName.trim(),
+        section: section,
+      }));
+      
+      await storage.upsertBatchSections(batchSectionData);
 
       // Create upload log
       await storage.createUploadLog({

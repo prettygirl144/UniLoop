@@ -416,6 +416,16 @@ export const studentUploadLogs = pgTable("student_upload_logs", {
   uploadTimestamp: timestamp("upload_timestamp").defaultNow(),
 });
 
+// Batch-Section relationship table to track which sections belong to which batches
+export const batchSections = pgTable("batch_sections", {
+  id: serial("id").primaryKey(),
+  batch: varchar("batch").notNull(),
+  section: varchar("section").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueBatchSection: unique().on(table.batch, table.section),
+}));
+
 // Student directory schemas
 export const insertStudentDirectorySchema = createInsertSchema(studentDirectory).omit({
   id: true,
@@ -428,6 +438,11 @@ export const insertStudentUploadLogSchema = createInsertSchema(studentUploadLogs
   uploadTimestamp: true,
 });
 
+export const insertBatchSectionSchema = createInsertSchema(batchSections).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -435,6 +450,8 @@ export type InsertStudentDirectory = z.infer<typeof insertStudentDirectorySchema
 export type StudentDirectory = typeof studentDirectory.$inferSelect;
 export type InsertStudentUploadLog = z.infer<typeof insertStudentUploadLogSchema>;
 export type StudentUploadLog = typeof studentUploadLogs.$inferSelect;
+export type InsertBatchSection = z.infer<typeof insertBatchSectionSchema>;
+export type BatchSection = typeof batchSections.$inferSelect;
 
 // Google Drive gallery folders
 export const galleryFolders = pgTable("gallery_folders", {
