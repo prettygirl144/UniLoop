@@ -109,6 +109,31 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Complete Events Page Calendar System with Edit/Delete Functionality (COMPLETED)
+- **Fixed Delete Event Functionality**: Resolved fetch API error by correcting parameter order in queryClient.ts
+  - Updated deleteEventMutation to use proper `apiRequest('DELETE', '/api/events/{id}')` syntax
+  - Fixed "URL being passed as HTTP method" error that was preventing event deletion
+- **Enhanced Authorization System**: Comprehensive edit/delete permissions for event creators and admins
+  - Edit/Delete buttons only visible to event creators (`event.authorId === user?.id`) or admins
+  - Backend authorization checks prevent unauthorized modifications
+  - Frontend authorization prevents access attempts to non-owned events
+- **Complete Calendar View Implementation**: Advanced calendar grid with month/week/day view options
+  - Interactive calendar grid showing events as clickable tiles on specific dates
+  - Month navigation with previous/next controls
+  - Calendar view toggles with List View using tabs in header
+  - Events displayed with proper date matching and overflow handling (max 2 events shown, "+X more" indicator)
+  - Calendar integrates with existing event detail modal
+- **Mobile-Optimized Event Layout**: Consistent responsive design across all views
+  - Fixed height constraints with max-height 400px and internal scrolling for event containers
+  - Consistent minimum height (160px) for all event cards in both Today's and All Events sections
+  - Proper text wrapping and overflow handling for mobile devices
+  - Optimized touch targets and spacing for mobile interaction
+- **Enhanced Event Management**: Full CRUD operations with proper validation
+  - Event creation, editing, and deletion with role-based permissions
+  - Batch and section targeting with proper database relationships
+  - Form validation and error handling with user-friendly toast notifications
+  - Real-time updates using React Query cache invalidation
+
 ### January 2025 - Admin Override System and Student Directory Integration (COMPLETED)
 - **Admin Override Authentication**: Implemented hardcoded admin user list with automatic role assignment:
   - Added `ADMIN_OVERRIDE_EMAILS` array containing: pritika.pauli21@iimranchi.ac.in, pritika.paul4@gmail.com, kislay.ui@gmail.com
