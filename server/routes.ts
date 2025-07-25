@@ -242,6 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const eventData = insertEventSchema.parse({
         ...req.body,
+        authorId: existingEvent.authorId, // Keep the original author
         date: new Date(req.body.date),
       });
       
