@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
@@ -72,6 +72,31 @@ export default function Home() {
   const prevEvent = () => {
     if (thisWeeksEvents.length > 0) {
       setCurrentEventIndex((prev) => (prev - 1 + thisWeeksEvents.length) % thisWeeksEvents.length);
+    }
+  };
+
+  const getCategoryGradient = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'academic':
+        return 'from-blue-500 to-blue-700';
+      case 'cultural':
+        return 'from-purple-500 to-purple-700';
+      case 'sports':
+        return 'from-green-500 to-green-700';
+      case 'technical':
+        return 'from-indigo-500 to-indigo-700';
+      case 'social':
+        return 'from-pink-500 to-pink-700';
+      case 'workshop':
+        return 'from-orange-500 to-orange-700';
+      case 'seminar':
+        return 'from-teal-500 to-teal-700';
+      case 'competition':
+        return 'from-red-500 to-red-700';
+      case 'celebration':
+        return 'from-yellow-500 to-yellow-700';
+      default:
+        return 'from-gray-500 to-gray-700';
     }
   };
 
@@ -233,8 +258,23 @@ export default function Home() {
             >
               {thisWeeksEvents.map((event, index) => (
                 <div key={event.id} className="w-full flex-shrink-0">
-                  <div className="bg-gradient-to-r from-primary to-blue-600 rounded-xl p-4 text-white">
-                    <div className="flex items-start justify-between">
+                  <div className={`bg-gradient-to-r ${getCategoryGradient(event.category)} rounded-xl p-4 text-white relative overflow-hidden`}>
+                    {/* Mandatory/Optional indicator */}
+                    <div className="absolute top-2 right-2">
+                      {event.isOptional ? (
+                        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1">
+                          <CheckCircle className="h-3 w-3" />
+                          <span className="text-xs font-medium">Optional</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1 bg-red-500/30 rounded-full px-2 py-1">
+                          <AlertCircle className="h-3 w-3" />
+                          <span className="text-xs font-medium">Mandatory</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-start justify-between pr-20">
                       <div className="flex-1">
                         <h4 className="text-small mb-1 font-medium">{event.title}</h4>
                         <div className="space-y-1 text-xs opacity-90">
@@ -260,9 +300,6 @@ export default function Home() {
                             </div>
                           )}
                         </div>
-                      </div>
-                      <div className="ml-3">
-                        <Calendar className="h-6 w-6 opacity-70" />
                       </div>
                     </div>
                   </div>
