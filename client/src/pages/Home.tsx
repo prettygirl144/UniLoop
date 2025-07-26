@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users } from 'lucide-react';
 import { Link } from 'wouter';
 import type { Announcement } from '@shared/schema';
 
@@ -155,7 +155,7 @@ export default function Home() {
         <Link href="/directory">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
             <CardContent className="p-4 text-center space-y-2">
-              <i className="fas fa-address-book text-medium text-secondary"></i>
+              <Users className="h-6 w-6 text-secondary mx-auto" />
               <p className="text-small">Directory</p>
             </CardContent>
           </Card>
