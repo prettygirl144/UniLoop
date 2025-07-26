@@ -12,11 +12,12 @@ interface Event {
   title: string;
   description: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   location: string;
   category: string;
   hostCommittee: string;
-  isOptional: boolean;
+  isMandatory: boolean;
   targetBatchSections: string[];
   rsvpCount?: number;
 }
@@ -261,15 +262,15 @@ export default function Home() {
                   <div className={`bg-gradient-to-r ${getCategoryGradient(event.category)} rounded-xl p-4 text-white relative overflow-hidden`}>
                     {/* Mandatory/Optional indicator */}
                     <div className="absolute top-2 right-2">
-                      {event.isOptional ? (
-                        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1">
-                          <CheckCircle className="h-3 w-3" />
-                          <span className="text-xs font-medium">Optional</span>
-                        </div>
-                      ) : (
+                      {event.isMandatory ? (
                         <div className="flex items-center space-x-1 bg-red-500/30 rounded-full px-2 py-1">
                           <AlertCircle className="h-3 w-3" />
                           <span className="text-xs font-medium">Mandatory</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1">
+                          <CheckCircle className="h-3 w-3" />
+                          <span className="text-xs font-medium">Optional</span>
                         </div>
                       )}
                     </div>
@@ -282,7 +283,7 @@ export default function Home() {
                             <Calendar className="h-3 w-3" />
                             <span>{formatEventDate(event.date)}</span>
                             <Clock className="h-3 w-3 ml-2" />
-                            <span>{event.time}</span>
+                            <span>{event.startTime}</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <MapPin className="h-3 w-3" />
