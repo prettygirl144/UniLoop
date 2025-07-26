@@ -34,8 +34,8 @@ export default function Landing() {
       {/* Hero Section */}
       <div className="h-64 bg-gradient-to-br from-primary to-blue-800 relative overflow-hidden">
         <img 
-          src="https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"
-          alt="Modern university campus with students" 
+          src="/attached_assets/Landing-IIM-Ranchi_1753542981148.webp"
+          alt="IIM Ranchi campus building" 
           className="w-full h-full object-cover opacity-30"
         />
         <div className="absolute inset-0 flex items-center justify-center">
