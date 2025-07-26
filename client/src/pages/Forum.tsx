@@ -732,7 +732,6 @@ export default function Forum() {
           </Card>
         )}
       </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="posts" className="flex items-center gap-2">
@@ -1030,7 +1029,7 @@ export default function Forum() {
                   <DialogTrigger asChild>
                     <Button className="text-small flex-shrink-0">
                       <Plus className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">New Announcement</span>
+                      <span className="hidden sm:inline">New Post</span>
                       <span className="sm:hidden">Add</span>
                     </Button>
                   </DialogTrigger>
@@ -1238,7 +1237,6 @@ export default function Forum() {
           )}
         </TabsContent>
       </Tabs>
-
       {/* Post Detail Dialog */}
       {selectedPost && (
         <Dialog open={!!selectedPost} onOpenChange={() => setSelectedPost(null)}>
