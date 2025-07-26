@@ -861,11 +861,6 @@ export class DatabaseStorage implements IStorage {
     return student;
   }
 
-  async getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined> {
-    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.rollNumber, rollNumber));
-    return student;
-  }
-
   async checkRollNumberConflicts(students: InsertStudentDirectory[]): Promise<{conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[], validStudents: InsertStudentDirectory[]}> {
     const conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[] = [];
     const validStudents: InsertStudentDirectory[] = [];

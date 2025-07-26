@@ -306,10 +306,19 @@ export default function Calendar() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await apiRequest('POST', '/api/events/parse-roll-numbers', { body: formData });
+      const response = await fetch('/api/events/parse-roll-numbers', {
+        method: 'POST',
+        body: formData,
+      });
       
-      if (response.attendees && response.attendees.length > 0) {
-        const newAttendees = response.attendees.map((attendee: any) => ({
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+      
+      const result = await response.json();
+      
+      if (result.attendees && result.attendees.length > 0) {
+        const newAttendees = result.attendees.map((attendee: any) => ({
           ...attendee,
           source: 'roll-number' as const,
         }));
@@ -318,7 +327,7 @@ export default function Calendar() {
         
         toast({
           title: "File Uploaded Successfully",
-          description: `Found ${response.attendees.length} matching students.`,
+          description: `Found ${result.attendees.length} matching students.`,
         });
       } else {
         toast({
@@ -363,14 +372,9 @@ export default function Calendar() {
         rollNumberAttendees: rollNumberAttendees,
       };
 
-      return apiRequest('POST', '/api/events', combinedData);
-
-      await apiRequest('POST', '/api/events', {
-        ...data,
+      return apiRequest('POST', '/api/events', {
+        ...combinedData,
         date: new Date(data.date).toISOString(),
-        targetBatches: data.targetBatches,
-        targetSections: [], // Legacy field, keep empty
-        targetBatchSections: batchSectionPairs,
       });
     },
     onSuccess: () => {
