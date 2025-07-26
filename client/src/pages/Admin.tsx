@@ -155,8 +155,19 @@ export default function Admin() {
   });
 
   // Get unique batches and sections for filter options
-  const uniqueBatches = [...new Set(students.map(s => s.batch))].sort();
-  const uniqueSections = [...new Set(students.map(s => s.section))].sort();
+  const uniqueBatches = Array.from(new Set(students.map(s => s.batch))).sort();
+  
+  // Get sections filtered by selected batch (similar to event creation logic)
+  const getFilteredSections = () => {
+    if (selectedBatch === "all") {
+      return Array.from(new Set(students.map(s => s.section))).sort();
+    }
+    return Array.from(new Set(students
+      .filter(s => s.batch === selectedBatch)
+      .map(s => s.section)
+    )).sort();
+  };
+  const filteredSections = getFilteredSections();
 
   // Filter students based on search term and filters
   const filteredStudents = students.filter((student: StudentDirectory) => {
@@ -687,7 +698,14 @@ export default function Admin() {
                   <div className="flex flex-wrap gap-4">
                     <div className="flex-1 min-w-48">
                       <Label htmlFor="batch-filter" className="text-sm mb-2 block">Filter by Batch</Label>
-                      <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                      <Select 
+                        value={selectedBatch} 
+                        onValueChange={(value) => {
+                          setSelectedBatch(value);
+                          // Reset section when batch changes
+                          setSelectedSection("all");
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="All Batches" />
                         </SelectTrigger>
@@ -702,14 +720,20 @@ export default function Admin() {
                     
                     <div className="flex-1 min-w-48">
                       <Label htmlFor="section-filter" className="text-sm mb-2 block">Filter by Section</Label>
-                      <Select value={selectedSection} onValueChange={setSelectedSection}>
+                      <Select 
+                        value={selectedSection} 
+                        onValueChange={setSelectedSection}
+                        key={selectedBatch} // Reset section when batch changes
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="All Sections" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Sections</SelectItem>
-                          {uniqueSections.map(section => (
-                            <SelectItem key={section} value={section}>{section}</SelectItem>
+                          {filteredSections.map(section => (
+                            <SelectItem key={section} value={section}>
+                              {selectedBatch === "all" ? section : section.split("::")[1] || section}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
