@@ -26,7 +26,7 @@ export default function Home() {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
-    queryKey: ['/api/announcements'],
+    queryKey: ['/api/community/announcements'],
   });
 
   const { data: events = [], isLoading: eventsLoading } = useQuery<Event[]>({
@@ -150,7 +150,7 @@ export default function Home() {
           </Card>
         </Link>
         
-        <Link href="/community">
+        <Link href="/forum?tab=announcements">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -170,7 +170,7 @@ export default function Home() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-medium">Latest Updates</h3>
-          <Link href="/community">
+          <Link href="/forum?tab=announcements">
             <Button variant="ghost" size="sm" className="text-primary">
               See All
             </Button>

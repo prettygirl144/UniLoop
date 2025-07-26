@@ -108,6 +108,11 @@ const SORT_OPTIONS = [
 ];
 
 export default function Forum() {
+  // Check URL parameters for default tab
+  const urlParams = new URLSearchParams(window.location.search);
+  const defaultTab = urlParams.get('tab') === 'announcements' ? 'announcements' : 'posts';
+  
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
@@ -728,9 +733,9 @@ export default function Forum() {
         )}
       </div>
 
-      <Tabs defaultValue="board" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="board" className="flex items-center gap-2">
+          <TabsTrigger value="posts" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             <span className="text-small">Community Board</span>
           </TabsTrigger>
@@ -741,7 +746,7 @@ export default function Forum() {
         </TabsList>
 
         {/* Community Board Tab */}
-        <TabsContent value="board" className="space-y-6">
+        <TabsContent value="posts" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-600" />
