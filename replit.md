@@ -109,6 +109,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Enhanced Roll Number Detection with Hyphen-Based Logic (COMPLETED)
+- **Intelligent Roll Number Detection**: Implemented advanced roll number identification logic similar to email finding
+  - Header detection for roll number columns using keywords: "roll number", "roll no", "rollno", "student id", etc.
+  - Mandatory hyphen requirement - cells with hyphens are prioritized for roll number detection
+  - Enhanced validation filtering out false positives like "n/a", "not-applicable"
+  - Two-tier detection: column header identification + cell-level hyphen pattern matching
+- **Database Integration**: Successfully resolved migration issues and restored full functionality
+  - Added roll_number columns to users and student_directory tables
+  - Re-enabled roll number conflict detection and validation logic
+  - Fixed all LSP errors and authentication system functionality
+- **Comprehensive Excel Parser Enhancement**: Robust roll number extraction from Excel files
+  - Supports various roll number formats with hyphens (e.g., "MBA-2024-001", "CS-21-BT-456")
+  - Intelligent column identification by checking first 3 rows for headers
+  - Console logging for debugging roll number detection during uploads
+  - Normalized roll number storage (uppercase) with conflict prevention
+
 ### January 2025 - Enhanced Batch-Section Targeting & Mobile UI Optimization (COMPLETED)
 - **Complete Batch-Section Storage System**: Fixed fundamental issue where sections were shared across batches
   - Updated database schema to store sections as "Batch::Section" format (e.g., "MBA 2024-26::A")

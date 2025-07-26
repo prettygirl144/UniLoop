@@ -33,6 +33,9 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
       // Get the range of the worksheet
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
       
+      // First pass: Identify potential roll number columns by checking headers
+      const rollNumberColumns = identifyRollNumberColumns(worksheet, range);
+      
       // Parse each row to extract email and potential roll number
       for (let rowNum = range.s.r; rowNum <= range.e.r; rowNum++) {
         let email: string | null = null;
@@ -50,8 +53,8 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
             if (cellValue.includes('@') && isValidEmail(cellValue)) {
               email = cellValue.toLowerCase(); // Normalize email to lowercase
             }
-            // Check if the cell contains a roll number (alphanumeric pattern)
-            else if (isValidRollNumber(cellValue)) {
+            // Enhanced roll number detection: check if column is identified as roll number column OR cell contains hyphen pattern
+            else if (rollNumberColumns.includes(colNum) || isValidRollNumber(cellValue)) {
               rollNumber = cellValue.toUpperCase(); // Normalize roll number to uppercase
             }
           }
@@ -100,8 +103,59 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
+function identifyRollNumberColumns(worksheet: XLSX.WorkSheet, range: XLSX.Range): number[] {
+  const rollNumberCols: number[] = [];
+  
+  // Check first few rows for roll number column headers
+  const maxHeaderRows = Math.min(3, range.e.r - range.s.r + 1);
+  
+  for (let colNum = range.s.c; colNum <= range.e.c; colNum++) {
+    for (let rowNum = range.s.r; rowNum < range.s.r + maxHeaderRows; rowNum++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: rowNum, c: colNum });
+      const cell = worksheet[cellAddress];
+      
+      if (cell && cell.v) {
+        const cellValue = cell.v.toString().toLowerCase().trim();
+        
+        // Check if header contains roll number keywords
+        if (isRollNumberHeader(cellValue)) {
+          rollNumberCols.push(colNum);
+          console.log(`Identified roll number column at ${XLSX.utils.encode_col(colNum)} with header: "${cellValue}"`);
+          break; // Found header, move to next column
+        }
+      }
+    }
+  }
+  
+  return rollNumberCols;
+}
+
+function isRollNumberHeader(headerValue: string): boolean {
+  const rollNumberKeywords = [
+    'roll number', 'rollnumber', 'roll no', 'rollno', 'roll no.', 'rollno.',
+    'roll numbers', 'roll nos', 'roll nos.', 'student id', 'studentid',
+    'registration number', 'registration no', 'reg no', 'reg no.',
+    'enrollment number', 'enrollment no', 'enroll no', 'enroll no.'
+  ];
+  
+  return rollNumberKeywords.some(keyword => headerValue.includes(keyword));
+}
+
 function isValidRollNumber(value: string): boolean {
-  // Roll number pattern: alphanumeric, 4-15 characters, may include hyphens/slashes
-  const rollNumberRegex = /^[A-Za-z0-9\-\/]{4,15}$/;
-  return rollNumberRegex.test(value) && !value.includes('@'); // Ensure it's not an email
+  // Enhanced roll number detection:
+  // 1. Must contain at least one hyphen (key requirement from user)
+  // 2. Alphanumeric with hyphens/slashes, 4-20 characters
+  // 3. Cannot be an email
+  if (!value.includes('-')) {
+    return false; // Must contain hyphen as per user requirement
+  }
+  
+  const rollNumberRegex = /^[A-Za-z0-9\-\/]{4,20}$/;
+  return rollNumberRegex.test(value) && !value.includes('@') && !isCommonNonRollNumber(value);
+}
+
+function isCommonNonRollNumber(value: string): boolean {
+  // Filter out common false positives that contain hyphens
+  const falsePositives = ['n/a', 'na', 'nil', 'none', 'not-applicable', 'not-available'];
+  return falsePositives.includes(value.toLowerCase());
 }
