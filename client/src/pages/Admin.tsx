@@ -62,6 +62,9 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState("all");
+  const [selectedSection, setSelectedSection] = useState("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -149,6 +152,34 @@ export default function Admin() {
     queryKey: ["/api/admin/student-uploads"],
     retry: false,
     enabled: isAuthenticated && currentUser?.role === 'admin',
+  });
+
+  // Get unique batches and sections for filter options
+  const uniqueBatches = [...new Set(students.map(s => s.batch))].sort();
+  const uniqueSections = [...new Set(students.map(s => s.section))].sort();
+
+  // Filter students based on search term and filters
+  const filteredStudents = students.filter((student: StudentDirectory) => {
+    const searchText = studentSearchTerm.toLowerCase();
+    const email = student.email?.toLowerCase() || '';
+    const rollNumber = student.rollNumber?.toLowerCase() || '';
+    const batch = student.batch?.toLowerCase() || '';
+    const section = student.section?.toLowerCase() || '';
+    
+    // Search filter
+    const matchesSearch = !studentSearchTerm || 
+      email.includes(searchText) || 
+      rollNumber.includes(searchText) ||
+      batch.includes(searchText) ||
+      section.includes(searchText);
+    
+    // Batch filter
+    const matchesBatch = selectedBatch === "all" || student.batch === selectedBatch;
+    
+    // Section filter
+    const matchesSection = selectedSection === "all" || student.section === selectedSection;
+    
+    return matchesSearch && matchesBatch && matchesSection;
   });
 
   // Student upload mutation
@@ -634,13 +665,73 @@ export default function Admin() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="h-5 w-5" />
-                  Student Directory ({students.length})
+                  Student Directory ({filteredStudents.length} of {students.length})
                 </CardTitle>
                 <CardDescription>
                   All students in the system
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Search and Filter Controls */}
+                <div className="space-y-4 mb-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by email, roll number, batch, or section..."
+                      value={studentSearchTerm}
+                      onChange={(e) => setStudentSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex-1 min-w-48">
+                      <Label htmlFor="batch-filter" className="text-sm mb-2 block">Filter by Batch</Label>
+                      <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Batches" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Batches</SelectItem>
+                          {uniqueBatches.map(batch => (
+                            <SelectItem key={batch} value={batch}>{batch}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex-1 min-w-48">
+                      <Label htmlFor="section-filter" className="text-sm mb-2 block">Filter by Section</Label>
+                      <Select value={selectedSection} onValueChange={setSelectedSection}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Sections" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sections</SelectItem>
+                          {uniqueSections.map(section => (
+                            <SelectItem key={section} value={section}>{section}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {(studentSearchTerm || selectedBatch !== "all" || selectedSection !== "all") && (
+                      <div className="flex items-end">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setStudentSearchTerm("");
+                            setSelectedBatch("all");
+                            setSelectedSection("all");
+                          }}
+                          className="mb-0"
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 {studentsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
@@ -649,6 +740,10 @@ export default function Admin() {
                 ) : students.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No students found. Upload an Excel file to add students.
+                  </div>
+                ) : filteredStudents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No students match your search criteria. Try adjusting your filters.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -663,7 +758,7 @@ export default function Admin() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((student: StudentDirectory) => (
+                        {filteredStudents.map((student: StudentDirectory) => (
                           <TableRow key={student.id}>
                             <TableCell className="text-small">{student.email}</TableCell>
                             <TableCell className="text-small text-muted-foreground">
