@@ -875,6 +875,7 @@ export default function Forum() {
             )}
             </div>
           </div>
+          </div>
 
           {postsLoading ? (
             <div className="space-y-4">
@@ -1128,6 +1129,7 @@ export default function Forum() {
               </Dialog>
             )}
             </div>
+          </div>
           </div>
 
           {announcementsLoading ? (
