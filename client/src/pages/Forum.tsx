@@ -759,7 +759,7 @@ export default function Forum() {
               {isAuthenticated && (
                 <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
                   <DialogTrigger asChild>
-                    <Button className="text-small flex-shrink-0 pl-[8px] pr-[8px] ml-[4px] mr-[4px]">
+                    <Button className="text-small flex-shrink-0">
                       <Plus className="h-4 w-4 mr-1" />
                       <span className="hidden sm:inline">New Post</span>
                       <span className="sm:hidden">Post</span>
