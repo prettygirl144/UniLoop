@@ -970,17 +970,16 @@ export default function Calendar() {
                             className="hidden"
                             id="roll-number-file"
                           />
-                          <Label htmlFor="roll-number-file" asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={uploadingFile}
-                              className="cursor-pointer"
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              {uploadingFile ? 'Processing...' : 'Choose File'}
-                            </Button>
-                          </Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={uploadingFile}
+                            className="cursor-pointer"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {uploadingFile ? 'Processing...' : 'Choose File'}
+                          </Button>
                           <span className="text-xs text-muted-foreground">
                             Excel (.xlsx, .xls) or CSV files only, max 5MB
                           </span>
