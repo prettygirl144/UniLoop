@@ -47,7 +47,19 @@ export default function Home() {
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
+  // Filter upcoming events (today and future)
+  const getUpcomingEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
+    
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate >= now;
+    });
+  };
+
   const thisWeeksEvents = getThisWeeksEvents();
+  const upcomingEvents = getUpcomingEvents();
 
   const formatEventDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -122,37 +134,43 @@ export default function Home() {
     <div className="p-4 space-y-4">
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="shadow-sm border-gray-100">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-large text-primary">5</p>
-                <p className="text-xs text-text-secondary">New Events</p>
+        <Link href="/calendar">
+          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-large text-primary">
+                    {eventsLoading ? "..." : upcomingEvents.length}
+                  </p>
+                  <p className="text-xs text-text-secondary">New Events</p>
+                </div>
+                <Calendar className="text-medium text-primary opacity-60" size={20} />
               </div>
-              <Calendar className="text-medium text-primary opacity-60" size={20} />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card className="shadow-sm border-gray-100">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-large text-secondary">
-                  {announcements?.length || 0}
-                </p>
-                <p className="text-xs text-text-secondary">Announcements</p>
+        <Link href="/community">
+          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-large text-secondary">
+                    {isLoading ? "..." : (announcements?.length || 0)}
+                  </p>
+                  <p className="text-xs text-text-secondary">Announcements</p>
+                </div>
+                <MessageSquare className="text-medium text-secondary opacity-60" size={20} />
               </div>
-              <MessageSquare className="text-medium text-secondary opacity-60" size={20} />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       {/* Recent Announcements */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-medium">Latest Updates</h3>
-          <Link href="/announcements">
+          <Link href="/community">
             <Button variant="ghost" size="sm" className="text-primary">
               See All
             </Button>

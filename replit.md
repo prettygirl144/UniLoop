@@ -109,6 +109,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Dynamic Home Page Statistics and Enhanced Roll Number Upload System (COMPLETED)
+- **Dynamic Home Page Stats**: Home page cards now show real-time counts with clickable navigation
+  - New Events card displays actual count of upcoming events with link to Calendar page
+  - Announcements card shows real-time count with link to Community page
+  - Both cards include hover effects and loading states for better user experience
+- **Functional "See All" Link**: Latest Updates section now has working "See All" button linking to Community page
+- **Enhanced Roll Number Upload for Events**: Complete implementation of roll number-based event targeting
+  - File picker functionality with Excel/CSV support and proper validation
+  - Backend API endpoint `/api/events/parse-roll-numbers` for processing uploaded files
+  - Real-time attendee matching against student database with detailed information display
+  - Database schema updated with `rollNumberAttendees` field to store email arrays
+  - Event eligibility logic enhanced to support admin access, event creator access, and roll number attendees
+- **Admin Event Visibility Fix**: Resolved issue where admin users couldn't see events they created or were invited to via roll number upload
+
 ### January 2025 - Enhanced Roll Number Detection with Hyphen-Based Logic (COMPLETED)
 - **Intelligent Roll Number Detection**: Implemented advanced roll number identification logic similar to email finding
   - Header detection for roll number columns using keywords: "roll number", "roll no", "rollno", "student id", etc.
