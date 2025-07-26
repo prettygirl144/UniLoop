@@ -51,6 +51,8 @@ import {
   batchSections,
   type BatchSection,
   type InsertBatchSection,
+  type CommunityPostWithVotes,
+  type CommunityReplyWithVotes,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
@@ -193,11 +195,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getEventById(id: number): Promise<Event | undefined> {
-    const [event] = await db.select().from(events).where(eq(events.id, id));
-    return event;
-  }
-
   async getLinkedAccounts(userId: string): Promise<User[]> {
     // Get all accounts linked to this user (including primary)
     return await db
@@ -291,9 +288,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEvent(event: InsertEvent): Promise<Event> {
+    // Convert mediaUrls properly for JSONB field
+    const eventData: any = {
+      ...event,
+    };
+    // Handle mediaUrls as JSONB array
+    if (event.mediaUrls) {
+      eventData.mediaUrls = Array.isArray(event.mediaUrls) ? event.mediaUrls : [];
+    } else {
+      eventData.mediaUrls = [];
+    }
+    
     const [created] = await db
       .insert(events)
-      .values([event])
+      .values([eventData])
       .returning();
     return created;
   }
@@ -304,11 +312,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEvent(id: number, eventData: Partial<InsertEvent>): Promise<Event> {
+    const updateData: any = {
+      ...eventData,
+      updatedAt: new Date(),
+    };
+    // Ensure mediaUrls is properly formatted for JSONB field
+    if (updateData.mediaUrls !== undefined) {
+      updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
+    }
     const [event] = await db.update(events)
-      .set({
-        ...eventData,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(events.id, id))
       .returning();
     return event;
@@ -342,7 +355,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Community Board (Section 1) - Reddit-like functionality
-  async getCommunityPosts(): Promise<CommunityPost[]> {
+  async getCommunityPosts(): Promise<CommunityPostWithVotes[]> {
     const posts = await db
       .select()
       .from(communityPosts)
@@ -366,7 +379,7 @@ export class DatabaseStorage implements IStorage {
           ...post,
           upvotes: Number(upvotes[0]?.count || 0),
           downvotes: Number(downvotes[0]?.count || 0),
-        } as CommunityPost & { upvotes: number; downvotes: number };
+        } as CommunityPostWithVotes;
       })
     );
 
@@ -374,9 +387,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost> {
+    const postData = {
+      ...post,
+      mediaUrls: post.mediaUrls ? (Array.isArray(post.mediaUrls) ? post.mediaUrls : []) : []
+    };
     const [created] = await db
       .insert(communityPosts)
-      .values(post)
+      .values(postData)
       .returning();
     return created;
   }
@@ -404,7 +421,7 @@ export class DatabaseStorage implements IStorage {
       ...post,
       upvotes: Number(upvotes[0]?.count || 0),
       downvotes: Number(downvotes[0]?.count || 0),
-    };
+    } as CommunityPostWithVotes;
   }
 
   async deleteCommunityPost(id: number, userId: string): Promise<void> {
@@ -486,7 +503,7 @@ export class DatabaseStorage implements IStorage {
     await this.updateReplyScore(vote.replyId!);
   }
 
-  async getCommunityReplies(postId: number): Promise<CommunityReply[]> {
+  async getCommunityReplies(postId: number): Promise<CommunityReplyWithVotes[]> {
     const replies = await db
       .select()
       .from(communityReplies)
@@ -510,7 +527,7 @@ export class DatabaseStorage implements IStorage {
           ...reply,
           upvotes: Number(upvotes[0]?.count || 0),
           downvotes: Number(downvotes[0]?.count || 0),
-        } as CommunityReply & { upvotes: number; downvotes: number };
+        } as CommunityReplyWithVotes;
       })
     );
 
@@ -548,7 +565,7 @@ export class DatabaseStorage implements IStorage {
       ...reply,
       upvotes: Number(upvotes[0]?.count || 0),
       downvotes: Number(downvotes[0]?.count || 0),
-    };
+    } as CommunityReplyWithVotes;
   }
 
   async deleteCommunityReply(id: number, userId: string): Promise<void> {

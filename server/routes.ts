@@ -422,6 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         authorId: req.body.isAnonymous ? null : userId,
         authorName: req.body.isAnonymous ? null : (user?.firstName + ' ' + user?.lastName || user?.email || 'Anonymous'),
+        mediaUrls: req.body.mediaUrls || [],
       });
       
       const post = await storage.createCommunityPost(postData);
@@ -602,6 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         authorId: userId,
         authorName: user?.firstName + ' ' + user?.lastName || user?.email || 'Unknown',
+        mediaUrls: req.body.mediaUrls || [],
       });
       
       const announcement = await storage.createCommunityAnnouncement(announcementData);
@@ -635,6 +637,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const upload = multer({ 
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  });
+
+  // Media upload endpoints for community posts and announcements
+  app.post('/api/community/posts/with-media', authorize(), upload.array('media', 5), async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const user = req.currentUser;
+      
+      // Handle uploaded files
+      const mediaUrls: string[] = [];
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          // Convert buffer to base64 data URL for in-memory storage
+          const base64 = file.buffer.toString('base64');
+          const dataUrl = `data:${file.mimetype};base64,${base64}`;
+          mediaUrls.push(dataUrl);
+        }
+      }
+      
+      const postData = insertCommunityPostSchema.parse({
+        title: req.body.title,
+        content: req.body.content,
+        category: req.body.category,
+        isAnonymous: req.body.isAnonymous === 'true',
+        mediaUrls: mediaUrls,
+        authorId: req.body.isAnonymous === 'true' ? null : userId,
+        authorName: req.body.isAnonymous === 'true' ? null : (user?.firstName + ' ' + user?.lastName || user?.email || 'Anonymous'),
+      });
+      
+      const post = await storage.createCommunityPost(postData);
+      res.json(post);
+    } catch (error) {
+      console.error("Error creating community post with media:", error);
+      res.status(500).json({ message: "Failed to create community post with media" });
+    }
+  });
+
+  app.post('/api/community/announcements/with-media', authorize(), upload.array('media', 5), async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const user = req.currentUser;
+      
+      // Only admin or committee_club role can create announcements
+      if (user?.role !== 'admin' && user?.role !== 'committee_club') {
+        return res.status(403).json({ message: "Only admins and committee members can create announcements" });
+      }
+      
+      // Handle uploaded files
+      const mediaUrls: string[] = [];
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          // Convert buffer to base64 data URL for in-memory storage
+          const base64 = file.buffer.toString('base64');
+          const dataUrl = `data:${file.mimetype};base64,${base64}`;
+          mediaUrls.push(dataUrl);
+        }
+      }
+      
+      const announcementData = insertCommunityAnnouncementSchema.parse({
+        title: req.body.title,
+        content: req.body.content,
+        category: req.body.category,
+        mediaUrls: mediaUrls,
+        authorId: userId,
+        authorName: user?.firstName + ' ' + user?.lastName || user?.email || 'Unknown',
+      });
+      
+      const announcement = await storage.createCommunityAnnouncement(announcementData);
+      res.json(announcement);
+    } catch (error) {
+      console.error("Error creating announcement with media:", error);
+      res.status(500).json({ message: "Failed to create announcement with media" });
+    }
   });
 
   // Enhanced Weekly Menu routes with Excel upload

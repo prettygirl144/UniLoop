@@ -473,6 +473,17 @@ export const galleryFolders = pgTable("gallery_folders", {
 export type InsertGalleryFolder = typeof galleryFolders.$inferInsert;
 export type GalleryFolder = typeof galleryFolders.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+
+// Extended types for community posts and replies with vote counts
+export type CommunityPostWithVotes = CommunityPost & {
+  upvotes: number;
+  downvotes: number;
+};
+
+export type CommunityReplyWithVotes = CommunityReply & {
+  upvotes: number;
+  downvotes: number;
+};
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
