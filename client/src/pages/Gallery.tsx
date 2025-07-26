@@ -249,27 +249,7 @@ export default function Gallery() {
       </div>
 
       <div className="max-w-sm mx-auto px-4 py-6 space-y-6">
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-muted p-1 rounded-lg">
-          <Button
-            variant={activeTab === "folders" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("folders")}
-            className="flex-1"
-          >
-            <FolderOpen className="h-4 w-4 mr-1" />
-            Drive Folders
-          </Button>
-          <Button
-            variant={activeTab === "events" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("events")}
-            className="flex-1"
-          >
-            <ImageIcon className="h-4 w-4 mr-1" />
-            Event Media
-          </Button>
-        </div>
+        
 
         {/* Search */}
         <div className="relative">
