@@ -131,7 +131,7 @@ export default function Home() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 min-h-screen">
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
         <Link href="/calendar">
@@ -177,7 +177,7 @@ export default function Home() {
           </Link>
         </div>
         
-        {announcements?.slice(0, 3).map((announcement) => (
+        {announcements?.slice(0, 2).map((announcement) => (
           <Card key={announcement.id} className="shadow-sm border-gray-100">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
@@ -328,22 +328,23 @@ export default function Home() {
           </div>
         )}
       </div>
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
+
+      {/* Quick Actions - Always Visible */}
+      <div className="grid grid-cols-2 gap-3 mt-4">
         <Link href="/forum">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
+          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-all duration-200">
             <CardContent className="p-4 text-center space-y-2">
               <MessageSquare className="text-medium text-primary mx-auto" size={24} />
-              <p className="text-small">Forum</p>
+              <p className="text-small font-medium">Forum</p>
             </CardContent>
           </Card>
         </Link>
         
         <Link href="/directory">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
+          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-all duration-200">
             <CardContent className="p-4 text-center space-y-2">
               <Users className="h-6 w-6 text-secondary mx-auto" />
-              <p className="text-small">Directory</p>
+              <p className="text-small font-medium">Directory</p>
             </CardContent>
           </Card>
         </Link>
