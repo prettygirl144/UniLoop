@@ -54,8 +54,10 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
               email = cellValue.toLowerCase(); // Normalize email to lowercase
             }
             // Enhanced roll number detection: check if column is identified as roll number column OR cell contains hyphen pattern
-            else if (rollNumberColumns.includes(colNum) || isValidRollNumber(cellValue)) {
+            // Remove 'else' to allow both email and roll number detection in same scan
+            if (rollNumberColumns.includes(colNum) || isValidRollNumber(cellValue)) {
               rollNumber = cellValue.toUpperCase(); // Normalize roll number to uppercase
+              console.log(`  -> Detected roll number: ${rollNumber} in column ${XLSX.utils.encode_col(colNum)} for row ${rowNum + 1}`);
             }
           }
         }
@@ -144,14 +146,21 @@ function isRollNumberHeader(headerValue: string): boolean {
 function isValidRollNumber(value: string): boolean {
   // Enhanced roll number detection:
   // 1. Must contain at least one hyphen (key requirement from user)
-  // 2. Alphanumeric with hyphens/slashes, 4-20 characters
+  // 2. Alphanumeric with hyphens/slashes, 3-20 characters (reduced minimum for shorter roll numbers)
   // 3. Cannot be an email
   if (!value.includes('-')) {
+    console.log(`  -> Rejected "${value}": no hyphen found`);
     return false; // Must contain hyphen as per user requirement
   }
   
-  const rollNumberRegex = /^[A-Za-z0-9\-\/]{4,20}$/;
-  return rollNumberRegex.test(value) && !value.includes('@') && !isCommonNonRollNumber(value);
+  const rollNumberRegex = /^[A-Za-z0-9\-\/]{3,20}$/;
+  const isValid = rollNumberRegex.test(value) && !value.includes('@') && !isCommonNonRollNumber(value);
+  
+  if (!isValid) {
+    console.log(`  -> Rejected "${value}": failed validation (regex: ${rollNumberRegex.test(value)}, no @: ${!value.includes('@')}, not common false positive: ${!isCommonNonRollNumber(value)})`);
+  }
+  
+  return isValid;
 }
 
 function isCommonNonRollNumber(value: string): boolean {
