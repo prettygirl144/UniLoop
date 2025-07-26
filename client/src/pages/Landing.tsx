@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import iimRanchiImage from '@assets/Landing-IIM-Ranchi_1753542981148.webp';
 
 export default function Landing() {
   const { toast } = useToast();
@@ -34,7 +35,7 @@ export default function Landing() {
       {/* Hero Section */}
       <div className="h-64 bg-gradient-to-br from-primary to-blue-800 relative overflow-hidden">
         <img 
-          src="/attached_assets/Landing-IIM-Ranchi_1753542981148.webp"
+          src={iimRanchiImage}
           alt="IIM Ranchi campus building" 
           className="w-full h-full object-cover opacity-30"
         />
