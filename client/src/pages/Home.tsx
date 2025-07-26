@@ -2,14 +2,78 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'wouter';
+import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
 
+interface Event {
+  id: number;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  category: string;
+  hostCommittee: string;
+  isOptional: boolean;
+  targetBatchSections: string[];
+  rsvpCount?: number;
+}
+
 export default function Home() {
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
     queryKey: ['/api/announcements'],
   });
+
+  const { data: events = [], isLoading: eventsLoading } = useQuery<Event[]>({
+    queryKey: ['/api/events'],
+  });
+
+  // Filter events for this week
+  const getThisWeeksEvents = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Start of current week (Sunday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // End of current week (Saturday)
+    
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate >= startOfWeek && eventDate <= endOfWeek;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const thisWeeksEvents = getThisWeeksEvents();
+
+  const formatEventDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+  };
+
+  const nextEvent = () => {
+    if (thisWeeksEvents.length > 0) {
+      setCurrentEventIndex((prev) => (prev + 1) % thisWeeksEvents.length);
+    }
+  };
+
+  const prevEvent = () => {
+    if (thisWeeksEvents.length > 0) {
+      setCurrentEventIndex((prev) => (prev - 1 + thisWeeksEvents.length) % thisWeeksEvents.length);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -120,23 +184,93 @@ export default function Home() {
           </Card>
         ))}
       </div>
-      {/* Upcoming Events Preview */}
+      {/* This Week's Events Slider */}
       <div className="space-y-3">
-        <h3 className="text-medium">This Week's Events</h3>
-        
-        <div className="bg-gradient-to-r from-secondary to-green-600 rounded-xl p-4 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-small mb-1">Guest Lecture: AI in Healthcare</h4>
-              <p className="text-xs opacity-90">Tomorrow, 2:00 PM • Auditorium</p>
-              <div className="flex items-center space-x-1 mt-2">
-                <i className="fas fa-users text-xs"></i>
-                <span className="text-xs">45 attending</span>
-              </div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-medium">This Week's Events</h3>
+          {thisWeeksEvents.length > 1 && (
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={prevEvent}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {currentEventIndex + 1} / {thisWeeksEvents.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={nextEvent}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <i className="fas fa-chalkboard-teacher text-large opacity-70"></i>
-          </div>
+          )}
         </div>
+        
+        {eventsLoading ? (
+          <div className="bg-muted rounded-xl p-4 animate-pulse">
+            <div className="h-4 bg-gray-300 rounded mb-2"></div>
+            <div className="h-3 bg-gray-300 rounded w-2/3"></div>
+          </div>
+        ) : thisWeeksEvents.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="p-4 text-center">
+              <Calendar className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-small text-muted-foreground">No events scheduled this week</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="relative overflow-hidden">
+            <div 
+              className="flex transition-transform duration-300 ease-in-out"
+              style={{ transform: `translateX(-${currentEventIndex * 100}%)` }}
+            >
+              {thisWeeksEvents.map((event, index) => (
+                <div key={event.id} className="w-full flex-shrink-0">
+                  <div className="bg-gradient-to-r from-primary to-blue-600 rounded-xl p-4 text-white">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-small mb-1 font-medium">{event.title}</h4>
+                        <div className="space-y-1 text-xs opacity-90">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatEventDate(event.date)}</span>
+                            <Clock className="h-3 w-3 ml-2" />
+                            <span>{event.time}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="h-3 w-3" />
+                            <span>{event.location}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
+                            {event.category}
+                          </Badge>
+                          {event.rsvpCount && (
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-3 w-3" />
+                              <span className="text-xs">{event.rsvpCount} attending</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <Calendar className="h-6 w-6 opacity-70" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
