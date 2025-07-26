@@ -1070,51 +1070,73 @@ export default function Calendar() {
 
                         <FormField
                           control={form.control}
-                          name="targetSections"
+                          name="batchSections"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Target Sections</FormLabel>
+                              <FormLabel>Target Sections by Batch</FormLabel>
                               {selectedBatches.length === 0 && (
                                 <p className="text-xs text-muted-foreground">
                                   Select batches first to see available sections
                                 </p>
                               )}
                               {selectedBatches.length > 0 && (
-                                <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
-                                  {availableSections.length > 0 && (
-                                    <div className="flex items-center space-x-2 pb-2 border-b">
-                                      <Checkbox
-                                        checked={field.value?.length === availableSections.length}
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange(availableSections);
-                                          } else {
-                                            field.onChange([]);
-                                          }
-                                        }}
-                                      />
-                                      <label className="text-sm font-medium">Select All</label>
-                                    </div>
-                                  )}
-                                  {availableSections.map((section) => (
-                                    <div key={section} className="flex items-center space-x-2">
-                                      <Checkbox
-                                        checked={field.value?.includes(section)}
-                                        onCheckedChange={(checked) => {
-                                          const updatedSections = checked
-                                            ? [...(field.value || []), section]
-                                            : field.value?.filter(s => s !== section) || [];
-                                          field.onChange(updatedSections);
-                                        }}
-                                      />
-                                      <label className="text-sm">{String(section)}</label>
+                                <div className="space-y-4 max-h-64 overflow-y-auto border rounded p-3">
+                                  {selectedBatches.map((batch: string) => (
+                                    <div key={batch} className="space-y-2">
+                                      <div className="flex items-center justify-between border-b pb-1">
+                                        <div className="font-medium text-sm text-primary">
+                                          {batch}
+                                        </div>
+                                        {sectionsByBatch[batch]?.length > 0 && (
+                                          <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                              checked={field.value?.[batch]?.length === sectionsByBatch[batch]?.length}
+                                              onCheckedChange={(checked) => {
+                                                const currentBatchSections = field.value || {};
+                                                field.onChange({
+                                                  ...currentBatchSections,
+                                                  [batch]: checked ? sectionsByBatch[batch] : []
+                                                });
+                                              }}
+                                            />
+                                            <label className="text-xs font-medium">Select All</label>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {sectionsByBatch[batch]?.length > 0 ? (
+                                        <div className="grid grid-cols-2 gap-2 pl-2">
+                                          {sectionsByBatch[batch].map((section: string) => (
+                                            <div key={`${batch}-${section}`} className="flex items-center space-x-2">
+                                              <Checkbox
+                                                checked={field.value?.[batch]?.includes(section) || false}
+                                                onCheckedChange={(checked) => {
+                                                  const currentBatchSections = field.value || {};
+                                                  const currentSections = currentBatchSections[batch] || [];
+                                                  
+                                                  let updatedSections;
+                                                  if (checked) {
+                                                    updatedSections = [...currentSections, section];
+                                                  } else {
+                                                    updatedSections = currentSections.filter(s => s !== section);
+                                                  }
+                                                  
+                                                  field.onChange({
+                                                    ...currentBatchSections,
+                                                    [batch]: updatedSections
+                                                  });
+                                                }}
+                                              />
+                                              <label className="text-sm">{section}</label>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground pl-2">
+                                          No sections found for this batch
+                                        </p>
+                                      )}
                                     </div>
                                   ))}
-                                  {availableSections.length === 0 && selectedBatches.length > 0 && (
-                                    <p className="text-xs text-muted-foreground">
-                                      No sections found for selected batches
-                                    </p>
-                                  )}
                                 </div>
                               )}
                               <FormMessage />
