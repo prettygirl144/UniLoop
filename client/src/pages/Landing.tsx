@@ -45,11 +45,10 @@ export default function Landing() {
               <i className="fas fa-graduation-cap text-large"></i>
             </div>
             <h1 className="text-large mb-2">Campus Connect</h1>
-            <p className="text-small opacity-90">Your University, Connected</p>
+            <p className="text-small opacity-90 bg-[#0808082b] pl-[6px] pr-[6px]">Your University, Connected</p>
           </div>
         </div>
       </div>
-
       {/* Login Form */}
       <div className="p-6 space-y-6">
         <div className="text-center">
