@@ -1027,7 +1027,7 @@ export default function Forum() {
               {canCreateAnnouncement && (
                 <Dialog open={showAnnouncementDialog} onOpenChange={setShowAnnouncementDialog}>
                   <DialogTrigger asChild>
-                    <Button className="text-small flex-shrink-0">
+                    <Button className="text-small flex-shrink-0 ml-[4px] mr-[4px] pl-[8px] pr-[8px]">
                       <Plus className="h-4 w-4 mr-1" />
                       <span className="hidden sm:inline">New Post</span>
                       <span className="sm:hidden">Add</span>
