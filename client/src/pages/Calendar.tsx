@@ -213,10 +213,25 @@ export default function Calendar() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Helper function to check if user is eligible for event based on batch/section
+  // Helper function to check if user is eligible for event based on batch/section or roll number attendance
   const isUserEligibleForEvent = (event: Event) => {
+    // Admin users can see all events
+    if (user?.role === 'admin') {
+      return true;
+    }
+    
+    // Event creator can see their own events
+    if (event.authorId === user?.id) {
+      return true;
+    }
+    
+    // Check if user's email is in roll number attendees
+    if (event.rollNumberAttendees?.includes(user?.email || '')) {
+      return true;
+    }
+    
     // If no targeting specified, event is for everyone
-    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length) {
+    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
       return true;
     }
     
@@ -365,11 +380,14 @@ export default function Calendar() {
         });
       });
 
+      // Extract emails from roll number attendees for storage
+      const rollNumberEmails = rollNumberAttendees.map(attendee => attendee.email);
+      
       // Combine roll number attendees with batch/section selections
       const combinedData = {
         ...data,
         targetBatchSections: batchSectionPairs,
-        rollNumberAttendees: rollNumberAttendees,
+        rollNumberAttendees: rollNumberEmails, // Store only emails in database
       };
 
       return apiRequest('POST', '/api/events', {

@@ -81,6 +81,7 @@ export const events = pgTable("events", {
   targetBatches: text("target_batches").array().default([]), // Array of batches
   targetSections: text("target_sections").array().default([]), // Array of sections
   targetBatchSections: text("target_batch_sections").array().default([]), // Array of "batch::section" pairs
+  rollNumberAttendees: jsonb("roll_number_attendees").$type<string[]>().default([]), // Array of email addresses from roll number upload
   authorId: varchar("author_id").notNull().references(() => users.id),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
