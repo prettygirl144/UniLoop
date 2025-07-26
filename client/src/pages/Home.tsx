@@ -58,7 +58,6 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
-
       {/* Recent Announcements */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -121,7 +120,6 @@ export default function Home() {
           </Card>
         ))}
       </div>
-
       {/* Upcoming Events Preview */}
       <div className="space-y-3">
         <h3 className="text-medium">This Week's Events</h3>
@@ -140,14 +138,13 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
         <Link href="/forum">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
             <CardContent className="p-4 text-center space-y-2">
               <MessageSquare className="text-medium text-primary mx-auto" size={24} />
-              <p className="text-small">Community</p>
+              <p className="text-small">Forum</p>
             </CardContent>
           </Card>
         </Link>
