@@ -298,15 +298,7 @@ export default function Gallery() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                      <iframe
-                        src={folder.driveUrl.replace('/view?usp=sharing', '/preview')}
-                        className="w-full h-full border-0"
-                        title={folder.name}
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
+                    <div className="flex justify-between items-center">
                       <p className="text-xs text-muted-foreground">
                         Created {new Date(folder.createdAt).toLocaleDateString()}
                       </p>
