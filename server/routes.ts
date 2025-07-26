@@ -22,7 +22,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
-import { parseStudentExcel } from "./studentParser";
+import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
 import multer from "multer";
 
 // Helper function to check if a date is within one hour
@@ -190,6 +190,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching events:", error);
       res.status(500).json({ message: "Failed to fetch events" });
+    }
+  });
+
+  // Roll number parsing endpoint for events
+  app.post('/api/events/parse-roll-numbers', multer({ storage: multer.memoryStorage() }).single('file'), checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const user = await storage.getUser(userInfo?.id);
+      
+      if (!user?.permissions?.calendar && user?.role !== 'admin') {
+        return res.status(403).json({ message: "No permission to create events" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      console.log('Parsing roll numbers from uploaded file:', req.file.originalname);
+      
+      // Parse roll numbers from the uploaded file
+      const parseResult = parseRollNumbersForEvent(req.file.buffer);
+      
+      // Now match the roll numbers with existing student records
+      const matchedAttendees = [];
+      
+      for (const attendeeData of parseResult.attendees) {
+        const rollNumber = attendeeData.rollNumber;
+        
+        // Find student by roll number
+        const student = await storage.getStudentByRollNumber(rollNumber);
+        
+        if (student) {
+          matchedAttendees.push({
+            email: student.email,
+            firstName: student.email.split('@')[0] || '', // Use email prefix as firstName if not available
+            lastName: '', // StudentDirectory doesn't have lastName, leave empty
+            rollNumber: student.rollNumber,
+            batch: student.batch,
+            section: student.section,
+          });
+        } else {
+          console.log(`No student found for roll number: ${rollNumber}`);
+        }
+      }
+      
+      console.log(`Matched ${matchedAttendees.length} students out of ${parseResult.attendees.length} roll numbers`);
+      
+      res.json({
+        attendees: matchedAttendees,
+        totalRollNumbers: parseResult.attendees.length,
+        matchedCount: matchedAttendees.length,
+        message: `Found ${matchedAttendees.length} matching students out of ${parseResult.attendees.length} roll numbers`
+      });
+      
+    } catch (error) {
+      console.error("Error parsing roll numbers:", error);
+      res.status(500).json({ message: "Failed to parse roll numbers from file" });
     }
   });
 

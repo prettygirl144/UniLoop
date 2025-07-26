@@ -13,6 +13,63 @@ interface ParseResult {
   totalEmails: number;
 }
 
+// New function to parse roll numbers for event attendees
+export function parseRollNumbersForEvent(fileBuffer: Buffer): { attendees: any[]; message: string } {
+  try {
+    // Read the Excel workbook
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    
+    const rollNumbers: string[] = [];
+    
+    // Process each sheet
+    for (const sheetName of workbook.SheetNames) {
+      console.log(`Processing sheet for roll numbers: ${sheetName}`);
+      
+      const worksheet = workbook.Sheets[sheetName];
+      if (!worksheet) continue;
+
+      // Get the range of the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+      
+      // First pass: Identify potential roll number columns by checking headers
+      const rollNumberColumns = identifyRollNumberColumns(worksheet, range);
+      
+      // Parse each row to extract roll numbers
+      for (let rowNum = range.s.r; rowNum <= range.e.r; rowNum++) {
+        // Check all columns in the current row
+        for (let colNum = range.s.c; colNum <= range.e.c; colNum++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowNum, c: colNum });
+          const cell = worksheet[cellAddress];
+          
+          if (cell && cell.v) {
+            const cellValue = cell.v.toString().trim();
+            
+            // Enhanced roll number detection: check if column is identified as roll number column OR cell contains hyphen pattern
+            if (rollNumberColumns.includes(colNum) || isValidRollNumber(cellValue)) {
+              const normalizedRollNumber = cellValue.toUpperCase();
+              if (!rollNumbers.includes(normalizedRollNumber)) {
+                rollNumbers.push(normalizedRollNumber);
+                console.log(`  -> Found roll number: ${normalizedRollNumber} in column ${XLSX.utils.encode_col(colNum)} for row ${rowNum + 1}`);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    console.log(`Total roll numbers extracted: ${rollNumbers.length}`);
+    console.log('Roll numbers found:', rollNumbers);
+    
+    return {
+      attendees: rollNumbers.map(rollNumber => ({ rollNumber })),
+      message: `Found ${rollNumbers.length} roll numbers`
+    };
+  } catch (error) {
+    console.error('Error parsing roll numbers from Excel:', error);
+    throw new Error('Failed to parse roll numbers from Excel file');
+  }
+}
+
 export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseResult {
   try {
     // Read the Excel workbook

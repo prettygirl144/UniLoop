@@ -177,7 +177,7 @@ export class DatabaseStorage implements IStorage {
         .insert(users)
         .values([{
           ...userData,
-          permissions: userData.permissions || defaultPermissions,
+          permissions: defaultPermissions,
         }])
         .returning();
       return user;
@@ -853,6 +853,11 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentByEmail(email: string): Promise<StudentDirectory | undefined> {
     const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.email, email));
+    return student;
+  }
+
+  async getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined> {
+    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.rollNumber, rollNumber));
     return student;
   }
 

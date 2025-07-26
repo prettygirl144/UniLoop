@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2, List, Grid3X3, MapPin } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2, List, Grid3X3, MapPin, Upload, FileSpreadsheet, UserCheck } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +36,15 @@ const createEventSchema = z.object({
   targetBatches: z.array(z.string()).default([]),
   batchSections: z.record(z.array(z.string())).default({}), // batch -> sections mapping
   targetBatchSections: z.array(z.string()).default([]), // Store batch::section pairs
+  rollNumberAttendees: z.array(z.object({
+    email: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    rollNumber: z.string(),
+    batch: z.string(),
+    section: z.string(),
+    source: z.enum(['batch-section', 'roll-number']),
+  })).default([]), // Store individual attendees from roll number upload
 }).refine((data) => {
   // Validate end time is after start time
   const [startHour, startMin] = data.startTime.split(':').map(Number);
@@ -185,6 +194,9 @@ export default function Calendar() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [rollNumberAttendees, setRollNumberAttendees] = useState<any[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -253,8 +265,86 @@ export default function Calendar() {
       targetBatches: [],
       batchSections: {},
       targetBatchSections: [],
+      rollNumberAttendees: [],
     },
   });
+
+  // Handle file upload for roll numbers
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv' // .csv
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload an Excel (.xlsx, .xls) or CSV file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large", 
+        description: "Please upload a file smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiRequest('POST', '/api/events/parse-roll-numbers', { body: formData });
+      
+      if (response.attendees && response.attendees.length > 0) {
+        const newAttendees = response.attendees.map((attendee: any) => ({
+          ...attendee,
+          source: 'roll-number' as const,
+        }));
+        
+        setRollNumberAttendees(prev => [...prev, ...newAttendees]);
+        
+        toast({
+          title: "File Uploaded Successfully",
+          description: `Found ${response.attendees.length} matching students.`,
+        });
+      } else {
+        toast({
+          title: "No Matches Found",
+          description: "No matching students found for the roll numbers in this file.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to process the file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove attendee from roll number list
+  const removeAttendee = (email: string) => {
+    setRollNumberAttendees(prev => prev.filter(attendee => attendee.email !== email));
+  };
 
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm) => {
@@ -265,6 +355,15 @@ export default function Calendar() {
           batchSectionPairs.push(`${batch}::${section}`);
         });
       });
+
+      // Combine roll number attendees with batch/section selections
+      const combinedData = {
+        ...data,
+        targetBatchSections: batchSectionPairs,
+        rollNumberAttendees: rollNumberAttendees,
+      };
+
+      return apiRequest('POST', '/api/events', combinedData);
 
       await apiRequest('POST', '/api/events', {
         ...data,
@@ -842,6 +941,108 @@ export default function Calendar() {
                     </div>
                   )}
 
+                  {/* Roll Number Upload Section */}
+                  {user?.role === 'admin' && (
+                    <div className="space-y-4">
+                      <div className="border-t pt-4">
+                        <h4 className="text-medium font-medium flex items-center gap-2">
+                          <FileSpreadsheet className="w-4 h-4" />
+                          Roll Number Upload
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Upload an Excel/CSV file with student roll numbers to add specific attendees
+                        </p>
+                      </div>
+
+                      {/* File Upload */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={handleFileUpload}
+                            disabled={uploadingFile}
+                            className="hidden"
+                            id="roll-number-file"
+                          />
+                          <Label htmlFor="roll-number-file" asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={uploadingFile}
+                              className="cursor-pointer"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              {uploadingFile ? 'Processing...' : 'Choose File'}
+                            </Button>
+                          </Label>
+                          <span className="text-xs text-muted-foreground">
+                            Excel (.xlsx, .xls) or CSV files only, max 5MB
+                          </span>
+                        </div>
+
+                        {/* Uploaded Attendees List */}
+                        {rollNumberAttendees.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h5 className="text-sm font-medium flex items-center gap-2">
+                                <UserCheck className="w-4 h-4" />
+                                Selected Attendees from Roll Numbers ({rollNumberAttendees.length})
+                              </h5>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRollNumberAttendees([])}
+                              >
+                                Clear All
+                              </Button>
+                            </div>
+
+                            <div className="max-h-48 overflow-y-auto border rounded p-3 space-y-2">
+                              {rollNumberAttendees.map((attendee, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                                  <div className="flex-1 grid grid-cols-4 gap-2 text-xs">
+                                    <div>
+                                      <span className="font-medium">{attendee.firstName} {attendee.lastName}</span>
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      {attendee.rollNumber}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      {attendee.batch}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      {attendee.section?.includes('::') ? attendee.section.split('::')[1] : attendee.section}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeAttendee(attendee.email)}
+                                    className="ml-2 h-6 w-6 p-0"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Summary */}
+                            <div className="text-xs text-muted-foreground p-2 bg-blue-50 rounded">
+                              <strong>Summary:</strong> This event will include {rollNumberAttendees.length} specific student(s) 
+                              {selectedBatches.length > 0 && (
+                                <span> plus all students from the selected batch/section combinations</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button 
                       type="button" 
@@ -849,6 +1050,7 @@ export default function Calendar() {
                       onClick={() => {
                         setShowCreateDialog(false);
                         form.reset();
+                        setRollNumberAttendees([]);
                       }}
                     >
                       Cancel
