@@ -40,6 +40,7 @@ interface StudentDirectory {
   email: string;
   batch: string;
   section: string;
+  rollNumber?: string;
   uploadedBy: string;
   createdAt: string;
   updatedAt: string;
@@ -93,7 +94,7 @@ export default function Admin() {
   }, [isAuthenticated, isLoading, currentUser, toast]);
 
   // Fetch all users
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
     retry: false,
     enabled: isAuthenticated && currentUser?.role === 'admin',
@@ -137,14 +138,14 @@ export default function Admin() {
   });
 
   // Fetch student directory
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
+  const { data: students = [], isLoading: studentsLoading } = useQuery<StudentDirectory[]>({
     queryKey: ["/api/admin/students"],
     retry: false,
     enabled: isAuthenticated && currentUser?.role === 'admin',
   });
 
   // Fetch upload logs
-  const { data: uploadLogs = [], isLoading: logsLoading } = useQuery({
+  const { data: uploadLogs = [], isLoading: logsLoading } = useQuery<StudentUploadLog[]>({
     queryKey: ["/api/admin/student-uploads"],
     retry: false,
     enabled: isAuthenticated && currentUser?.role === 'admin',
@@ -164,6 +165,13 @@ export default function Admin() {
       
       if (!response.ok) {
         const errorData = await response.json();
+        // Handle roll number conflicts specially
+        if (errorData.conflicts && errorData.conflicts.length > 0) {
+          const conflictError = new Error(errorData.message || 'Upload failed');
+          (conflictError as any).conflicts = errorData.conflicts;
+          (conflictError as any).conflictDetails = errorData.conflictDetails;
+          throw conflictError;
+        }
         throw new Error(errorData.message || 'Upload failed');
       }
       
@@ -179,7 +187,7 @@ export default function Admin() {
       setSelectedFile(null);
       setBatchName("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -191,6 +199,20 @@ export default function Admin() {
         }, 500);
         return;
       }
+      
+      // Handle roll number conflicts specially
+      if (error.conflicts && error.conflictDetails) {
+        const conflictList = error.conflictDetails.slice(0, 3).join('\n');
+        const moreConflicts = error.conflicts.length > 3 ? `\n... and ${error.conflicts.length - 3} more conflicts` : '';
+        
+        toast({
+          title: "Roll Number Conflicts Detected",
+          description: `Cannot upload due to roll number conflicts:\n${conflictList}${moreConflicts}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       toast({
         title: "Upload Failed",
         description: error.message,
@@ -595,7 +617,7 @@ export default function Admin() {
                     onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   />
                   <p className="text-small text-muted-foreground">
-                    Each sheet represents a section. Include emails in the cells.
+                    Each sheet represents a section. Include emails and optional roll numbers in the cells.
                   </p>
                 </div>
                 <Button 
@@ -634,6 +656,7 @@ export default function Admin() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Email</TableHead>
+                          <TableHead>Roll Number</TableHead>
                           <TableHead>Batch</TableHead>
                           <TableHead>Section</TableHead>
                           <TableHead>Uploaded</TableHead>
@@ -643,6 +666,9 @@ export default function Admin() {
                         {students.map((student: StudentDirectory) => (
                           <TableRow key={student.id}>
                             <TableCell className="text-small">{student.email}</TableCell>
+                            <TableCell className="text-small text-muted-foreground">
+                              {student.rollNumber || '-'}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline">{student.batch}</Badge>
                             </TableCell>

@@ -1210,11 +1210,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: student.email,
         batch: student.batch,
         section: student.section,
+        rollNumber: student.rollNumber,
         uploadedBy: req.currentUser.id
       }));
 
-      // Batch upsert students
-      const savedStudents = await storage.batchUpsertStudents(studentRecords);
+      // Check for roll number conflicts
+      const { conflicts, validStudents } = await storage.checkRollNumberConflicts(studentRecords);
+      
+      if (conflicts.length > 0) {
+        console.log(`Found ${conflicts.length} roll number conflicts:`, conflicts);
+        return res.status(400).json({
+          message: `Found ${conflicts.length} roll number conflict(s)`,
+          conflicts: conflicts,
+          conflictDetails: conflicts.map(c => 
+            `Roll number ${c.rollNumber} already exists for ${c.existingEmail}, but trying to assign to ${c.newEmail}`
+          )
+        });
+      }
+
+      // Batch upsert students (only valid ones without conflicts)
+      const savedStudents = await storage.batchUpsertStudents(validStudents);
 
       // Create batch-section relationships with batch-specific section names
       const batchSectionData = parseResult.sectionsProcessed.map(section => ({

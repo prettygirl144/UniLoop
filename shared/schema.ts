@@ -47,6 +47,7 @@ export const users = pgTable("users", {
   // Student directory fields
   batch: varchar("batch"), // From admin upload
   section: varchar("section"), // Sheet name from Excel
+  rollNumber: varchar("roll_number"), // Optional secondary identifier for students
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -400,6 +401,7 @@ export const studentDirectory = pgTable("student_directory", {
   email: varchar("email").notNull().unique(),
   batch: varchar("batch").notNull(),
   section: varchar("section").notNull(),
+  rollNumber: varchar("roll_number"), // Optional secondary identifier
   uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -121,8 +121,10 @@ export interface IStorage {
   // Student Directory operations
   getStudentDirectory(): Promise<StudentDirectory[]>;
   getStudentByEmail(email: string): Promise<StudentDirectory | undefined>;
+  getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined>;
   upsertStudentDirectory(student: InsertStudentDirectory): Promise<StudentDirectory>;
   batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]>;
+  checkRollNumberConflicts(students: InsertStudentDirectory[]): Promise<{conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[], validStudents: InsertStudentDirectory[]}>;
   createUploadLog(log: InsertStudentUploadLog): Promise<StudentUploadLog>;
   getUploadLogs(): Promise<StudentUploadLog[]>;
   
@@ -854,6 +856,41 @@ export class DatabaseStorage implements IStorage {
     return student;
   }
 
+  async getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined> {
+    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.rollNumber, rollNumber));
+    return student;
+  }
+
+  async checkRollNumberConflicts(students: InsertStudentDirectory[]): Promise<{conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[], validStudents: InsertStudentDirectory[]}> {
+    const conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[] = [];
+    const validStudents: InsertStudentDirectory[] = [];
+    
+    for (const student of students) {
+      if (!student.rollNumber) {
+        // If no roll number, always valid
+        validStudents.push(student);
+        continue;
+      }
+      
+      // Check if roll number already exists
+      const existingStudent = await this.getStudentByRollNumber(student.rollNumber);
+      
+      if (existingStudent && existingStudent.email !== student.email) {
+        // Roll number exists for different email - conflict
+        conflicts.push({
+          rollNumber: student.rollNumber,
+          existingEmail: existingStudent.email,
+          newEmail: student.email
+        });
+      } else {
+        // No conflict - either new roll number or same email
+        validStudents.push(student);
+      }
+    }
+    
+    return { conflicts, validStudents };
+  }
+
   async upsertStudentDirectory(student: InsertStudentDirectory): Promise<StudentDirectory> {
     const [result] = await db
       .insert(studentDirectory)
@@ -889,6 +926,7 @@ export class DatabaseStorage implements IStorage {
           set: {
             batch: sql`excluded.batch`,
             section: sql`excluded.section`,
+            rollNumber: sql`excluded.roll_number`,
             uploadedBy: sql`excluded.uploaded_by`,
             updatedAt: sql`now()`,
           },

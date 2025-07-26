@@ -4,6 +4,7 @@ interface StudentRecord {
   email: string;
   section: string;
   batch: string;
+  rollNumber?: string; // Optional roll number from Excel parsing
 }
 
 interface ParseResult {
@@ -32,8 +33,12 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
       // Get the range of the worksheet
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
       
-      // Iterate through all cells to find emails
+      // Parse each row to extract email and potential roll number
       for (let rowNum = range.s.r; rowNum <= range.e.r; rowNum++) {
+        let email: string | null = null;
+        let rollNumber: string | null = null;
+        
+        // Check all columns in the current row
         for (let colNum = range.s.c; colNum <= range.e.c; colNum++) {
           const cellAddress = XLSX.utils.encode_cell({ r: rowNum, c: colNum });
           const cell = worksheet[cellAddress];
@@ -43,17 +48,27 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
             
             // Check if the cell contains an email (has @ symbol)
             if (cellValue.includes('@') && isValidEmail(cellValue)) {
-              console.log(`Found email: ${cellValue} in sheet: ${sheetName}`);
-              
-              students.push({
-                email: cellValue.toLowerCase(), // Normalize email to lowercase
-                section: `${batchName}::${sheetName}`, // Store as batch::section combination
-                batch: batchName
-              });
-              
-              totalEmails++;
+              email = cellValue.toLowerCase(); // Normalize email to lowercase
+            }
+            // Check if the cell contains a roll number (alphanumeric pattern)
+            else if (isValidRollNumber(cellValue)) {
+              rollNumber = cellValue.toUpperCase(); // Normalize roll number to uppercase
             }
           }
+        }
+        
+        // If we found an email in this row, create a student record
+        if (email) {
+          console.log(`Found email: ${email}${rollNumber ? ` with roll number: ${rollNumber}` : ''} in sheet: ${sheetName}`);
+          
+          students.push({
+            email,
+            section: `${batchName}::${sheetName}`, // Store as batch::section combination
+            batch: batchName,
+            rollNumber: rollNumber || undefined
+          });
+          
+          totalEmails++;
         }
       }
     }
@@ -83,4 +98,10 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+function isValidRollNumber(value: string): boolean {
+  // Roll number pattern: alphanumeric, 4-15 characters, may include hyphens/slashes
+  const rollNumberRegex = /^[A-Za-z0-9\-\/]{4,15}$/;
+  return rollNumberRegex.test(value) && !value.includes('@'); // Ensure it's not an email
 }
