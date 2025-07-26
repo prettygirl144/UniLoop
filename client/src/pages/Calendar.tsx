@@ -1442,18 +1442,30 @@ export default function Calendar() {
               </div>
 
               {/* Target Audience Info */}
-              {(selectedEvent.targetBatches?.length || selectedEvent.targetSections?.length) && (
-                <div className="text-xs text-muted-foreground space-y-1">
-                  {selectedEvent.targetBatches && selectedEvent.targetBatches.length > 0 && (
-                    <div>
-                      <strong>Target Batches:</strong> {selectedEvent.targetBatches.join(', ')}
-                    </div>
-                  )}
-                  {selectedEvent.targetSections && selectedEvent.targetSections.length > 0 && (
-                    <div>
-                      <strong>Target Sections:</strong> {selectedEvent.targetSections.join(', ')}
-                    </div>
-                  )}
+              {selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0 && (
+                <div className="text-xs text-muted-foreground space-y-2">
+                  <div>
+                    <strong>Target Audience:</strong>
+                  </div>
+                  <div className="space-y-1 ml-2">
+                    {(() => {
+                      // Group batch-section pairs by batch
+                      const batchGroups: Record<string, string[]> = {};
+                      selectedEvent.targetBatchSections.forEach(batchSection => {
+                        const [batch, section] = batchSection.split('::');
+                        if (batch && section) {
+                          if (!batchGroups[batch]) batchGroups[batch] = [];
+                          batchGroups[batch].push(section);
+                        }
+                      });
+
+                      return Object.entries(batchGroups).map(([batch, sections]) => (
+                        <div key={batch} className="text-xs">
+                          <span className="font-medium">{batch}:</span> {sections.join(', ')}
+                        </div>
+                      ));
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
