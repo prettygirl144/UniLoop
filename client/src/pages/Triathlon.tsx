@@ -353,7 +353,7 @@ export default function Triathlon() {
                             <img 
                               src={team.logoUrl} 
                               alt={`${team.name} logo`}
-                              className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                              className="h-10 w-10 rounded-full object-cover flex-shrink-0"
                             />
                           )}
                           <div className="min-w-0 flex-1">
