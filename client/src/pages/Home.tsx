@@ -195,73 +195,7 @@ export default function Home() {
           </Card>
         </Link>
       </div>
-      {/* Mobile-optimized recent announcements */}
-      <div className="space-y-4 lg:space-y-5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-medium font-medium">Latest Updates</h3>
-          <Link href="/forum?tab=announcements">
-            <Button variant="ghost" size="sm" 
-                    className="text-primary 
-                               /* Mobile: larger tap target */
-                               h-9 px-3 
-                               /* Touch feedback */
-                               active:scale-95 transition-all duration-150">
-              See All
-            </Button>
-          </Link>
-        </div>
-        
-        {announcements?.slice(0, 2).map((announcement) => (
-          <Card key={announcement.id} className="shadow-sm border-gray-100">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs px-2 py-1 ${
-                        announcement.tag === 'Event' 
-                          ? 'bg-accent bg-opacity-10 text-accent' 
-                          : announcement.tag === 'Academic'
-                          ? 'bg-primary bg-opacity-10 text-primary'
-                          : 'bg-secondary bg-opacity-10 text-secondary'
-                      }`}
-                    >
-                      {announcement.tag}
-                    </Badge>
-                    <span className="text-xs text-text-secondary">
-                      {new Date(announcement.createdAt!).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                  <h4 className="text-small mb-1">{announcement.title}</h4>
-                  <p className="text-xs text-text-secondary line-clamp-2">
-                    {announcement.description}
-                  </p>
-                </div>
-                <Button variant="ghost" size="sm" className="text-primary ml-3 p-1">
-                  <Heart size={14} />
-                </Button>
-              </div>
-              
-              {announcement.rsvpEnabled && (
-                <div className="flex items-center space-x-4 pt-2 border-t border-gray-100">
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-1 text-xs text-text-secondary p-0 h-auto">
-                    <CalendarPlus size={12} />
-                    <span>RSVP</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-1 text-xs text-text-secondary p-0 h-auto">
-                    <Share size={12} />
-                    <span>Share</span>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      
       {/* This Week's Events Slider */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
