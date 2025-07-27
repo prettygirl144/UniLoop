@@ -12,6 +12,12 @@
   "categories": ["education", "productivity", "social"],
   "icons": [
     {
+      "src": "/icons/144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/icons/192.png",
       "sizes": "192x192",
       "type": "image/png",
@@ -38,8 +44,8 @@
       "url": "/calendar",
       "icons": [
         {
-          "src": "https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=96&h=96",
-          "sizes": "96x96"
+          "src": "/icons/144.png",
+          "sizes": "144x144"
         }
       ]
     },
@@ -50,18 +56,10 @@
       "url": "/forum",
       "icons": [
         {
-          "src": "https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=96&h=96",
-          "sizes": "96x96"
+          "src": "/icons/144.png",
+          "sizes": "144x144"
         }
       ]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=540&h=720",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow"
     }
   ],
   "related_applications": [],

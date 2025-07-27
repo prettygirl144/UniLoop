@@ -18,6 +18,10 @@ except:
 draw.text((96, 170), 'CC', fill='white', anchor='mm', font=font)
 img.save('192.png')
 
+# Create 144x144 icon (scaled version)
+img_144 = img.resize((144, 144), Image.LANCZOS)
+img_144.save('144.png')
+
 # Create 512x512 icon (scaled version)
 img_large = img.resize((512, 512), Image.LANCZOS)
 img_large.save('512.png')
