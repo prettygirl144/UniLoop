@@ -119,8 +119,18 @@ interface FormattedTextProps {
 }
 
 export function FormattedText({ children, className = "" }: FormattedTextProps) {
+  // Security fix: Escape HTML first, then apply safe formatting
   const formatText = useCallback((text: string) => {
-    return text
+    // First, escape all HTML to prevent XSS attacks
+    const escapedText = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    
+    // Then apply safe markdown-style formatting
+    return escapedText
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/_(.*?)_/g, '<u>$1</u>')
