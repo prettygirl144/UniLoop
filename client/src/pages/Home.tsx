@@ -36,13 +36,20 @@ export default function Home() {
   // Filter events for this week
   const getThisWeeksEvents = () => {
     const now = new Date();
+    
+    // Get start of week (Sunday) at 00:00:00
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Start of current week (Sunday)
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    // Get end of week (Saturday) at 23:59:59
     const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6); // End of current week (Saturday)
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
     
     return events.filter(event => {
       const eventDate = new Date(event.date);
+      eventDate.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
       return eventDate >= startOfWeek && eventDate <= endOfWeek;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
