@@ -42,7 +42,11 @@ export default function Landing() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center text-white">
             <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-              <i className="fas fa-graduation-cap text-large"></i>
+              <img 
+                src="/attached_assets/uniloop logomark_1753618204077.png" 
+                alt="UniLoop Logo" 
+                className="w-12 h-12 object-contain"
+              />
             </div>
             <h1 className="text-large mb-2 text-[24px]">UniLoop</h1>
             <p className="text-small opacity-90 bg-[#0808082b] pl-[6px] pr-[6px]">Your University, Connected</p>

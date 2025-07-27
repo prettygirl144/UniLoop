@@ -127,6 +127,10 @@ Preferred communication style: Simple, everyday language.
   - Fixed storage variable naming conflict with app storage
   - Corrected file path handling and filename generation
   - Updated form submission logic to prioritize uploaded images over URL inputs
+  - Implemented fallback logic for both diskStorage and memoryStorage scenarios
+- **Landing Page Branding**: Added UniLoop logomark to Landing page hero section
+  - Replaced graduation cap icon with custom UniLoop logomark image
+  - Integrated attached asset using proper image path and styling
 
 ### January 2025 - Complete RBAC System with Triathlon Permissions and Color-Coded Community Categories (COMPLETED)
 - **RBAC Implementation for Triathlon**: Added comprehensive role-based access control for Triathlon management
