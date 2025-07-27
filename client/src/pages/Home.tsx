@@ -156,7 +156,7 @@ export default function Home() {
         </p>
       </div>
       {/* Mobile-optimized quick stats */}
-      <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-[12px]">
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-6">
         <Link href="/calendar">
           <Card className="shadow-sm border-gray-100 cursor-pointer 
                            /* Mobile: enhanced touch interaction */
