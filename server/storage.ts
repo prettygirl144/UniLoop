@@ -16,6 +16,8 @@ import {
   amenitiesPermissions,
   studentDirectory,
   studentUploadLogs,
+  triathlonTeams,
+  triathlonPointHistory,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -48,6 +50,10 @@ import {
   type InsertStudentDirectory,
   type StudentUploadLog,
   type InsertStudentUploadLog,
+  type TriathlonTeam,
+  type InsertTriathlonTeam,
+  type TriathlonPointHistory,
+  type InsertTriathlonPointHistory,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -1003,6 +1009,86 @@ export class DatabaseStorage implements IStorage {
       .orderBy(batchSections.batch);
     
     return results.map(r => r.batch);
+  }
+
+  // Triathlon methods
+  async getTriathlonTeams(): Promise<(TriathlonTeam & { rank: number })[]> {
+    const teams = await db
+      .select()
+      .from(triathlonTeams)
+      .orderBy(desc(triathlonTeams.totalPoints), triathlonTeams.name);
+    
+    // Add rank to each team
+    return teams.map((team, index) => ({
+      ...team,
+      rank: index + 1
+    }));
+  }
+
+  async createTriathlonTeam(team: InsertTriathlonTeam): Promise<TriathlonTeam> {
+    const [created] = await db
+      .insert(triathlonTeams)
+      .values(team)
+      .returning();
+    return created;
+  }
+
+  async updateTriathlonPoints(
+    teamId: number, 
+    category: 'academic' | 'cultural' | 'sports' | 'surprise', 
+    pointChange: number,
+    reason: string | undefined,
+    changedBy: string
+  ): Promise<TriathlonTeam> {
+    // Get current team data
+    const [team] = await db
+      .select()
+      .from(triathlonTeams)
+      .where(eq(triathlonTeams.id, teamId));
+    
+    if (!team) {
+      throw new Error('Team not found');
+    }
+
+    // Calculate new points
+    const currentPoints = team[`${category}Points` as keyof TriathlonTeam] as number;
+    const newPoints = Math.max(0, currentPoints + pointChange);
+    const newTotal = team.academicPoints + team.culturalPoints + team.sportsPoints + team.surprisePoints 
+      - currentPoints + newPoints;
+
+    // Update team points
+    const [updatedTeam] = await db
+      .update(triathlonTeams)
+      .set({
+        [`${category}Points`]: newPoints,
+        totalPoints: newTotal,
+        updatedAt: new Date()
+      })
+      .where(eq(triathlonTeams.id, teamId))
+      .returning();
+
+    // Record point history
+    await db
+      .insert(triathlonPointHistory)
+      .values({
+        teamId,
+        category,
+        pointChange,
+        previousPoints: currentPoints,
+        newPoints,
+        reason: reason || null,
+        changedBy
+      });
+
+    return updatedTeam;
+  }
+
+  async getTriathlonPointHistory(teamId: number): Promise<TriathlonPointHistory[]> {
+    return await db
+      .select()
+      .from(triathlonPointHistory)
+      .where(eq(triathlonPointHistory.teamId, teamId))
+      .orderBy(desc(triathlonPointHistory.createdAt));
   }
 }
 

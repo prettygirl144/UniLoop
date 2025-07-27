@@ -508,3 +508,71 @@ export type WeeklyMenu = typeof weeklyMenu.$inferSelect;
 export type InsertWeeklyMenu = z.infer<typeof insertWeeklyMenuSchema>;
 export type AmenitiesPermissions = typeof amenitiesPermissions.$inferSelect;
 export type InsertAmenitiesPermissions = z.infer<typeof insertAmenitiesPermissionsSchema>;
+
+// Management Triathlon tables
+export const triathlonTeams = pgTable("triathlon_teams", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  logoUrl: text("logo_url"), // URL to team logo image
+  academicPoints: integer("academic_points").default(0).notNull(),
+  culturalPoints: integer("cultural_points").default(0).notNull(),
+  sportsPoints: integer("sports_points").default(0).notNull(),
+  surprisePoints: integer("surprise_points").default(0).notNull(),
+  totalPoints: integer("total_points").default(0).notNull(), // Computed field
+  rank: integer("rank").default(0).notNull(), // Computed field
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const triathlonPointHistory = pgTable("triathlon_point_history", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").notNull().references(() => triathlonTeams.id, { onDelete: "cascade" }),
+  category: varchar("category", { length: 20 }).notNull(), // academic, cultural, sports, surprise
+  pointChange: integer("point_change").notNull(), // Can be positive or negative
+  previousPoints: integer("previous_points").notNull(),
+  newPoints: integer("new_points").notNull(),
+  reason: text("reason"), // Optional description of why points were changed
+  changedBy: varchar("changed_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations for triathlon tables
+export const triathlonTeamsRelations = relations(triathlonTeams, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [triathlonTeams.createdBy],
+    references: [users.id],
+  }),
+  pointHistory: many(triathlonPointHistory),
+}));
+
+export const triathlonPointHistoryRelations = relations(triathlonPointHistory, ({ one }) => ({
+  team: one(triathlonTeams, {
+    fields: [triathlonPointHistory.teamId],
+    references: [triathlonTeams.id],
+  }),
+  changedBy: one(users, {
+    fields: [triathlonPointHistory.changedBy],
+    references: [users.id],
+  }),
+}));
+
+// Triathlon schemas
+export const insertTriathlonTeamSchema = createInsertSchema(triathlonTeams).omit({
+  id: true,
+  totalPoints: true,
+  rank: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTriathlonPointHistorySchema = createInsertSchema(triathlonPointHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Triathlon types
+export type InsertTriathlonTeam = z.infer<typeof insertTriathlonTeamSchema>;
+export type TriathlonTeam = typeof triathlonTeams.$inferSelect;
+export type InsertTriathlonPointHistory = z.infer<typeof insertTriathlonPointHistorySchema>;
+export type TriathlonPointHistory = typeof triathlonPointHistory.$inferSelect;

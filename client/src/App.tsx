@@ -16,6 +16,7 @@ import Directory from "@/pages/Directory";
 import Admin from "@/pages/Admin";
 import Attendance from "@/pages/Attendance";
 import Gallery from "@/pages/Gallery";
+import Triathlon from "@/pages/Triathlon";
 import Auth0Login from "@/pages/Auth0Login";
 import Auth0Logout from "@/pages/Auth0Logout";
 import Layout from "@/components/Layout";
@@ -42,6 +43,7 @@ function Router() {
           <Route path="/gallery" component={Gallery} />
           <Route path="/forum" component={Forum} />
           <Route path="/amenities" component={Amenities} />
+          <Route path="/triathlon" component={Triathlon} />
           <Route path="/directory" component={Directory} />
           <Route path="/admin" component={Admin} />
           <Route path="/attendance" component={Attendance} />

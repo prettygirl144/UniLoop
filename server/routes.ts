@@ -1422,6 +1422,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Triathlon routes
+  app.get('/api/triathlon/teams', async (req, res) => {
+    try {
+      const teams = await storage.getTriathlonTeams();
+      res.json(teams);
+    } catch (error) {
+      console.error("Error fetching triathlon teams:", error);
+      res.status(500).json({ message: "Failed to fetch teams" });
+    }
+  });
+
+  app.post('/api/triathlon/teams', adminOnly(), async (req, res) => {
+    try {
+      const data = req.body;
+      const team = await storage.createTriathlonTeam(data);
+      res.json(team);
+    } catch (error) {
+      console.error("Error creating triathlon team:", error);
+      res.status(500).json({ message: "Failed to create team" });
+    }
+  });
+
+  app.post('/api/triathlon/teams/:teamId/points', adminOnly(), async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const { category, pointChange, reason } = req.body;
+      
+      const updatedTeam = await storage.updateTriathlonPoints(
+        teamId, 
+        category, 
+        pointChange, 
+        reason, 
+        req.currentUser.id
+      );
+      
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error updating triathlon points:", error);
+      res.status(500).json({ message: "Failed to update points" });
+    }
+  });
+
+  app.get('/api/triathlon/history/:teamId', adminOnly(), async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const history = await storage.getTriathlonPointHistory(teamId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching point history:", error);
+      res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

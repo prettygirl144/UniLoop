@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy } from 'lucide-react';
 import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
+import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
 
 interface Event {
   id: number;
@@ -195,6 +196,38 @@ export default function Home() {
           </Card>
         </Link>
       </div>
+
+      {/* Management Triathlon Banner */}
+      <Link href="/triathlon">
+        <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0">
+          <div className="relative bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 p-4 lg:p-6">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <img 
+                    src={triathlonLogo} 
+                    alt="Management Triathlon"
+                    className="w-8 h-8 lg:w-10 lg:h-10 object-contain"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-medium lg:text-large font-bold text-white">
+                    Management Triathlon
+                  </h3>
+                  <p className="text-small text-white/90 mt-1">
+                    View team rankings and leaderboard
+                  </p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center space-x-2 text-white/80">
+                <Trophy className="h-5 w-5" />
+                <span className="text-small">View Leaderboard</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Link>
       
       {/* This Week's Events Slider */}
       <div className="space-y-3">
@@ -313,6 +346,33 @@ export default function Home() {
             <CardContent className="p-4 text-center space-y-2">
               <Users className="h-6 w-6 text-secondary mx-auto" />
               <p className="text-small font-medium">Directory</p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Management Triathlon Banner */}
+      <div className="mt-6">
+        <Link href="/triathlon">
+          <Card className="relative overflow-hidden cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all duration-200 bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600">
+            <CardContent className="p-0">
+              <div className="relative flex items-center justify-center h-32 md:h-40">
+                {/* Background Image */}
+                <div className="absolute inset-0 opacity-90">
+                  <img 
+                    src="/attached_assets/TMT2.0_1753605901392.webp" 
+                    alt="Management Triathlon"
+                    className="w-full h-full object-contain object-center"
+                  />
+                </div>
+                {/* Overlay for better text readability */}
+                <div className="absolute inset-0 bg-black/20"></div>
+                {/* Content */}
+                <div className="relative z-10 text-center text-white">
+                  <h3 className="text-medium font-bold mb-1">Management Triathlon</h3>
+                  <p className="text-small opacity-90">View Leaderboard & Team Rankings</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </Link>
