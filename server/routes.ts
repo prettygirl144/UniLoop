@@ -433,6 +433,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/community/posts/:id', authorize(), async (req: any, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get the post to check ownership and creation time
+      const post = await storage.getCommunityPostById(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      // Check edit permissions
+      const canEdit = 
+        user.role === 'admin' || // Admins can edit any post at any time
+        (post.authorId === userId && isWithinOneHour(post.createdAt?.toISOString() ?? new Date().toISOString())); // Users can edit their own posts within 1 hour
+
+      if (!canEdit) {
+        return res.status(403).json({ 
+          message: user.role === 'admin' 
+            ? "Insufficient permissions" 
+            : "You can only edit your own posts within 1 hour of posting"
+        });
+      }
+      
+      const postData = insertCommunityPostSchema.parse({
+        ...req.body,
+        authorId: req.body.isAnonymous ? null : post.authorId, // Keep original author info
+        authorName: req.body.isAnonymous ? null : post.authorName,
+        mediaUrls: req.body.mediaUrls || [],
+      });
+      
+      const updatedPost = await storage.updateCommunityPost(postId, postData);
+      res.json(updatedPost);
+    } catch (error) {
+      console.error("Error updating community post:", error);
+      res.status(500).json({ message: "Failed to update community post" });
+    }
+  });
+
   app.post('/api/community/posts/:id/vote', authorize(), async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
@@ -614,15 +658,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/community/announcements/:id', authorize(), async (req: any, res) => {
+    try {
+      const announcementId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get the announcement to check ownership and creation time
+      const announcement = await storage.getCommunityAnnouncementById(announcementId);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Check edit permissions
+      const canEdit = 
+        user.role === 'admin' || // Admins can edit any announcement at any time
+        (announcement.authorId === userId && isWithinOneHour(announcement.createdAt?.toISOString() ?? new Date().toISOString())); // Users can edit their own announcements within 1 hour
+
+      if (!canEdit) {
+        return res.status(403).json({ 
+          message: user.role === 'admin' 
+            ? "Insufficient permissions" 
+            : "You can only edit your own announcements within 1 hour of posting"
+        });
+      }
+      
+      const announcementData = insertCommunityAnnouncementSchema.parse({
+        ...req.body,
+        authorId: announcement.authorId, // Keep original author info
+        authorName: announcement.authorName,
+        mediaUrls: req.body.mediaUrls || [],
+      });
+      
+      const updatedAnnouncement = await storage.updateCommunityAnnouncement(announcementId, announcementData);
+      res.json(updatedAnnouncement);
+    } catch (error) {
+      console.error("Error updating announcement:", error);
+      res.status(500).json({ message: "Failed to update announcement" });
+    }
+  });
+
   app.delete('/api/community/announcements/:id', authorize(), async (req: any, res) => {
     try {
       const announcementId = parseInt(req.params.id);
       const userId = req.session.user.id;
       const user = await storage.getUser(userId);
       
-      // Only admins can delete announcements
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only admins can delete announcements" });
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get the announcement to check ownership and creation time
+      const announcement = await storage.getCommunityAnnouncementById(announcementId);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Check delete permissions
+      const canDelete = 
+        user.role === 'admin' || // Admins can delete any announcement at any time
+        (announcement.authorId === userId && isWithinOneHour(announcement.createdAt?.toISOString() ?? new Date().toISOString())); // Users can delete their own announcements within 1 hour
+
+      if (!canDelete) {
+        return res.status(403).json({ 
+          message: user.role === 'admin' 
+            ? "Insufficient permissions" 
+            : "You can only delete your own announcements within 1 hour of posting"
+        });
       }
       
       await storage.deleteCommunityAnnouncement(announcementId, userId);

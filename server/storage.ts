@@ -79,6 +79,7 @@ export interface IStorage {
   getCommunityPosts(): Promise<CommunityPost[]>;
   createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost>;
   getCommunityPostById(id: number): Promise<CommunityPost | undefined>;
+  updateCommunityPost(id: number, post: InsertCommunityPost): Promise<CommunityPost>;
   deleteCommunityPost(id: number, userId: string): Promise<void>;
   voteCommunityPost(vote: InsertCommunityVote): Promise<void>;
   getCommunityReplies(postId: number): Promise<CommunityReply[]>;
@@ -89,6 +90,8 @@ export interface IStorage {
   // Community Announcements (Section 2)
   getCommunityAnnouncements(): Promise<CommunityAnnouncement[]>;
   createCommunityAnnouncement(announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement>;
+  getCommunityAnnouncementById(id: number): Promise<CommunityAnnouncement | undefined>;
+  updateCommunityAnnouncement(id: number, announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement>;
   deleteCommunityAnnouncement(id: number, userId: string): Promise<void>;
 
   // Weekly Menu Management
@@ -398,6 +401,24 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateCommunityPost(id: number, post: InsertCommunityPost): Promise<CommunityPost> {
+    const postData = {
+      ...post,
+      mediaUrls: post.mediaUrls ? (Array.isArray(post.mediaUrls) ? post.mediaUrls : []) : [],
+      updatedAt: new Date()
+    };
+    const [updated] = await db
+      .update(communityPosts)
+      .set(postData)
+      .where(eq(communityPosts.id, id))
+      .returning();
+    
+    if (!updated) {
+      throw new Error("Post not found or failed to update");
+    }
+    return updated;
+  }
+
   async getCommunityPostById(id: number): Promise<CommunityPost | undefined> {
     const [post] = await db
       .select()
@@ -594,6 +615,32 @@ export class DatabaseStorage implements IStorage {
       .values([announcementData])
       .returning();
     return created;
+  }
+
+  async getCommunityAnnouncementById(id: number): Promise<CommunityAnnouncement | undefined> {
+    const [announcement] = await db
+      .select()
+      .from(communityAnnouncements)
+      .where(and(eq(communityAnnouncements.id, id), eq(communityAnnouncements.isDeleted, false)));
+    return announcement;
+  }
+
+  async updateCommunityAnnouncement(id: number, announcement: InsertCommunityAnnouncement): Promise<CommunityAnnouncement> {
+    const announcementData = {
+      ...announcement,
+      mediaUrls: announcement.mediaUrls ? (Array.isArray(announcement.mediaUrls) ? announcement.mediaUrls : []) : [],
+      updatedAt: new Date()
+    };
+    const [updated] = await db
+      .update(communityAnnouncements)
+      .set(announcementData)
+      .where(eq(communityAnnouncements.id, id))
+      .returning();
+    
+    if (!updated) {
+      throw new Error("Announcement not found or failed to update");
+    }
+    return updated;
   }
 
   async deleteCommunityAnnouncement(id: number, userId: string): Promise<void> {

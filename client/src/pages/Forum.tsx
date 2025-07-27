@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image, Filter, Calendar, User, Heart, ChevronDown } from 'lucide-react';
+import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image, Filter, Calendar, User, Heart, ChevronDown, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -116,6 +116,10 @@ export default function Forum() {
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
+  const [showEditPostDialog, setShowEditPostDialog] = useState(false);
+  const [showEditAnnouncementDialog, setShowEditAnnouncementDialog] = useState(false);
+  const [editingPost, setEditingPost] = useState<CommunityPost | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<CommunityAnnouncement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [postsPage, setPostsPage] = useState(1);
   const [announcementsPage, setAnnouncementsPage] = useState(1);
@@ -212,6 +216,40 @@ export default function Forum() {
     },
   });
 
+  const editPostMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof CommunityPostSchema> & { id: number }) => {
+      return await apiRequest('PUT', `/api/community/posts/${data.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      postForm.reset();
+      setShowEditPostDialog(false);
+      setEditingPost(null);
+      toast({
+        title: 'Success',
+        description: 'Your post has been updated!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to update post. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const createAnnouncementMutation = useMutation({
     mutationFn: async (data: z.infer<typeof CommunityAnnouncementSchema>) => {
       return await apiRequest('POST', '/api/community/announcements', data);
@@ -240,6 +278,40 @@ export default function Forum() {
       toast({
         title: 'Error',
         description: 'Failed to create announcement. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const editAnnouncementMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof CommunityAnnouncementSchema> & { id: number }) => {
+      return await apiRequest('PUT', `/api/community/announcements/${data.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/announcements'] });
+      announcementForm.reset();
+      setShowEditAnnouncementDialog(false);
+      setEditingAnnouncement(null);
+      toast({
+        title: 'Success',
+        description: 'Announcement has been updated!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to update announcement. Please try again.',
         variant: 'destructive',
       });
     },
@@ -466,6 +538,66 @@ export default function Forum() {
     return false;
   };
 
+  // Helper function to check if user can edit a specific post
+  const canEditPost = (post: CommunityPost) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can edit any post at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can edit their own posts within 1 hour
+    if (post.authorId === userId) {
+      const createdAt = new Date(post.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if user can edit announcement
+  const canEditAnnouncement = (announcement: CommunityAnnouncement) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can edit any announcement at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can edit their own announcements within 1 hour
+    if (announcement.authorId === userId) {
+      const createdAt = new Date(announcement.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if user can delete announcement
+  const canDeleteAnnouncement = (announcement: CommunityAnnouncement) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can delete any announcement at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can delete their own announcements within 1 hour
+    if (announcement.authorId === userId) {
+      const createdAt = new Date(announcement.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
   // Helper function to check if user can delete a specific reply
   const canDeleteReply = (reply: CommunityReply) => {
     if (!user) return false;
@@ -507,6 +639,30 @@ export default function Forum() {
       default:
         return true;
     }
+  };
+
+  // Functions to handle editing
+  const handleEditPost = (post: CommunityPost) => {
+    setEditingPost(post);
+    postForm.reset({
+      title: post.title,
+      content: post.content,
+      category: post.category,
+      isAnonymous: post.isAnonymous,
+      mediaUrls: post.mediaUrls || [],
+    });
+    setShowEditPostDialog(true);
+  };
+
+  const handleEditAnnouncement = (announcement: CommunityAnnouncement) => {
+    setEditingAnnouncement(announcement);
+    announcementForm.reset({
+      title: announcement.title,
+      content: announcement.content,
+      category: announcement.category,
+      mediaUrls: announcement.mediaUrls || [],
+    });
+    setShowEditAnnouncementDialog(true);
   };
 
   // Enhanced filter and sort posts
@@ -1111,32 +1267,57 @@ export default function Forum() {
                           <h3 className="text-medium font-medium line-clamp-2 flex-1 break-words leading-snug">
                             {post.title}
                           </h3>
-                          {canDeletePost(post) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="/* Mobile: larger tap target */
-                                         h-8 w-8 p-0 
-                                         /* Desktop: smaller */
-                                         lg:h-6 lg:w-6
-                                         /* Styling */
-                                         text-red-500 hover:text-red-700 flex-shrink-0
-                                         /* Touch feedback */
-                                         active:scale-90 transition-all duration-150
-                                         /* Focus ring */
-                                         focus:ring-2 focus:ring-red-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this post?')) {
-                                  deletePostMutation.mutate(post.id);
-                                }
-                              }}
-                              disabled={deletePostMutation.isPending}
-                              aria-label="Delete post"
-                            >
-                              <Trash2 className="h-3 w-3 lg:h-3 lg:w-3" />
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {canEditPost(post) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="/* Mobile: larger tap target */
+                                           h-8 w-8 p-0 
+                                           /* Desktop: smaller */
+                                           lg:h-6 lg:w-6
+                                           /* Styling */
+                                           text-blue-500 hover:text-blue-700 flex-shrink-0
+                                           /* Touch feedback */
+                                           active:scale-90 transition-all duration-150
+                                           /* Focus ring */
+                                           focus:ring-2 focus:ring-blue-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditPost(post);
+                                }}
+                                aria-label="Edit post"
+                              >
+                                <Edit className="h-3 w-3 lg:h-3 lg:w-3" />
+                              </Button>
+                            )}
+                            {canDeletePost(post) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="/* Mobile: larger tap target */
+                                           h-8 w-8 p-0 
+                                           /* Desktop: smaller */
+                                           lg:h-6 lg:w-6
+                                           /* Styling */
+                                           text-red-500 hover:text-red-700 flex-shrink-0
+                                           /* Touch feedback */
+                                           active:scale-90 transition-all duration-150
+                                           /* Focus ring */
+                                           focus:ring-2 focus:ring-red-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Are you sure you want to delete this post?')) {
+                                    deletePostMutation.mutate(post.id);
+                                  }
+                                }}
+                                disabled={deletePostMutation.isPending}
+                                aria-label="Delete post"
+                              >
+                                <Trash2 className="h-3 w-3 lg:h-3 lg:w-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         {/* Mobile-optimized content display */}
                         <div className="text-gray-600 dark:text-gray-400 mb-3">
@@ -1349,22 +1530,43 @@ export default function Forum() {
                       <h3 className="text-medium font-medium flex-1 break-words line-clamp-2">
                         {announcement.title}
                       </h3>
-                      {canDeletePosts && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Are you sure you want to delete this announcement?')) {
-                              deleteAnnouncementMutation.mutate(announcement.id);
-                            }
-                          }}
-                          disabled={deleteAnnouncementMutation.isPending}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {canEditAnnouncement(announcement) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700 
+                                       active:scale-90 transition-all duration-150
+                                       focus:ring-2 focus:ring-blue-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditAnnouncement(announcement);
+                            }}
+                            aria-label="Edit announcement"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {canDeleteAnnouncement(announcement) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700
+                                       active:scale-90 transition-all duration-150
+                                       focus:ring-2 focus:ring-red-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to delete this announcement?')) {
+                                deleteAnnouncementMutation.mutate(announcement.id);
+                              }
+                            }}
+                            disabled={deleteAnnouncementMutation.isPending}
+                            aria-label="Delete announcement"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="text-gray-600 dark:text-gray-400">
                       <FormattedText 
@@ -1611,6 +1813,261 @@ export default function Forum() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit Post Dialog */}
+      <Dialog open={showEditPostDialog} onOpenChange={setShowEditPostDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-medium">Edit Post</DialogTitle>
+            <DialogDescription className="text-small text-gray-600">
+              Make changes to your post. You can edit within 1 hour of posting.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...postForm}>
+            <form onSubmit={postForm.handleSubmit((data) => {
+              if (editingPost) {
+                editPostMutation.mutate({ ...data, id: editingPost.id });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={postForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Title</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter post title..."
+                        {...field}
+                        className="text-small h-11 lg:h-10"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={postForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="text-small h-11 lg:h-10">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={postForm.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Content</FormLabel>
+                    <FormControl>
+                      <RichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Share your thoughts..."
+                        minHeight="120px"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={postForm.control}
+                name="mediaUrls"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Images (Optional)</FormLabel>
+                    <FormControl>
+                      <MediaUpload
+                        onUpload={field.onChange}
+                        maxFiles={5}
+                        maxSize={5}
+                        accept="image/*,.gif"
+                        className="min-h-[100px] border-2 border-dashed rounded-lg
+                                   hover:border-primary transition-colors duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={postForm.control}
+                name="isAnonymous"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-1">
+                      <FormLabel className="text-small font-medium">Post anonymously</FormLabel>
+                      <div className="text-small text-gray-600">Hide your identity from other users</div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-primary"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <div className="pt-4 border-t">
+                <Button 
+                  type="submit" 
+                  className="w-full text-small font-medium h-12 lg:h-10
+                             active:scale-98 transition-all duration-150
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={editPostMutation.isPending}
+                >
+                  {editPostMutation.isPending ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Updating...
+                    </div>
+                  ) : (
+                    'Update Post'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Announcement Dialog */}
+      <Dialog open={showEditAnnouncementDialog} onOpenChange={setShowEditAnnouncementDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-medium">Edit Announcement</DialogTitle>
+            <DialogDescription className="text-small text-gray-600">
+              Make changes to your announcement. You can edit within 1 hour of posting.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...announcementForm}>
+            <form onSubmit={announcementForm.handleSubmit((data) => {
+              if (editingAnnouncement) {
+                editAnnouncementMutation.mutate({ ...data, id: editingAnnouncement.id });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={announcementForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Title</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter announcement title..."
+                        {...field}
+                        className="text-small h-11 lg:h-10"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={announcementForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="text-small h-11 lg:h-10">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={announcementForm.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Content</FormLabel>
+                    <FormControl>
+                      <RichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Write your announcement..."
+                        minHeight="120px"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={announcementForm.control}
+                name="mediaUrls"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-small font-medium">Images (Optional)</FormLabel>
+                    <FormControl>
+                      <MediaUpload
+                        onUpload={field.onChange}
+                        maxFiles={5}
+                        maxSize={5}
+                        accept="image/*,.gif"
+                        className="min-h-[100px] border-2 border-dashed rounded-lg
+                                   hover:border-primary transition-colors duration-200"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-small" />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="pt-4 border-t">
+                <Button 
+                  type="submit" 
+                  className="w-full text-small font-medium h-12 lg:h-10
+                             active:scale-98 transition-all duration-150
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={editAnnouncementMutation.isPending}
+                >
+                  {editAnnouncementMutation.isPending ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Updating...
+                    </div>
+                  ) : (
+                    'Update Announcement'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
