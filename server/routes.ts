@@ -1433,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/triathlon/teams', adminOnly(), async (req, res) => {
+  app.post('/api/triathlon/teams', authorize('triathlon'), async (req, res) => {
     try {
       const data = req.body;
       const team = await storage.createTriathlonTeam(data);
@@ -1444,7 +1444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/triathlon/teams/:teamId', adminOnly(), async (req, res) => {
+  app.put('/api/triathlon/teams/:teamId', authorize('triathlon'), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
       const { name, logoUrl } = req.body;
@@ -1457,7 +1457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/triathlon/teams/:teamId', adminOnly(), async (req, res) => {
+  app.delete('/api/triathlon/teams/:teamId', authorize('triathlon'), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
       await storage.deleteTriathlonTeam(teamId);
@@ -1468,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/triathlon/teams/:teamId/points', adminOnly(), async (req, res) => {
+  app.post('/api/triathlon/teams/:teamId/points', authorize('triathlon'), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
       const { category, pointChange, reason } = req.body;
@@ -1493,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/triathlon/history/:teamId', adminOnly(), async (req, res) => {
+  app.get('/api/triathlon/history/:teamId', authorize('triathlon'), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
       const history = await storage.getTriathlonPointHistory(teamId);

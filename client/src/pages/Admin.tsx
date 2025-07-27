@@ -30,6 +30,7 @@ interface User {
     forumMod?: boolean;
     diningHostel?: boolean;
     postCreation?: boolean;
+    triathlon?: boolean;
   };
   createdAt: string;
   updatedAt: string;
@@ -78,6 +79,7 @@ export default function Admin() {
       forumMod: false,
       diningHostel: false,
       postCreation: false,
+      triathlon: false,
     }
   });
 
@@ -322,6 +324,7 @@ export default function Admin() {
         forumMod: user.permissions?.forumMod || false,
         diningHostel: user.permissions?.diningHostel || false,
         postCreation: user.permissions?.postCreation || false,
+        triathlon: user.permissions?.triathlon || false,
       }
     });
     setIsEditModalOpen(true);
@@ -362,6 +365,7 @@ export default function Admin() {
       forumMod: false,
       diningHostel: false,
       postCreation: false,
+      triathlon: false,
     };
 
     if (role === 'admin') {
@@ -372,6 +376,7 @@ export default function Admin() {
         forumMod: true,
         diningHostel: true,
         postCreation: true,
+        triathlon: true,
       };
     } else if (role === 'committee_club') {
       defaultPermissions = {
@@ -381,6 +386,7 @@ export default function Admin() {
         forumMod: true,
         diningHostel: false,
         postCreation: true,
+        triathlon: false,
       };
     } else if (role === 'student') {
       // Students start with basic view permissions but can be customized
@@ -391,6 +397,7 @@ export default function Admin() {
         forumMod: false,
         diningHostel: false,
         postCreation: false,
+        triathlon: false,
       };
     }
 
@@ -521,20 +528,21 @@ export default function Admin() {
                     <TableHead>Forum Mod</TableHead>
                     <TableHead>Dining/Hostel</TableHead>
                     <TableHead>Post Creation</TableHead>
+                    <TableHead>Triathlon</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {usersLoading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
                         Loading users...
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -594,6 +602,11 @@ export default function Admin() {
                         <TableCell>
                           <div className="flex justify-center">
                             {user.permissions?.postCreation ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {user.permissions?.triathlon ? '✅' : '❌'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -964,6 +977,19 @@ export default function Admin() {
                         setEditForm(prev => ({ 
                           ...prev, 
                           permissions: { ...prev.permissions, postCreation: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="triathlon" className="text-sm">Triathlon Management</Label>
+                    <Switch
+                      id="triathlon"
+                      checked={editForm.permissions.triathlon}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, triathlon: checked }
                         }))
                       }
                     />

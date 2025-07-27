@@ -109,6 +109,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Complete RBAC System with Triathlon Permissions and Color-Coded Community Categories (COMPLETED)
+- **RBAC Implementation for Triathlon**: Added comprehensive role-based access control for Triathlon management
+  - New `triathlon` permission in user schema and admin interface allowing specific users to manage teams
+  - Updated frontend to check triathlon permissions instead of admin-only access for team creation, editing, deletion, and point management
+  - Backend routes updated with proper authorization middleware using `authorize('triathlon')` instead of `adminOnly()`
+  - Admin users retain full access through admin override system while designated users get granular triathlon access
+- **Color-Coded Community Categories**: Enhanced visual organization in Community Forum with distinctive category colors
+  - Triathlon category displays with orange theme (bg-orange-100 text-orange-800 border-orange-200)
+  - Academic Help uses blue theme, Campus Life uses green, Events & Activities uses purple
+  - Clubs & Societies uses indigo, Technical Support uses red, Feedback & Suggestions uses yellow
+  - Color coding applies to both Community Board posts and Official Announcements for consistent visual hierarchy
+- **Enhanced Admin Interface**: User Management page now includes triathlon permission controls
+  - Added Triathlon column in permissions table allowing admins to grant/revoke triathlon access
+  - Maintains backward compatibility with existing permission structure while adding granular control
+- **Unified Permission System**: Complete alignment between frontend permission checks and backend authorization
+  - Frontend checks `user.permissions?.triathlon || user.role === 'admin'` for access control
+  - Backend uses `authorize('triathlon')` middleware with admin override functionality
+  - Consistent behavior across all triathlon management features (team creation, editing, point management, deletion)
+
 ### January 2025 - Management Triathlon Admin Team Management (COMPLETED)
 - **Complete Team CRUD Operations**: Implemented full admin controls for team management
   - Added backend API endpoints for updating (`PUT /api/triathlon/teams/:teamId`) and deleting (`DELETE /api/triathlon/teams/:teamId`) teams

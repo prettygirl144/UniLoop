@@ -87,6 +87,7 @@ const CATEGORIES = [
   'Academic Help',
   'Campus Life',
   'Events & Activities',
+  'Triathlon',
   'Feedback & Suggestions',
   'Technical Support',
   'Clubs & Societies'
@@ -106,6 +107,28 @@ const SORT_OPTIONS = [
   { label: 'Most Discussed', value: 'replies' },
   { label: 'Trending', value: 'trending' }
 ];
+
+// Helper function to get category colors
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'Triathlon':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'Academic Help':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'Campus Life':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'Events & Activities':
+      return 'bg-purple-100 text-purple-800 border-purple-200';
+    case 'Clubs & Societies':
+      return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    case 'Technical Support':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'Feedback & Suggestions':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
 
 export default function Forum() {
   // Check URL parameters for default tab
@@ -1095,7 +1118,7 @@ export default function Forum() {
                         {/* Mobile-responsive post metadata */}
                         <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:gap-2 sm:mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-small px-2 py-1 flex-shrink-0">
+                            <Badge variant="outline" className={`text-small px-2 py-1 flex-shrink-0 ${getCategoryColor(post.category)}`}>
                               {post.category}
                             </Badge>
                             <span className="text-small text-gray-500 truncate">
@@ -1335,7 +1358,7 @@ export default function Forum() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <UserCheck className="h-4 w-4 text-green-600" />
-                      <Badge variant="outline" className="text-small">
+                      <Badge variant="outline" className={`text-small ${getCategoryColor(announcement.category)}`}>
                         {announcement.category}
                       </Badge>
                       <span className="text-small text-gray-500">

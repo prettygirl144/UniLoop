@@ -51,7 +51,9 @@ export default function Triathlon() {
   const [showHistory, setShowHistory] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<TeamWithRank | null>(null);
 
-  const isAdmin = user && typeof user === 'object' && 'role' in user ? user.role === 'admin' : false;
+  const isAdmin = user && typeof user === 'object' && 'role' in user ? (user as any).role === 'admin' : false;
+  const hasTriathlonPermission = user && typeof user === 'object' && 'permissions' in user ? 
+    ((user as any).permissions?.triathlon || (user as any).role === 'admin') : false;
 
   // Fetch teams data
   const { data: teams = [], isLoading } = useQuery<TeamWithRank[]>({
@@ -218,7 +220,7 @@ export default function Triathlon() {
           </div>
         </div>
         
-        {isAdmin && (
+        {hasTriathlonPermission && (
           <Dialog open={showAddTeam} onOpenChange={setShowAddTeam}>
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto">
@@ -334,7 +336,7 @@ export default function Triathlon() {
                       </div>
                     </th>
                     <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[100px]">Total</th>
-                    {isAdmin && <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[120px]">Actions</th>}
+                    {hasTriathlonPermission && <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[120px]">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -384,7 +386,7 @@ export default function Triathlon() {
                           {team.totalPoints}
                         </Badge>
                       </td>
-                      {isAdmin && (
+                      {hasTriathlonPermission && (
                         <td className="p-4">
                           <div className="flex justify-center">
                             <DropdownMenu>
@@ -443,7 +445,7 @@ export default function Triathlon() {
       </Card>
 
       {/* Edit Points Dialog */}
-      {isAdmin && (
+      {hasTriathlonPermission && (
         <Dialog open={showEditPoints} onOpenChange={setShowEditPoints}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -554,7 +556,7 @@ export default function Triathlon() {
       )}
 
       {/* History Dialog */}
-      {isAdmin && (
+      {hasTriathlonPermission && (
         <Dialog open={showHistory} onOpenChange={setShowHistory}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
@@ -606,7 +608,7 @@ export default function Triathlon() {
       )}
 
       {/* Edit Team Dialog */}
-      {isAdmin && (
+      {hasTriathlonPermission && (
         <Dialog open={showEditTeam} onOpenChange={setShowEditTeam}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>

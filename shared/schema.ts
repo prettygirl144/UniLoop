@@ -40,6 +40,7 @@ export const users = pgTable("users", {
     forumMod?: boolean;
     diningHostel?: boolean;
     postCreation?: boolean;
+    triathlon?: boolean;
   }>().default({}),
   accountType: varchar("account_type").default("primary"), // primary, alternate
   linkedAccountId: varchar("linked_account_id"), // References primary account for alternates
