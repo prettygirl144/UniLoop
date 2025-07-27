@@ -82,6 +82,24 @@ function CalendarGrid({ events, onEventClick }: { events: Event[], onEventClick:
     return days;
   };
 
+  const getWeekDays = (date: Date) => {
+    const startOfWeek = new Date(date);
+    const day = startOfWeek.getDay();
+    startOfWeek.setDate(date.getDate() - day);
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const getCurrentDay = (date: Date) => {
+    return [new Date(date)];
+  };
+
   const getEventsForDate = (date: Date) => {
     return events.filter(event => {
       const eventDate = new Date(event.date);
@@ -91,42 +109,57 @@ function CalendarGrid({ events, onEventClick }: { events: Event[], onEventClick:
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
-    newDate.setMonth(currentDate.getMonth() + (direction === 'next' ? 1 : -1));
+    if (viewType === 'month') {
+      newDate.setMonth(currentDate.getMonth() + (direction === 'next' ? 1 : -1));
+    } else if (viewType === 'week') {
+      newDate.setDate(currentDate.getDate() + (direction === 'next' ? 7 : -7));
+    } else if (viewType === 'day') {
+      newDate.setDate(currentDate.getDate() + (direction === 'next' ? 1 : -1));
+    }
     setCurrentDate(newDate);
   };
 
-  const days = getDaysInMonth(currentDate);
-  const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const getDays = () => {
+    switch (viewType) {
+      case 'week':
+        return getWeekDays(currentDate);
+      case 'day':
+        return getCurrentDay(currentDate);
+      default:
+        return getDaysInMonth(currentDate);
+    }
+  };
+
+  const days = getDays();
+  const getTitle = () => {
+    switch (viewType) {
+      case 'week':
+        const weekStart = getWeekDays(currentDate)[0];
+        const weekEnd = getWeekDays(currentDate)[6];
+        return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      case 'day':
+        return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      default:
+        return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+  };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-medium">{monthYear}</CardTitle>
+          <CardTitle className="text-medium">{getTitle()}</CardTitle>
           <div className="flex items-center gap-2">
-            <div className="flex gap-1">
-              <Button
-                variant={viewType === 'month' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewType('month')}
-              >
-                Month
-              </Button>
-              <Button
-                variant={viewType === 'week' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewType('week')}
-              >
-                Week
-              </Button>
-              <Button
-                variant={viewType === 'day' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewType('day')}
-              >
-                Day
-              </Button>
-            </div>
+            <Select value={viewType} onValueChange={(value: 'month' | 'week' | 'day') => setViewType(value)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="week">Week</SelectItem>
+                <SelectItem value="day">Day</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex gap-1">
               <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
                 <ChevronLeft className="w-4 h-4" />
@@ -177,6 +210,82 @@ function CalendarGrid({ events, onEventClick }: { events: Event[], onEventClick:
                       </div>
                     )}
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {viewType === 'week' && (
+          <div className="grid grid-cols-7 gap-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
+                {day}
+              </div>
+            ))}
+            {days.map((day, index) => {
+              const dayEvents = getEventsForDate(day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[120px] p-1 border rounded-sm bg-white ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <div className="text-xs font-medium text-gray-900 mb-1">
+                    {day.getDate()}
+                  </div>
+                  <div className="space-y-1">
+                    {dayEvents.map(event => (
+                      <div
+                        key={event.id}
+                        onClick={() => onEventClick(event)}
+                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200 truncate"
+                      >
+                        {event.title}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {viewType === 'day' && (
+          <div className="space-y-2">
+            {days.map((day, index) => {
+              const dayEvents = getEventsForDate(day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              
+              return (
+                <div key={index} className="space-y-2">
+                  <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>
+                    {day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </div>
+                  {dayEvents.length === 0 ? (
+                    <div className="text-sm text-gray-500 py-4 text-center">No events scheduled</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {dayEvents.map(event => (
+                        <div
+                          key={event.id}
+                          onClick={() => onEventClick(event)}
+                          className="p-3 border rounded-md cursor-pointer hover:bg-gray-50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium">{event.title}</div>
+                            <div className="text-xs text-gray-500">
+                              {event.startTime} - {event.endTime}
+                            </div>
+                          </div>
+                          {event.location && (
+                            <div className="text-xs text-gray-600 mt-1">{event.location}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
