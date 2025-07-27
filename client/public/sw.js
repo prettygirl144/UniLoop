@@ -1,11 +1,10 @@
 const CACHE_NAME = 'campus-connect-v1';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
+  '/offline.html',
   '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  '/icons/192.png',
+  '/icons/512.png'
 ];
 
 // Install event - cache resources
@@ -55,7 +54,7 @@ self.addEventListener('fetch', (event) => {
         }).catch(() => {
           // Return offline page for navigation requests
           if (event.request.destination === 'document') {
-            return caches.match('/');
+            return caches.match('/offline.html');
           }
         });
       })
