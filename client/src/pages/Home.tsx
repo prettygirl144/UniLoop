@@ -149,7 +149,7 @@ export default function Home() {
                     lg:p-6 lg:space-y-6">
       {/* Mobile-optimized welcome header */}
       <div className="mb-6 lg:mb-8">
-        <h1 className="text-large font-medium text-gray-900 mb-2 leading-tight">
+        <h1 className="font-medium text-gray-900 text-[24px] mt-[3px] mb-[3px]">
           Good day!
         </h1>
         <p className="text-small text-gray-600">
