@@ -6,7 +6,6 @@ const navItems = [
   { path: '/', icon: Home, label: 'Home', id: 'dashboard' },
   { path: '/calendar', icon: Calendar, label: 'Events', id: 'calendar' },
   { path: '/gallery', icon: Image, label: 'Gallery', id: 'gallery' },
-  { path: '/triathlon', icon: Trophy, label: 'Triathlon', id: 'triathlon' },
   { path: '/forum', icon: MessageSquare, label: 'Forum', id: 'forum' },
   { path: '/amenities', icon: Utensils, label: 'Amenities', id: 'amenities' },
 ];
