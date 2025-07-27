@@ -1513,8 +1513,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
   
-  const express = await import('express');
-  app.use('/uploads', express.default.static('uploads'));
+  const expressStatic = await import('express');
+  app.use('/uploads', expressStatic.default.static('uploads'));
 
   // Triathlon routes
   app.get('/api/triathlon/teams', async (req, res) => {
@@ -1597,6 +1597,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch history" });
     }
   });
+
+  // Serve static files from client/public directory (icons, manifest, etc.)
+  const expressModule = await import('express');
+  app.use(expressModule.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
 
   const httpServer = createServer(app);
   return httpServer;
