@@ -118,6 +118,10 @@ function adminOnly() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // CRITICAL: Serve static files FIRST for PWA installability
+  const expressStaticImport = await import('express');
+  app.use(expressStaticImport.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
+  
   // Session middleware for Auth0
   const session = await import('express-session');
   app.use(session.default({
@@ -1513,8 +1517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
   
-  const expressStatic = await import('express');
-  app.use('/uploads', expressStatic.default.static('uploads'));
+  const expressForUploads = await import('express');
+  app.use('/uploads', expressForUploads.default.static('uploads'));
 
   // Triathlon routes
   app.get('/api/triathlon/teams', async (req, res) => {
@@ -1598,9 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve static files from client/public directory (icons, manifest, etc.)
-  const expressModule = await import('express');
-  app.use(expressModule.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
+  // Static file serving moved to top of function to fix PWA installability
 
   const httpServer = createServer(app);
   return httpServer;

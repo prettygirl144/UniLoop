@@ -2,6 +2,7 @@
   "name": "Campus Connect",
   "short_name": "CampusConnect",
   "description": "University utility and communications app",
+  "id": "/",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FAFAFA",
@@ -45,7 +46,8 @@
       "icons": [
         {
           "src": "/icons/144.png",
-          "sizes": "144x144"
+          "sizes": "144x144",
+          "type": "image/png"
         }
       ]
     },
@@ -57,9 +59,18 @@
       "icons": [
         {
           "src": "/icons/144.png",
-          "sizes": "144x144"
+          "sizes": "144x144",
+          "type": "image/png"
         }
       ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1024x640",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ],
   "related_applications": [],
