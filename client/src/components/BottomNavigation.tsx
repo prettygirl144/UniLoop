@@ -36,7 +36,34 @@ export default function BottomNavigation() {
           const isActive = location === item.path;
           
           return (
-            
+            <Link
+              key={item.id}
+              href={item.path}
+              className={`
+                flex flex-col items-center justify-center flex-1 min-w-0
+                /* Mobile: compact spacing */
+                py-1.5 px-1
+                /* Desktop: more spacious */
+                lg:py-2 lg:px-2 lg:flex-none lg:min-w-[80px]
+                transition-colors duration-200
+                ${isActive 
+                  ? 'text-primary' 
+                  : 'text-muted-foreground hover:text-foreground'
+                }
+              `}
+            >
+              <Icon 
+                size={20} 
+                className={`mb-1 lg:mb-1.5 ${isActive ? 'text-primary' : ''}`} 
+              />
+              <span className={`
+                text-xs font-medium truncate
+                lg:text-sm
+                ${isActive ? 'text-primary' : ''}
+              `}>
+                {item.label}
+              </span>
+            </Link>
           );
         })}
       </div>
