@@ -24,6 +24,11 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Skip caching for API requests to avoid interfering with authentication
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -44,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           // Clone the response because it's a stream
           const responseToCache = response.clone();
           
-          // Cache successful responses
+          // Cache successful responses for non-API requests
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
