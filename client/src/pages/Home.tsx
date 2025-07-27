@@ -156,7 +156,7 @@ export default function Home() {
         </p>
       </div>
       {/* Mobile-optimized quick stats */}
-      <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-6">
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-8">
         <Link href="/calendar">
           <Card className="shadow-sm border-gray-100 cursor-pointer 
                            /* Mobile: enhanced touch interaction */
@@ -198,7 +198,7 @@ export default function Home() {
       </div>
       {/* Management Triathlon Banner */}
       <Link href="/triathlon">
-        <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0">
+        <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0 mt-4">
           <div className="relative bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 p-4 lg:p-6">
             <div className="absolute inset-0 bg-black/10 mt-[0px] mb-[0px]"></div>
             <div className="relative flex items-center justify-between">
