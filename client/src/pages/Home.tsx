@@ -366,7 +366,6 @@ export default function Home() {
                   />
                 </div>
                 {/* Overlay for better text readability */}
-                <div className="absolute inset-0 bg-black/20"></div>
                 {/* Content */}
                 <div className="relative z-10 text-center text-white">
                   <h3 className="text-medium font-bold mb-1">Management Triathlon</h3>
