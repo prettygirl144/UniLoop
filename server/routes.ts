@@ -24,6 +24,24 @@ import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
 import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
 import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Helper function to check if a date is within one hour
 function isWithinOneHour(dateString: string): boolean {
@@ -1421,6 +1439,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to check authorization" });
     }
   });
+
+  // Image upload route
+  app.post('/api/upload/image', authorize('triathlon'), upload.single('image'), (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Generate a unique filename
+      const timestamp = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const filename = `team-logo-${timestamp}${ext}`;
+      const filepath = path.join('uploads', filename);
+
+      // Move file to permanent location
+      fs.renameSync(req.file.path, filepath);
+
+      // Return the URL that can be used to access the file
+      const fileUrl = `/uploads/${filename}`;
+      
+      res.json({ 
+        success: true, 
+        url: fileUrl,
+        filename: filename
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', (req: any, res: any, next: any) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    next();
+  });
+  
+  const express = await import('express');
+  app.use('/uploads', express.default.static('uploads'));
 
   // Triathlon routes
   app.get('/api/triathlon/teams', async (req, res) => {

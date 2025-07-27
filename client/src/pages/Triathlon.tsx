@@ -17,7 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical } from 'lucide-react';
+import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -50,6 +50,8 @@ export default function Triathlon() {
   const [showEditPoints, setShowEditPoints] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<TeamWithRank | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const isAdmin = user && typeof user === 'object' && 'role' in user ? (user as any).role === 'admin' : false;
   const hasTriathlonPermission = user && typeof user === 'object' && 'permissions' in user ? 
@@ -78,6 +80,41 @@ export default function Triathlon() {
     defaultValues: { category: 'academic', pointChange: 0, reason: '' },
   });
 
+  // Image upload function
+  const handleImageUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const data = await response.json();
+      setUploadedImageUrl(data.url);
+      teamForm.setValue('logoUrl', data.url);
+      
+      toast({
+        title: "Image uploaded successfully!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to upload image",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Mutations
   const createTeamMutation = useMutation({
     mutationFn: (data: InsertTriathlonTeam) => apiRequest('POST', '/api/triathlon/teams', data),
@@ -85,6 +122,7 @@ export default function Triathlon() {
       queryClient.invalidateQueries({ queryKey: ['/api/triathlon/teams'] });
       setShowAddTeam(false);
       teamForm.reset();
+      setUploadedImageUrl('');
       toast({ title: "Team created successfully!" });
     },
     onError: () => {
@@ -187,6 +225,7 @@ export default function Triathlon() {
   const handleEditTeam = (team: TeamWithRank) => {
     setSelectedTeam(team);
     teamForm.reset({ name: team.name, logoUrl: team.logoUrl || '' });
+    setUploadedImageUrl('');
     setShowEditTeam(true);
   };
 
@@ -223,7 +262,13 @@ export default function Triathlon() {
         {hasTriathlonPermission && (
           <Dialog open={showAddTeam} onOpenChange={setShowAddTeam}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
+              <Button 
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  teamForm.reset({ name: '', logoUrl: '' });
+                  setUploadedImageUrl('');
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Add Team</span>
                 <span className="sm:hidden">Add</span>
@@ -253,9 +298,82 @@ export default function Triathlon() {
                     name="logoUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Logo URL (Optional)</FormLabel>
+                        <FormLabel>Team Logo</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://example.com/logo.png" {...field} />
+                          <div className="space-y-3">
+                            {/* Image Preview */}
+                            {(uploadedImageUrl || field.value) && (
+                              <div className="flex items-center space-x-3 p-3 border rounded-lg bg-gray-50">
+                                <img 
+                                  src={uploadedImageUrl || field.value} 
+                                  alt="Team logo preview"
+                                  className="h-12 w-12 rounded-full object-cover"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-small font-medium">Logo uploaded</p>
+                                  <p className="text-xs text-gray-500">Ready to use</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setUploadedImageUrl('');
+                                    field.onChange('');
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {/* Upload Button or URL Input */}
+                            {!(uploadedImageUrl || field.value) && (
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2">
+                                  <label className="flex-1">
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors">
+                                      <div className="space-y-2">
+                                        <Upload className="h-6 w-6 text-gray-400 mx-auto" />
+                                        <div>
+                                          <span className="text-small text-blue-600 hover:text-blue-500">
+                                            {isUploading ? 'Uploading...' : 'Click to upload logo'}
+                                          </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                          Images up to 5MB (PNG, JPG, GIF)
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleImageUpload(file);
+                                        }
+                                      }}
+                                      className="hidden"
+                                      disabled={isUploading}
+                                    />
+                                  </label>
+                                </div>
+                                <div className="relative">
+                                  <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                  </div>
+                                  <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-white px-2 text-gray-500">Or use URL</span>
+                                  </div>
+                                </div>
+                                <Input 
+                                  placeholder="https://example.com/logo.png" 
+                                  {...field} 
+                                />
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -630,9 +748,82 @@ export default function Triathlon() {
                   name="logoUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Logo URL (Optional)</FormLabel>
+                      <FormLabel>Team Logo</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://example.com/logo.png" {...field} />
+                        <div className="space-y-3">
+                          {/* Image Preview */}
+                          {(uploadedImageUrl || field.value) && (
+                            <div className="flex items-center space-x-3 p-3 border rounded-lg bg-gray-50">
+                              <img 
+                                src={uploadedImageUrl || field.value} 
+                                alt="Team logo preview"
+                                className="h-12 w-12 rounded-full object-cover"
+                              />
+                              <div className="flex-1">
+                                <p className="text-small font-medium">Logo uploaded</p>
+                                <p className="text-xs text-gray-500">Ready to use</p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setUploadedImageUrl('');
+                                  field.onChange('');
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* Upload Button or URL Input */}
+                          {!(uploadedImageUrl || field.value) && (
+                            <div className="space-y-3">
+                              <div className="flex items-center space-x-2">
+                                <label className="flex-1">
+                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors">
+                                    <div className="space-y-2">
+                                      <Upload className="h-6 w-6 text-gray-400 mx-auto" />
+                                      <div>
+                                        <span className="text-small text-blue-600 hover:text-blue-500">
+                                          {isUploading ? 'Uploading...' : 'Click to upload logo'}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-gray-500">
+                                        Images up to 5MB (PNG, JPG, GIF)
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handleImageUpload(file);
+                                      }
+                                    }}
+                                    className="hidden"
+                                    disabled={isUploading}
+                                  />
+                                </label>
+                              </div>
+                              <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                  <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                  <span className="bg-white px-2 text-gray-500">Or use URL</span>
+                                </div>
+                              </div>
+                              <Input 
+                                placeholder="https://example.com/logo.png" 
+                                {...field} 
+                              />
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
