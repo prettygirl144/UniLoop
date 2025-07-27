@@ -351,32 +351,7 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Management Triathlon Banner */}
-      <div className="mt-6">
-        <Link href="/triathlon">
-          <Card className="relative overflow-hidden cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all duration-200 bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600">
-            <CardContent className="p-0">
-              <div className="relative flex items-center justify-center h-32 md:h-40">
-                {/* Background Image */}
-                <div className="absolute inset-0 opacity-90">
-                  <img 
-                    src="/attached_assets/TMT2.0_1753605901392.webp" 
-                    alt="Management Triathlon"
-                    className="w-full h-full object-contain object-center"
-                  />
-                </div>
-                {/* Overlay for better text readability */}
-                <div className="absolute inset-0 bg-black/20"></div>
-                {/* Content */}
-                <div className="relative z-10 text-center text-white">
-                  <h3 className="text-medium font-bold mb-1">Management Triathlon</h3>
-                  <p className="text-small opacity-90">View Leaderboard & Team Rankings</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+      
     </div>
   );
 }
