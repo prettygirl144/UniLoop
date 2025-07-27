@@ -622,46 +622,83 @@ export default function Forum() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-8 space-y-4">
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col sm:flex-row gap-4">
+    <div className="w-full min-h-screen
+                    /* Mobile: full width with minimal padding */
+                    px-4 py-4
+                    /* Desktop: centered with max width */
+                    lg:max-w-6xl lg:mx-auto lg:px-6 lg:py-8">
+      
+      {/* Mobile-optimized header section */}
+      <div className="mb-6 space-y-4 lg:mb-8">
+        {/* Mobile-first search and filter bar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
             <Input
-              placeholder="Search posts, announcements, and users..."
+              placeholder="Search posts and announcements..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-small"
+              className="pl-10 text-small 
+                         /* Mobile: larger tap target */
+                         h-11 
+                         /* Desktop: standard height */
+                         lg:h-10
+                         /* Touch optimization */
+                         focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all duration-200"
             />
           </div>
           <Button 
             variant="outline" 
             onClick={() => setShowFilters(!showFilters)}
-            className="text-small"
+            className="text-small
+                       /* Mobile: full width on small screens */
+                       w-full sm:w-auto
+                       /* Mobile: larger tap target */
+                       h-11 
+                       /* Desktop: standard height */
+                       lg:h-10
+                       /* Touch feedback */
+                       active:scale-98 transition-all duration-150"
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-            <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            <Filter className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>Filters</span>
+            <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
           </Button>
         </div>
 
-        {/* Advanced Filters */}
+        {/* Mobile-optimized advanced filters */}
         {showFilters && (
-          <Card className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-small font-medium mb-2 block">Time Range</label>
+          <Card className="p-4 lg:p-6
+                           /* Mobile: rounded corners for modern feel */
+                           rounded-xl
+                           /* Animation for smooth expansion */
+                           animate-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-small font-medium block">Time Range</label>
                 <Select value={timeFilter} onValueChange={setTimeFilter}>
-                  <SelectTrigger className="text-small">
+                  <SelectTrigger className="text-small
+                                           /* Mobile: larger tap target */
+                                           h-11 lg:h-10
+                                           /* Touch optimization */
+                                           focus:ring-2 focus:ring-primary focus:ring-opacity-20">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="/* Mobile: larger dropdown items */
+                                           max-h-60 overflow-y-auto">
                     {TIME_FILTERS.map((filter) => (
-                      <SelectItem key={filter.value} value={filter.value} className="text-small">
+                      <SelectItem 
+                        key={filter.value} 
+                        value={filter.value} 
+                        className="text-small
+                                   /* Mobile: larger tap targets */
+                                   py-3 lg:py-2
+                                   /* Touch feedback */
+                                   active:bg-primary active:bg-opacity-10"
+                      >
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-3 w-3" />
-                          {filter.label}
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span>{filter.label}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -669,16 +706,22 @@ export default function Forum() {
                 </Select>
               </div>
 
-              <div>
-                <label className="text-small font-medium mb-2 block">Category</label>
+              <div className="space-y-2">
+                <label className="text-small font-medium block">Category</label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="text-small">
+                  <SelectTrigger className="text-small h-11 lg:h-10 focus:ring-2 focus:ring-primary focus:ring-opacity-20">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" className="text-small">All Categories</SelectItem>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <SelectItem value="all" className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10">
+                      All Categories
+                    </SelectItem>
                     {CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category} className="text-small">
+                      <SelectItem 
+                        key={category} 
+                        value={category} 
+                        className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                      >
                         {category}
                       </SelectItem>
                     ))}
@@ -686,21 +729,25 @@ export default function Forum() {
                 </Select>
               </div>
 
-              <div>
-                <label className="text-small font-medium mb-2 block">Sort By</label>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                <label className="text-small font-medium block">Sort By</label>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="text-small">
+                  <SelectTrigger className="text-small h-11 lg:h-10 focus:ring-2 focus:ring-primary focus:ring-opacity-20">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {SORT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className="text-small">
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value} 
+                        className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                      >
                         <div className="flex items-center gap-2">
-                          {option.value === 'upvotes' && <Heart className="h-3 w-3" />}
-                          {option.value === 'recent' && <Calendar className="h-3 w-3" />}
-                          {option.value === 'replies' && <Reply className="h-3 w-3" />}
-                          {option.value === 'trending' && <TrendingUp className="h-3 w-3" />}
-                          {option.label}
+                          {option.value === 'upvotes' && <Heart className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'recent' && <Calendar className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'replies' && <Reply className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'trending' && <TrendingUp className="h-3 w-3 flex-shrink-0" />}
+                          <span>{option.label}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -709,8 +756,9 @@ export default function Forum() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <div className="text-small text-gray-500">
+            {/* Mobile-optimized filter summary and clear action */}
+            <div className="flex flex-col gap-3 mt-4 pt-4 border-t sm:flex-row sm:justify-between sm:items-center">
+              <div className="text-small text-gray-500 text-center sm:text-left">
                 Showing {paginatedPosts.length} of {filteredAndSortedPosts.length} posts
               </div>
               <Button 
@@ -724,151 +772,251 @@ export default function Forum() {
                   setPostsPage(1);
                   setAnnouncementsPage(1);
                 }}
-                className="text-small"
+                className="text-small
+                           /* Mobile: full width */
+                           w-full sm:w-auto
+                           /* Touch feedback */
+                           active:scale-98 transition-all duration-150"
               >
-                Clear All
+                Clear All Filters
               </Button>
             </div>
           </Card>
         )}
       </div>
+      {/* Mobile-optimized tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="posts" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            <span className="text-small">Community Board</span>
+        <TabsList className="grid w-full grid-cols-2 
+                             /* Mobile: larger height for easier tapping */
+                             h-12 lg:h-10
+                             /* Mobile: rounded for modern feel */
+                             rounded-xl
+                             /* Mobile: better contrast */
+                             bg-gray-100 dark:bg-gray-800">
+          <TabsTrigger 
+            value="posts" 
+            className="flex items-center gap-2 
+                       /* Mobile: larger tap target */
+                       h-10 lg:h-8
+                       /* Touch feedback */
+                       active:scale-98 transition-all duration-150
+                       /* Typography */
+                       text-small font-medium
+                       /* Mobile: responsive text */
+                       data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <MessageSquare className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Community Board</span>
+            <span className="sm:hidden">Community</span>
           </TabsTrigger>
-          <TabsTrigger value="announcements" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span className="text-small">Official Announcements</span>
+          <TabsTrigger 
+            value="announcements" 
+            className="flex items-center gap-2 
+                       h-10 lg:h-8
+                       active:scale-98 transition-all duration-150
+                       text-small font-medium
+                       data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <Users className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Official Announcements</span>
+            <span className="sm:hidden">Announcements</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Community Board Tab */}
+        {/* Mobile-optimized Community Board Tab */}
         <TabsContent value="posts" className="space-y-6">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <TrendingUp className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <h2 className="text-medium font-medium truncate">Community Discussions</h2>
-                <Badge variant="secondary" className="text-small flex-shrink-0">
+                <Badge variant="secondary" className="text-small flex-shrink-0 
+                                                     /* Mobile: smaller badge */
+                                                     px-2 py-1">
                   {filteredAndSortedPosts.length}
                 </Badge>
               </div>
               {isAuthenticated && (
                 <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
                   <DialogTrigger asChild>
-                    <Button className="text-small flex-shrink-0 pl-[8px] pr-[8px] ml-[4px] mr-[4px]">
-                      <Plus className="h-4 w-4 mr-1" />
+                    <Button className="text-small flex-shrink-0 
+                                       /* Mobile: optimized spacing */
+                                       px-3 py-2 h-9
+                                       /* Desktop: standard spacing */
+                                       lg:px-4 lg:h-10
+                                       /* Touch feedback */
+                                       active:scale-95 transition-all duration-150">
+                      <Plus className="h-4 w-4 mr-1 flex-shrink-0" />
                       <span className="hidden sm:inline">New Post</span>
                       <span className="sm:hidden">Post</span>
                     </Button>
                   </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-medium">Create New Post</DialogTitle>
-                    <DialogDescription className="text-small">
-                      Share your thoughts with the community. You can add text, images, and format your content.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Form {...postForm}>
-                    <form onSubmit={postForm.handleSubmit((data) => createPostMutation.mutate(data))} className="space-y-4">
-                      <FormField
-                        control={postForm.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-small">Title</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter post title" {...field} className="text-small" />
-                            </FormControl>
-                            <FormMessage className="text-small" />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={postForm.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-small">Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="text-small">
-                                  <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {CATEGORIES.map((cat) => (
-                                  <SelectItem key={cat} value={cat} className="text-small">{cat}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage className="text-small" />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={postForm.control}
-                        name="content"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-small">Content</FormLabel>
-                            <FormControl>
-                              <RichTextEditor
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder="Share your thoughts... Use **bold**, *italic*, and _underline_ for formatting"
-                                minHeight="120px"
-                              />
-                            </FormControl>
-                            <FormMessage className="text-small" />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={postForm.control}
-                        name="mediaUrls"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-small">Media (Optional)</FormLabel>
-                            <FormControl>
-                              <MediaUpload
-                                value={field.value}
-                                onChange={field.onChange}
-                                maxFiles={5}
-                                maxSize={5}
-                                accept="image/*,.gif"
-                              />
-                            </FormControl>
-                            <FormMessage className="text-small" />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={postForm.control}
-                        name="isAnonymous"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center justify-between">
-                            <FormLabel className="text-small">Post anonymously</FormLabel>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <Button 
-                        type="submit" 
-                        className="w-full text-small"
-                        disabled={createPostMutation.isPending}
+                  {/* Mobile-optimized dialog content */}
+                  <DialogContent className="w-full max-w-md 
+                                           /* Mobile: full height with safe margins */
+                                           max-h-[95vh] min-h-[50vh]
+                                           /* Mobile: rounded corners */
+                                           rounded-xl
+                                           /* Scrolling for mobile */
+                                           overflow-y-auto
+                                           /* Touch optimization */
+                                           touch-pan-y">
+                    <DialogHeader className="space-y-3 pb-4 border-b">
+                      <DialogTitle className="text-medium font-medium text-center sm:text-left">
+                        Create New Post
+                      </DialogTitle>
+                      <DialogDescription className="text-small text-gray-600 text-center sm:text-left">
+                        Share your thoughts with the community. You can add text, images, and format your content.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {/* Mobile-optimized form */}
+                    <Form {...postForm}>
+                      <form 
+                        onSubmit={postForm.handleSubmit((data) => createPostMutation.mutate(data))} 
+                        className="space-y-5 pt-4"
                       >
-                        {createPostMutation.isPending ? 'Creating...' : 'Create Post'}
-                      </Button>
-                    </form>
-                  </Form>
+                        <FormField
+                          control={postForm.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Title</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Enter post title" 
+                                  {...field} 
+                                  className="text-small 
+                                             /* Mobile: larger tap target */
+                                             h-11 lg:h-10
+                                             /* Touch optimization */
+                                             focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                             transition-all duration-200" 
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Category</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="text-small 
+                                                           h-11 lg:h-10
+                                                           focus:ring-2 focus:ring-primary focus:ring-opacity-20">
+                                    <SelectValue placeholder="Select a category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="max-h-60 overflow-y-auto">
+                                  {CATEGORIES.map((cat) => (
+                                    <SelectItem 
+                                      key={cat} 
+                                      value={cat} 
+                                      className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                                    >
+                                      {cat}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Content</FormLabel>
+                              <FormControl>
+                                <RichTextEditor
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Share your thoughts... Use **bold**, *italic*, and _underline_ for formatting"
+                                  minHeight="120px"
+                                  className="/* Mobile: touch-friendly */
+                                             focus-within:ring-2 focus-within:ring-primary focus-within:ring-opacity-20"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="mediaUrls"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Media (Optional)</FormLabel>
+                              <FormControl>
+                                <MediaUpload
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  maxFiles={5}
+                                  maxSize={5}
+                                  accept="image/*,.gif"
+                                  className="/* Mobile: touch-friendly upload area */
+                                             min-h-[100px] border-2 border-dashed rounded-lg
+                                             hover:border-primary transition-colors duration-200"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="isAnonymous"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between 
+                                                 /* Mobile: better spacing */
+                                                 py-3 px-4 bg-gray-50 rounded-lg">
+                              <div className="space-y-1">
+                                <FormLabel className="text-small font-medium">Post anonymously</FormLabel>
+                                <div className="text-small text-gray-600">Hide your identity from other users</div>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="/* Mobile: larger touch target */
+                                             data-[state=checked]:bg-primary"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Mobile-optimized submit button */}
+                        <div className="pt-4 border-t">
+                          <Button 
+                            type="submit" 
+                            className="w-full text-small font-medium
+                                       /* Mobile: larger tap target */
+                                       h-12 lg:h-10
+                                       /* Touch feedback */
+                                       active:scale-98 transition-all duration-150
+                                       /* Loading state */
+                                       disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={createPostMutation.isPending}
+                          >
+                            {createPostMutation.isPending ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Creating...
+                              </div>
+                            ) : (
+                              'Create Post'
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
                 </DialogContent>
               </Dialog>
             )}
@@ -883,22 +1031,42 @@ export default function Forum() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Mobile-optimized post grid */}
               <div className="grid gap-4">
                 {paginatedPosts.map((post: CommunityPost) => (
-                <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedPost(post)}>
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
-                      <div className="flex flex-col items-center gap-1 min-w-12">
+                <Card 
+                  key={post.id} 
+                  className="/* Mobile: enhanced touch interaction */
+                             hover:shadow-md active:scale-[0.99] transition-all duration-150 cursor-pointer
+                             /* Mobile: rounded corners for modern feel */
+                             rounded-xl
+                             /* Touch optimization */
+                             select-none" 
+                  onClick={() => setSelectedPost(post)}
+                >
+                  <CardContent className="/* Mobile: optimized padding */
+                                        p-4 lg:p-6">
+                    <div className="flex gap-3 lg:gap-4">
+                      {/* Mobile-optimized voting section */}
+                      <div className="flex flex-col items-center gap-2 min-w-12 lg:min-w-14">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="/* Mobile: larger tap target */
+                                     h-9 w-9 p-0 
+                                     /* Desktop: standard size */
+                                     lg:h-8 lg:w-8
+                                     /* Touch feedback */
+                                     active:scale-90 transition-all duration-150
+                                     /* Focus ring */
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isAuthenticated) {
                               voteMutation.mutate({ postId: post.id, voteType: 'upvote' });
                             }
                           }}
+                          aria-label="Upvote post"
                         >
                           <ArrowUp className="h-4 w-4" />
                         </Button>
@@ -909,38 +1077,54 @@ export default function Forum() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-9 w-9 p-0 lg:h-8 lg:w-8
+                                     active:scale-90 transition-all duration-150
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isAuthenticated) {
                               voteMutation.mutate({ postId: post.id, voteType: 'downvote' });
                             }
                           }}
+                          aria-label="Downvote post"
                         >
                           <ArrowDown className="h-4 w-4" />
                         </Button>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="text-small">
-                            {post.category}
-                          </Badge>
-                          <span className="text-small text-gray-500">
-                            by {post.isAnonymous ? 'Anonymous' : (post.authorName || 'Unknown')}
-                          </span>
-                          <span className="text-small text-gray-400">
+                        {/* Mobile-responsive post metadata */}
+                        <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:gap-2 sm:mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-small px-2 py-1 flex-shrink-0">
+                              {post.category}
+                            </Badge>
+                            <span className="text-small text-gray-500 truncate">
+                              by {post.isAnonymous ? 'Anonymous' : (post.authorName || 'Unknown')}
+                            </span>
+                          </div>
+                          <span className="text-small text-gray-400 flex-shrink-0">
                             {formatDate(post.createdAt)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-medium font-medium line-clamp-2 flex-1 break-words">
+                        {/* Mobile-optimized title and actions */}
+                        <div className="flex items-start justify-between mb-3 gap-2">
+                          <h3 className="text-medium font-medium line-clamp-2 flex-1 break-words leading-snug">
                             {post.title}
                           </h3>
                           {canDeletePost(post) && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                              className="/* Mobile: larger tap target */
+                                         h-8 w-8 p-0 
+                                         /* Desktop: smaller */
+                                         lg:h-6 lg:w-6
+                                         /* Styling */
+                                         text-red-500 hover:text-red-700 flex-shrink-0
+                                         /* Touch feedback */
+                                         active:scale-90 transition-all duration-150
+                                         /* Focus ring */
+                                         focus:ring-2 focus:ring-red-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (confirm('Are you sure you want to delete this post?')) {
@@ -948,14 +1132,16 @@ export default function Forum() {
                                 }
                               }}
                               disabled={deletePostMutation.isPending}
+                              aria-label="Delete post"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3 w-3 lg:h-3 lg:w-3" />
                             </Button>
                           )}
                         </div>
-                        <div className="text-gray-600 dark:text-gray-400">
+                        {/* Mobile-optimized content display */}
+                        <div className="text-gray-600 dark:text-gray-400 mb-3">
                           <FormattedText 
-                            className={expandedPosts.has(post.id) ? "break-words" : "break-words line-clamp-3"}
+                            className={expandedPosts.has(post.id) ? "break-words text-small leading-relaxed" : "break-words line-clamp-3 text-small leading-relaxed"}
                           >
                             {expandedPosts.has(post.id) ? post.content : getTruncatedContent(post.content)}
                           </FormattedText>
@@ -965,7 +1151,13 @@ export default function Forum() {
                                 e.stopPropagation();
                                 togglePostExpansion(post.id);
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-small mt-1 font-medium"
+                              className="text-blue-600 hover:text-blue-800 text-small mt-2 font-medium 
+                                         /* Mobile: larger tap target */
+                                         py-1 px-2 -mx-2 rounded
+                                         /* Touch feedback */
+                                         active:bg-blue-50 transition-all duration-150
+                                         /* Focus ring */
+                                         focus:outline-none focus:ring-2 focus:ring-blue-200"
                             >
                               {expandedPosts.has(post.id) ? 'Show less' : 'Show more'}
                             </button>

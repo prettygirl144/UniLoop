@@ -131,47 +131,74 @@ export default function Home() {
   }
 
   return (
-    <div className="p-4 space-y-4 min-h-screen">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
+    <div className="min-h-screen 
+                    /* Mobile: full width with padding */
+                    p-4 space-y-4
+                    /* Desktop: more generous spacing */
+                    lg:p-6 lg:space-y-6">
+      
+      {/* Mobile-optimized welcome header */}
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-large font-medium text-gray-900 mb-2 leading-tight">
+          Good day!
+        </h1>
+        <p className="text-small text-gray-600">
+          Here's what's happening at IIM Ranchi today.
+        </p>
+      </div>
+
+      {/* Mobile-optimized quick stats */}
+      <div className="grid grid-cols-2 gap-3 lg:gap-4">
         <Link href="/calendar">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
+          <Card className="shadow-sm border-gray-100 cursor-pointer 
+                           /* Mobile: enhanced touch interaction */
+                           hover:shadow-md active:scale-[0.98] transition-all duration-150
+                           /* Mobile: rounded corners */
+                           rounded-xl">
+            <CardContent className="/* Mobile: optimized padding */
+                                    p-4 lg:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-large text-primary">
+                  <p className="text-large text-primary font-medium">
                     {eventsLoading ? "..." : upcomingEvents.length}
                   </p>
-                  <p className="text-xs text-text-secondary">New Events</p>
+                  <p className="text-small text-gray-600 mt-1">New Events</p>
                 </div>
-                <Calendar className="text-medium text-primary opacity-60" size={20} />
+                <Calendar className="text-primary opacity-60 flex-shrink-0" size={20} />
               </div>
             </CardContent>
           </Card>
         </Link>
         
         <Link href="/forum?tab=announcements">
-          <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
+          <Card className="shadow-sm border-gray-100 cursor-pointer 
+                           hover:shadow-md active:scale-[0.98] transition-all duration-150
+                           rounded-xl">
+            <CardContent className="p-4 lg:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-large text-secondary">
+                  <p className="text-large text-primary font-medium">
                     {isLoading ? "..." : (announcements?.length || 0)}
                   </p>
-                  <p className="text-xs text-text-secondary">Announcements</p>
+                  <p className="text-small text-gray-600 mt-1">Announcements</p>
                 </div>
-                <MessageSquare className="text-medium text-secondary opacity-60" size={20} />
+                <MessageSquare className="text-primary opacity-60 flex-shrink-0" size={20} />
               </div>
             </CardContent>
           </Card>
         </Link>
       </div>
-      {/* Recent Announcements */}
-      <div className="space-y-3">
+      {/* Mobile-optimized recent announcements */}
+      <div className="space-y-4 lg:space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-medium">Latest Updates</h3>
+          <h3 className="text-medium font-medium">Latest Updates</h3>
           <Link href="/forum?tab=announcements">
-            <Button variant="ghost" size="sm" className="text-primary">
+            <Button variant="ghost" size="sm" 
+                    className="text-primary 
+                               /* Mobile: larger tap target */
+                               h-9 px-3 
+                               /* Touch feedback */
+                               active:scale-95 transition-all duration-150">
               See All
             </Button>
           </Link>

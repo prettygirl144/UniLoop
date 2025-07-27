@@ -646,25 +646,44 @@ export default function Calendar() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="w-full min-h-screen
+                    /* Mobile: full width with padding */
+                    p-4 space-y-4
+                    /* Desktop: more generous spacing */
+                    lg:p-6 lg:space-y-6">
+      
+      {/* Mobile-optimized header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-large">Events Calendar</h2>
-        <div className="flex items-center gap-2">
+        <h2 className="text-large font-medium">Events Calendar</h2>
+        <div className="flex items-center gap-2 lg:gap-3">
           <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'calendar')}>
-            <TabsList className="h-8">
-              <TabsTrigger value="list" className="px-2 py-1">
-                <List size={16} />
+            <TabsList className="/* Mobile: larger height for easier tapping */
+                               h-10 lg:h-8
+                               /* Mobile: rounded corners */
+                               rounded-xl">
+              <TabsTrigger value="list" className="/* Mobile: larger tap targets */
+                                                  px-3 py-2 lg:px-2 lg:py-1
+                                                  /* Touch feedback */
+                                                  active:scale-95 transition-all duration-150">
+                <List size={16} className="flex-shrink-0" />
               </TabsTrigger>
-              <TabsTrigger value="calendar" className="px-2 py-1">
-                <Grid3X3 size={16} />
+              <TabsTrigger value="calendar" className="px-3 py-2 lg:px-2 lg:py-1
+                                                       active:scale-95 transition-all duration-150">
+                <Grid3X3 size={16} className="flex-shrink-0" />
               </TabsTrigger>
             </TabsList>
           </Tabs>
           {canCreateEvents && (
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
-                <Button className="bg-primary text-white text-small px-3 py-2 h-8">
-                  <Plus size={14} className="mr-1" />
+                <Button className="bg-primary text-white text-small font-medium
+                                  /* Mobile: larger tap target */
+                                  px-3 py-2 h-10 lg:h-8
+                                  /* Touch feedback */
+                                  active:scale-95 transition-all duration-150
+                                  /* Mobile: rounded corners */
+                                  rounded-xl lg:rounded-lg">
+                  <Plus size={14} className="mr-1 flex-shrink-0" />
                   <span className="hidden sm:inline">Add Event</span>
                   <span className="sm:hidden">Add</span>
                 </Button>

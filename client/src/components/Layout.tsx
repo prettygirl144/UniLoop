@@ -9,21 +9,42 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="max-w-sm mx-auto bg-surface min-h-screen shadow-2xl relative">
+    <div className="w-full min-h-screen bg-surface relative
+                    /* Mobile-first: full width with padding */
+                    px-4 sm:px-6 md:px-8 lg:px-12
+                    /* Desktop: centered layout with max width */
+                    lg:max-w-7xl lg:mx-auto
+                    /* Mobile optimization: prevent horizontal scroll */
+                    overflow-x-hidden">
       <PWAInstallPrompt />
       <TopAppBar />
       
-      <div className="pb-20">
-        {children}
+      {/* Main content area with responsive padding */}
+      <div className="pt-16 pb-20 
+                      /* Mobile: minimal spacing */
+                      min-h-screen
+                      /* Desktop: more generous spacing */
+                      lg:pt-20 lg:pb-8">
+        <div className="w-full 
+                       /* Mobile: full width */
+                       max-w-full
+                       /* Desktop: responsive max width */
+                       lg:max-w-6xl lg:mx-auto">
+          {children}
+        </div>
       </div>
 
       <BottomNavigation />
       
-      {/* Offline Indicator */}
-      <div id="offline-indicator" className="hidden fixed top-16 left-4 right-4 bg-error text-white p-3 rounded-lg shadow-lg z-40 max-w-sm mx-auto">
+      {/* Responsive Offline Indicator */}
+      <div id="offline-indicator" className="hidden fixed top-16 left-4 right-4 bg-error text-white p-3 rounded-lg shadow-lg z-40
+                                           /* Mobile: full width minus padding */
+                                           mx-4
+                                           /* Desktop: centered with max width */
+                                           lg:max-w-md lg:mx-auto lg:left-auto lg:right-auto">
         <div className="flex items-center space-x-2">
           <i className="fas fa-wifi-slash"></i>
-          <span className="text-sm">You're offline. Some features may be limited.</span>
+          <span className="text-small">You're offline. Some features may be limited.</span>
         </div>
       </div>
     </div>
