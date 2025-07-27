@@ -22,7 +22,7 @@ export default function Auth0Login() {
           <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-large">Welcome to UniLoop</CardTitle>
+          <CardTitle className="text-large">Welcome to UniLoop@IIMR</CardTitle>
           <CardDescription>
             Sign in with your Google account to access the campus management system
           </CardDescription>

@@ -112,18 +112,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Complete App Rebranding from Campus Connect to UniLoop (COMPLETED)
-- **Comprehensive Name Update**: Systematically replaced all instances of "Campus Connect" with "UniLoop" across the entire codebase
+### January 2025 - Complete App Rebranding to UniLoop@IIMR with Custom Favicon (COMPLETED)
+- **Comprehensive Name Update**: Systematically replaced all instances of "Campus Connect" with "UniLoop@IIMR" across the entire codebase
   - Updated main app title, manifest.json, service worker cache name, and PWA installation prompts
   - Modified HTML page titles, offline page content, and Auth0 configuration references
   - Changed API audience URLs from campusconnect.app to uniloop.app in auth configuration
   - Updated component labels, user-facing text, and documentation references
   - Modified Auth0 setup guide with new application names and API identifiers
-- **Cross-Platform Consistency**: Ensured unified branding across all user touchpoints
-  - PWA manifest updated with "UniLoop" as both full name and short name
-  - Service worker cache renamed to "uniloop-v1" for proper versioning
-  - Installation prompts and app titles consistently use "UniLoop" branding
-  - Authentication flows and welcome messages reflect new app identity
+- **Custom Favicon Implementation**: Created and integrated UniLoop logomark as favicon across all platforms
+  - Generated multiple favicon sizes (16x16, 32x32, 48x48, 144x144, 192x192, 512x512) from provided UniLoop logo
+  - Updated HTML favicon links with proper size attributes for optimal browser compatibility
+  - Replaced PWA manifest icons with UniLoop branding for consistent app installation experience
+  - Added proper Apple touch icons for iOS home screen installation
+- **Cross-Platform Consistency**: Ensured unified "UniLoop@IIMR" branding across all user touchpoints
+  - PWA manifest updated with institution-specific branding including IIM Ranchi identification
+  - Installation prompts and app titles consistently use "UniLoop@IIMR" branding
+  - Authentication flows, welcome messages, and offline pages reflect new institutional identity
+  - Meta descriptions updated to include IIM Ranchi campus management context
 
 ### January 2025 - Complete PWA "Add to Home Screen" Implementation (COMPLETED)
 - **Reliable PWA Installation**: Implemented all requirements for reliable "Add to Home Screen" functionality across browsers

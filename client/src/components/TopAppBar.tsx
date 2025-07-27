@@ -40,7 +40,7 @@ export default function TopAppBar() {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-medium lg:text-large font-medium truncate">UniLoop</h1>
+            <h1 className="text-medium lg:text-large font-medium truncate">UniLoop@IIMR</h1>
             <p className="text-small lg:text-medium opacity-80 capitalize truncate">
               {(user as any)?.role || 'Student'} Portal
             </p>
@@ -134,7 +134,7 @@ export default function TopAppBar() {
               </div>
               <div className="space-y-3">
                 <div className="p-3 bg-primary bg-opacity-5 rounded-lg border-l-4 border-primary lg:p-4">
-                  <p className="text-small font-medium">Welcome to UniLoop!</p>
+                  <p className="text-small font-medium">Welcome to UniLoop@IIMR!</p>
                   <p className="text-small text-text-secondary mt-1">Get started by exploring the features</p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400 lg:p-4">

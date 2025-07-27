@@ -16,8 +16,8 @@ export default function InstallFAB() {
                  bg-primary hover:bg-primary/90 text-white
                  transition-all duration-300 ease-in-out
                  animate-pulse-soft"
-      aria-label="Install UniLoop app"
-      title="Install UniLoop"
+      aria-label="Install UniLoop@IIMR app"
+      title="Install UniLoop@IIMR"
     >
       <Download size={20} />
     </Button>
