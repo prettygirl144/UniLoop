@@ -220,7 +220,7 @@ export default function Home() {
                   <h3 className="text-medium lg:text-large font-bold text-white">
                     Management Triathlon
                   </h3>
-                  <p className="text-small text-white/90 mt-1">
+                  <p className="text-white/90 mt-1 bg-[#635d4b7d] pl-[5px] pr-[5px] ml-[0px] mr-[0px]">
                     View team rankings and leaderboard
                   </p>
                 </div>

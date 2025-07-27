@@ -476,18 +476,18 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="users" className="flex flex-col items-center gap-1 p-3 text-center">
-              <Users className="h-4 w-4" />
-              <span className="text-xs leading-tight">User Management</span>
+          <TabsList className="grid w-full grid-cols-3 h-16">
+            <TabsTrigger value="users" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
+              <Users className="h-3 w-3" />
+              <span className="text-xs leading-none">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="students" className="flex flex-col items-center gap-1 p-3 text-center">
-              <Database className="h-4 w-4" />
-              <span className="text-xs leading-tight">Student Directory</span>
+            <TabsTrigger value="students" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
+              <Database className="h-3 w-3" />
+              <span className="text-xs leading-none">Students</span>
             </TabsTrigger>
-            <TabsTrigger value="logs" className="flex flex-col items-center gap-1 p-3 text-center">
-              <History className="h-4 w-4" />
-              <span className="text-xs leading-tight">Upload History</span>
+            <TabsTrigger value="logs" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
+              <History className="h-3 w-3" />
+              <span className="text-xs leading-none">Logs</span>
             </TabsTrigger>
           </TabsList>
 
