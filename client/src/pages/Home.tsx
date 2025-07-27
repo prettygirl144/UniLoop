@@ -217,7 +217,7 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <h3 className="lg:text-large font-bold text-white bg-[#99814861] pl-[4px] pr-[4px]">
+                  <h3 className="lg:text-large font-bold text-white bg-[#0000002e] pl-[4px] pr-[4px]">
                     Management Triathlon
                   </h3>
                   <p className="text-white/90 mt-1 bg-[#635d4b7d] pl-[5px] pr-[5px] ml-[0px] mr-[0px]">
