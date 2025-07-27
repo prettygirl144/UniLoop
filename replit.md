@@ -109,6 +109,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Image Upload System for Triathlon Team Logos (IN PROGRESS)
+- **Backend Image Upload Route**: Added `/api/upload/image` endpoint with multer diskStorage configuration
+  - 5MB file size limit with image-only validation (PNG, JPG, GIF)
+  - Unique filename generation with timestamp prefix
+  - Proper authorization using triathlon permission middleware
+  - Auto-creation of uploads directory with proper static file serving
+- **Frontend File Upload Interface**: Enhanced Add Team and Edit Team dialogs with dual upload options
+  - Drag & drop file picker with upload progress and preview functionality
+  - Alternative URL input option with mutual exclusivity (OR logic implementation)
+  - Image preview with removal capability and clean state management
+  - Fixed form validation to allow either file upload OR URL input without requiring both
+- **Permission System Integration**: Added triathlon permission to admin users in database
+  - Updated user permissions to include triathlon access for team logo management
+  - Fixed authorization middleware to properly handle admin override for triathlon features
+- **Technical Fixes**: Resolved multer configuration issues and TypeScript compatibility
+  - Fixed storage variable naming conflict with app storage
+  - Corrected file path handling and filename generation
+  - Updated form submission logic to prioritize uploaded images over URL inputs
+
 ### January 2025 - Complete RBAC System with Triathlon Permissions and Color-Coded Community Categories (COMPLETED)
 - **RBAC Implementation for Triathlon**: Added comprehensive role-based access control for Triathlon management
   - New `triathlon` permission in user schema and admin interface allowing specific users to manage teams

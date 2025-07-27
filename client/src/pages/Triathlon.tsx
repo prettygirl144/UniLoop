@@ -24,7 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 // Form schemas
 const teamSchema = z.object({
   name: z.string().min(1, 'Team name is required').max(100, 'Team name too long'),
-  logoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  logoUrl: z.string().optional().or(z.literal('')),
 });
 
 const pointsSchema = z.object({
@@ -205,7 +205,7 @@ export default function Triathlon() {
     
     const teamData: InsertTriathlonTeam = {
       ...data,
-      logoUrl: data.logoUrl || null,
+      logoUrl: uploadedImageUrl || data.logoUrl || undefined,
       createdBy: user && typeof user === 'object' && 'id' in user ? user.id as string : '',
     };
     
@@ -214,7 +214,11 @@ export default function Triathlon() {
 
   const onUpdateTeam = async (data: TeamForm) => {
     if (!selectedTeam) return;
-    updateTeamMutation.mutate({ teamId: selectedTeam.id, data });
+    const updatedData = {
+      ...data,
+      logoUrl: uploadedImageUrl || data.logoUrl || undefined,
+    };
+    updateTeamMutation.mutate({ teamId: selectedTeam.id, data: updatedData });
   };
 
   const onDeleteTeam = () => {
@@ -369,7 +373,15 @@ export default function Triathlon() {
                                 </div>
                                 <Input 
                                   placeholder="https://example.com/logo.png" 
-                                  {...field} 
+                                  {...field}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    field.onChange(value);
+                                    // Clear uploaded image if user starts typing URL
+                                    if (value && uploadedImageUrl) {
+                                      setUploadedImageUrl('');
+                                    }
+                                  }}
                                 />
                               </div>
                             )}
@@ -819,7 +831,15 @@ export default function Triathlon() {
                               </div>
                               <Input 
                                 placeholder="https://example.com/logo.png" 
-                                {...field} 
+                                {...field}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  field.onChange(value);
+                                  // Clear uploaded image if user starts typing URL
+                                  if (value && uploadedImageUrl) {
+                                    setUploadedImageUrl('');
+                                  }
+                                }}
                               />
                             </div>
                           )}

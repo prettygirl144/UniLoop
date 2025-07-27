@@ -40,7 +40,9 @@ const multerStorage = multer.diskStorage({
     // Generate unique filename
     const timestamp = Date.now();
     const ext = path.extname(file.originalname);
-    cb(null, `team-logo-${timestamp}${ext}`);
+    const filename = `team-logo-${timestamp}${ext}`;
+    console.log("Generated filename:", filename);
+    cb(null, filename);
   }
 });
 
@@ -1464,10 +1466,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("File uploaded successfully:", req.file);
+      console.log("req.file.filename:", req.file.filename);
+      console.log("req.file.path:", req.file.path);
 
       // File is already saved with the correct name by multer diskStorage
       const filename = req.file.filename;
       const fileUrl = `/uploads/${filename}`;
+      
+      console.log("Generated fileUrl:", fileUrl);
       
       res.json({ 
         success: true, 
