@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target } from 'lucide-react';
+import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -44,8 +46,10 @@ export default function Triathlon() {
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState<TeamWithRank | null>(null);
   const [showAddTeam, setShowAddTeam] = useState(false);
+  const [showEditTeam, setShowEditTeam] = useState(false);
   const [showEditPoints, setShowEditPoints] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<TeamWithRank | null>(null);
 
   const isAdmin = user && typeof user === 'object' && 'role' in user ? user.role === 'admin' : false;
 
@@ -83,6 +87,32 @@ export default function Triathlon() {
     },
     onError: () => {
       toast({ title: "Failed to create team", variant: "destructive" });
+    },
+  });
+
+  const updateTeamMutation = useMutation({
+    mutationFn: ({ teamId, data }: { teamId: number; data: TeamForm }) =>
+      apiRequest('PUT', `/api/triathlon/teams/${teamId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/teams'] });
+      setShowEditTeam(false);
+      teamForm.reset();
+      toast({ title: "Team updated successfully!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update team", variant: "destructive" });
+    },
+  });
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: (teamId: number) => apiRequest('DELETE', `/api/triathlon/teams/${teamId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/teams'] });
+      setTeamToDelete(null);
+      toast({ title: "Team deleted successfully!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete team", variant: "destructive" });
     },
   });
 
@@ -140,6 +170,22 @@ export default function Triathlon() {
     };
     
     createTeamMutation.mutate(teamData);
+  };
+
+  const onUpdateTeam = async (data: TeamForm) => {
+    if (!selectedTeam) return;
+    updateTeamMutation.mutate({ teamId: selectedTeam.id, data });
+  };
+
+  const onDeleteTeam = () => {
+    if (!teamToDelete) return;
+    deleteTeamMutation.mutate(teamToDelete.id);
+  };
+
+  const handleEditTeam = (team: TeamWithRank) => {
+    setSelectedTeam(team);
+    teamForm.reset({ name: team.name, logoUrl: team.logoUrl || '' });
+    setShowEditTeam(true);
   };
 
   const onUpdatePoints = async (data: PointsForm) => {
@@ -340,29 +386,50 @@ export default function Triathlon() {
                       </td>
                       {isAdmin && (
                         <td className="p-4">
-                          <div className="flex justify-center space-x-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTeam(team);
-                                setShowEditPoints(true);
-                              }}
-                              className="px-2"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTeam(team);
-                                setShowHistory(true);
-                              }}
-                              className="px-2"
-                            >
-                              <History className="h-3 w-3" />
-                            </Button>
+                          <div className="flex justify-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => handleEditTeam(team)}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  <span>Edit Team</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedTeam(team);
+                                    setShowEditPoints(true);
+                                  }}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <Trophy className="h-4 w-4" />
+                                  <span>Edit Points</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedTeam(team);
+                                    setShowHistory(true);
+                                  }}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <History className="h-4 w-4" />
+                                  <span>View History</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setTeamToDelete(team)}
+                                  className="flex items-center space-x-2 text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span>Delete Team</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       )}
@@ -537,6 +604,86 @@ export default function Triathlon() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit Team Dialog */}
+      {isAdmin && (
+        <Dialog open={showEditTeam} onOpenChange={setShowEditTeam}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Team - {selectedTeam?.name}</DialogTitle>
+            </DialogHeader>
+            <Form {...teamForm}>
+              <form onSubmit={teamForm.handleSubmit(onUpdateTeam)} className="space-y-4">
+                <FormField
+                  control={teamForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Team Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter team name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={teamForm.control}
+                  name="logoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Logo URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://example.com/logo.png" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowEditTeam(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateTeamMutation.isPending}
+                    className="flex-1"
+                  >
+                    Update
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Team Confirmation Dialog */}
+      <AlertDialog open={!!teamToDelete} onOpenChange={() => setTeamToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Team</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{teamToDelete?.name}"? This action cannot be undone and will also delete all point history for this team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onDeleteTeam}
+              disabled={deleteTeamMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Team
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

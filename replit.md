@@ -109,7 +109,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Management Triathlon Banner Enhancement (COMPLETED)
+### January 2025 - Management Triathlon Admin Team Management (COMPLETED)
+- **Complete Team CRUD Operations**: Implemented full admin controls for team management
+  - Added backend API endpoints for updating (`PUT /api/triathlon/teams/:teamId`) and deleting (`DELETE /api/triathlon/teams/:teamId`) teams
+  - Enhanced frontend with comprehensive dropdown menu for admin actions (Edit Team, Edit Points, View History, Delete Team)
+  - Edit Team dialog allows updating team name and logo URL with validation
+  - Delete confirmation dialog with warning about permanent data loss including point history
+  - All operations include proper error handling and success notifications
 - **Enhanced Triathlon Banner Design**: Updated the Management Triathlon banner with new visual branding
   - Added custom triathlon logo background image to replace gradient background
   - Improved spacing between quick stats section and triathlon banner (mb-8 and mt-4)

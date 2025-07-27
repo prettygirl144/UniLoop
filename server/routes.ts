@@ -1444,17 +1444,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/triathlon/teams/:teamId', adminOnly(), async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const { name, logoUrl } = req.body;
+      
+      const updatedTeam = await storage.updateTriathlonTeam(teamId, { name, logoUrl });
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error updating triathlon team:", error);
+      res.status(500).json({ message: "Failed to update team" });
+    }
+  });
+
+  app.delete('/api/triathlon/teams/:teamId', adminOnly(), async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      await storage.deleteTriathlonTeam(teamId);
+      res.json({ message: "Team deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting triathlon team:", error);
+      res.status(500).json({ message: "Failed to delete team" });
+    }
+  });
+
   app.post('/api/triathlon/teams/:teamId/points', adminOnly(), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
       const { category, pointChange, reason } = req.body;
+      
+      const user = extractUser(req);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       
       const updatedTeam = await storage.updateTriathlonPoints(
         teamId, 
         category, 
         pointChange, 
         reason, 
-        req.currentUser.id
+        user.id
       );
       
       res.json(updatedTeam);

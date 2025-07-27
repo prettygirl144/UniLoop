@@ -1033,6 +1033,29 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateTriathlonTeam(teamId: number, updates: Partial<Pick<InsertTriathlonTeam, 'name' | 'logoUrl'>>): Promise<TriathlonTeam> {
+    const [updated] = await db
+      .update(triathlonTeams)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(triathlonTeams.id, teamId))
+      .returning();
+    
+    if (!updated) {
+      throw new Error('Team not found');
+    }
+    
+    return updated;
+  }
+
+  async deleteTriathlonTeam(teamId: number): Promise<void> {
+    await db
+      .delete(triathlonTeams)
+      .where(eq(triathlonTeams.id, teamId));
+  }
+
   async updateTriathlonPoints(
     teamId: number, 
     category: 'academic' | 'cultural' | 'sports' | 'surprise', 
