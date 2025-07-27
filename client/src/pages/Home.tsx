@@ -7,6 +7,7 @@ import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
 import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
+import triathlonBannerBg from '@assets/TMT2.0 (1)_1753612106863.png';
 
 import Asset_12_3x from "@assets/Asset 12@3x.png";
 
@@ -199,8 +200,13 @@ export default function Home() {
       {/* Management Triathlon Banner */}
       <Link href="/triathlon">
         <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0 mt-4">
-          <div className="relative bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 p-4 lg:p-6">
-            <div className="absolute inset-0 bg-black/10 mt-[0px] mb-[0px]"></div>
+          <div className="relative p-4 lg:p-6" style={{
+            backgroundImage: `url(${triathlonBannerBg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}>
+            <div className="absolute inset-0 bg-black/20"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
