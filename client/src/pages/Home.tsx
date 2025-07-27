@@ -8,6 +8,8 @@ import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
 import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
 
+import Asset_12_3x from "@assets/Asset 12@3x.png";
+
 interface Event {
   id: number;
   title: string;
@@ -203,7 +205,7 @@ export default function Home() {
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
                   <img 
-                    src={triathlonLogo} 
+                    src={Asset_12_3x} 
                     alt="Management Triathlon"
                     className="w-8 h-8 lg:w-10 lg:h-10 object-contain"
                   />
