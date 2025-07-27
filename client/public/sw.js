@@ -46,14 +46,17 @@ self.addEventListener('fetch', (event) => {
             return response;
           }
           
-          // Clone the response because it's a stream
-          const responseToCache = response.clone();
-          
-          // Cache successful responses for non-API requests
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          // Only cache http/https requests, skip chrome-extension and other schemes
+          if (event.request.url.startsWith('http')) {
+            // Clone the response because it's a stream
+            const responseToCache = response.clone();
+            
+            // Cache successful responses for non-API requests
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+          }
           
           return response;
         }).catch(() => {
