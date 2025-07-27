@@ -200,7 +200,7 @@ export default function Home() {
       <Link href="/triathlon">
         <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0">
           <div className="relative bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 p-4 lg:p-6">
-            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute inset-0 bg-black/10 mt-[4px] mb-[4px]"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
