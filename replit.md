@@ -1,8 +1,8 @@
-# Campus Connect - University Utility & Communications App
+# UniLoop - University Utility & Communications App
 
 ## Overview
 
-Campus Connect is a mobile-first, full-stack web application designed as a comprehensive university utility and communications platform. The application follows a modular architecture with distinct frontend and backend components, built using modern web technologies for scalability and maintainability.
+UniLoop is a mobile-first, full-stack web application designed as a comprehensive university utility and communications platform. The application follows a modular architecture with distinct frontend and backend components, built using modern web technologies for scalability and maintainability.
 
 ## User Preferences
 
@@ -112,14 +112,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Complete App Rebranding from Campus Connect to UniLoop (COMPLETED)
+- **Comprehensive Name Update**: Systematically replaced all instances of "Campus Connect" with "UniLoop" across the entire codebase
+  - Updated main app title, manifest.json, service worker cache name, and PWA installation prompts
+  - Modified HTML page titles, offline page content, and Auth0 configuration references
+  - Changed API audience URLs from campusconnect.app to uniloop.app in auth configuration
+  - Updated component labels, user-facing text, and documentation references
+  - Modified Auth0 setup guide with new application names and API identifiers
+- **Cross-Platform Consistency**: Ensured unified branding across all user touchpoints
+  - PWA manifest updated with "UniLoop" as both full name and short name
+  - Service worker cache renamed to "uniloop-v1" for proper versioning
+  - Installation prompts and app titles consistently use "UniLoop" branding
+  - Authentication flows and welcome messages reflect new app identity
+
 ### January 2025 - Complete PWA "Add to Home Screen" Implementation (COMPLETED)
 - **Reliable PWA Installation**: Implemented all requirements for reliable "Add to Home Screen" functionality across browsers
   - Fixed web app manifest with proper `start_url: "."` and local icon paths replacing external URLs
-  - Created local 192x192 and 512x512 PNG icons with Campus Connect branding in `/public/icons/`
+  - Created local 192x192 and 512x512 PNG icons with UniLoop branding in `/public/icons/`
   - Added manifest link tag and iOS-specific meta tags (`apple-mobile-web-app-capable`, `apple-touch-icon`) to index.html
 - **Enhanced Service Worker**: Improved offline functionality with proper network-first caching strategy
   - Updated service worker to cache essential resources including offline fallback page
-  - Created custom `/offline.html` page with Campus Connect branding and retry functionality
+  - Created custom `/offline.html` page with UniLoop branding and retry functionality
   - Proper service worker registration with feature detection and `window.load` event handling
 - **Cross-Platform Install Support**: Comprehensive beforeinstallprompt integration with iOS fallback
   - New `usePWAInstall` hook with proper TypeScript typing for beforeinstallprompt event

@@ -1,6 +1,6 @@
-# Auth0 Setup Guide for Campus Connect
+# Auth0 Setup Guide for UniLoop
 
-This guide will help you set up Auth0 authentication for the Campus Connect application with Google OAuth only.
+This guide will help you set up Auth0 authentication for the UniLoop application with Google OAuth only.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This guide will help you set up Auth0 authentication for the Campus Connect appl
 2. **Create a New Application**
    - Click "Applications" in the left sidebar
    - Click "Create Application"
-   - Name: "Campus Connect"
+   - Name: "UniLoop"
    - Type: "Single Page Web Applications"
    - Click "Create"
 
@@ -35,8 +35,8 @@ This guide will help you set up Auth0 authentication for the Campus Connect appl
 1. **Create API**
    - Go to "APIs" in the left sidebar
    - Click "Create API"
-   - Name: "Campus Connect API"
-   - Identifier: `https://campusconnect.app/api` (this will be your audience)
+   - Name: "UniLoop API"
+   - Identifier: `https://uniloop.app/api` (this will be your audience)
    - Signing Algorithm: "RS256"
    - Click "Create"
 
@@ -69,7 +69,7 @@ This guide will help you set up Auth0 authentication for the Campus Connect appl
 
 3. **Enable for Application**
    - Go to "Applications" tab in the Google connection
-   - Enable it for your "Campus Connect" application
+   - Enable it for your "UniLoop" application
 
 ## Step 4: Configure Environment Variables
 
@@ -78,12 +78,12 @@ Add these secrets in Replit's Secrets tab:
 
 ```env
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://campusconnect.app/api
+AUTH0_AUDIENCE=https://uniloop.app/api
 AUTH0_CLIENT_ID=your-client-id-from-auth0-app
 
 VITE_AUTH0_DOMAIN=your-tenant.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id-from-auth0-app
-VITE_AUTH0_AUDIENCE=https://campusconnect.app/api
+VITE_AUTH0_AUDIENCE=https://uniloop.app/api
 ```
 
 ### For Local Development
@@ -91,12 +91,12 @@ Create a `.env` file in the project root:
 
 ```env
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://campusconnect.app/api
+AUTH0_AUDIENCE=https://uniloop.app/api
 AUTH0_CLIENT_ID=your-client-id-from-auth0-app
 
 VITE_AUTH0_DOMAIN=your-tenant.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id-from-auth0-app
-VITE_AUTH0_AUDIENCE=https://campusconnect.app/api
+VITE_AUTH0_AUDIENCE=https://uniloop.app/api
 ```
 
 ## Step 5: Customize User Roles and Permissions
@@ -109,7 +109,7 @@ VITE_AUTH0_AUDIENCE=https://campusconnect.app/api
    - Code:
    ```javascript
    function(user, context, callback) {
-     const namespace = 'https://campusconnect.app/';
+     const namespace = 'https://uniloop.app/';
      
      // Default role for all users
      const assignedRoles = user.app_metadata?.roles || ['student'];

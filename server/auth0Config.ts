@@ -57,8 +57,8 @@ export const extractUser = (req: any) => {
       email: req.auth.payload.email,
       name: req.auth.payload.name,
       picture: req.auth.payload.picture,
-      role: req.auth.payload['https://campusconnect.app/roles']?.[0] || 'student',
-      permissions: req.auth.payload['https://campusconnect.app/permissions'] || {},
+      role: req.auth.payload['https://uniloop.app/roles']?.[0] || 'student',
+      permissions: req.auth.payload['https://uniloop.app/permissions'] || {},
     };
   }
   

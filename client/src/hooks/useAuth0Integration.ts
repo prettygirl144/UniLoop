@@ -89,8 +89,8 @@ export function useAuth0Integration() {
         email: auth0.user.email,
         name: auth0.user.name,
         picture: auth0.user.picture,
-        role: auth0.user['https://campusconnect.app/roles']?.[0] || 'student',
-        permissions: auth0.user['https://campusconnect.app/permissions'] || {},
+        role: auth0.user['https://uniloop.app/roles']?.[0] || 'student',
+        permissions: auth0.user['https://uniloop.app/permissions'] || {},
       };
     }
     return existingAuth.user;

@@ -134,7 +134,7 @@ export default function TopAppBar() {
               </div>
               <div className="space-y-3">
                 <div className="p-3 bg-primary bg-opacity-5 rounded-lg border-l-4 border-primary lg:p-4">
-                  <p className="text-small font-medium">Welcome to Campus Connect!</p>
+                  <p className="text-small font-medium">Welcome to UniLoop!</p>
                   <p className="text-small text-text-secondary mt-1">Get started by exploring the features</p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400 lg:p-4">

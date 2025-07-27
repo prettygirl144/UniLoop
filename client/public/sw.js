@@ -1,4 +1,4 @@
-const CACHE_NAME = 'campus-connect-v1';
+const CACHE_NAME = 'uniloop-v1';
 const urlsToCache = [
   '/',
   '/offline.html',

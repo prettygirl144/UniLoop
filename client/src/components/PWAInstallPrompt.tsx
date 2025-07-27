@@ -44,7 +44,7 @@ export default function PWAInstallPrompt() {
           <div className="flex items-start space-x-3 flex-1">
             <Smartphone size={20} className="mt-1 flex-shrink-0" />
             <div className="flex-1">
-              <div className="text-sm font-medium mb-1">Install Campus Connect</div>
+              <div className="text-sm font-medium mb-1">Install UniLoop</div>
               <div className="text-xs opacity-90 flex items-center">
                 Tap <Share size={12} className="mx-1" /> Share → 
                 <Plus size={12} className="mx-1" /> Add to Home Screen
@@ -73,7 +73,7 @@ export default function PWAInstallPrompt() {
       <div className="flex items-center justify-between max-w-sm mx-auto">
         <div className="flex items-center space-x-3">
           <Smartphone size={20} />
-          <span className="text-sm font-medium">Install Campus Connect</span>
+          <span className="text-sm font-medium">Install UniLoop</span>
         </div>
         <div className="flex space-x-2">
           <Button
