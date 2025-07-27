@@ -1469,9 +1469,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("req.file.filename:", req.file.filename);
       console.log("req.file.path:", req.file.path);
 
-      // File is already saved with the correct name by multer diskStorage
-      const filename = req.file.filename;
-      const fileUrl = `/uploads/${filename}`;
+      // Handle both diskStorage and memoryStorage cases
+      let filename: string;
+      let fileUrl: string;
+
+      if (req.file.filename) {
+        // diskStorage case - file already saved
+        filename = req.file.filename;
+        fileUrl = `/uploads/${filename}`;
+      } else {
+        // memoryStorage case - need to save manually
+        const timestamp = Date.now();
+        const ext = path.extname(req.file.originalname);
+        filename = `team-logo-${timestamp}${ext}`;
+        const filepath = path.join('uploads', filename);
+        
+        // Ensure uploads directory exists
+        if (!fs.existsSync('uploads')) {
+          fs.mkdirSync('uploads', { recursive: true });
+        }
+        
+        // Write buffer to file
+        fs.writeFileSync(filepath, req.file.buffer);
+        fileUrl = `/uploads/${filename}`;
+      }
       
       console.log("Generated fileUrl:", fileUrl);
       
