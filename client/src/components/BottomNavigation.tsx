@@ -37,22 +37,7 @@ export default function BottomNavigation() {
           return (
             <Link key={item.path} href={item.path}>
               <button 
-                className={`flex flex-col items-center 
-                           /* Mobile: optimized tap target and spacing */
-                           py-2 px-3 min-w-[52px] min-h-[48px]
-                           /* Desktop: larger targets */
-                           lg:py-3 lg:px-4 lg:min-w-[60px]
-                           /* Touch feedback */
-                           active:scale-95 transition-all duration-150
-                           /* Focus ring for accessibility */
-                           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-30
-                           /* Color states */
-                           ${isActive 
-                             ? 'text-primary bg-primary bg-opacity-10 rounded-lg' 
-                             : 'text-text-secondary hover:text-primary hover:bg-gray-50'
-                           }
-                           /* Mobile: rounded corners for modern feel */
-                           rounded-lg`}
+                className="flex flex-col items-center /* Mobile: optimized tap target and spacing */ py-2 px-3 min-w-[52px] min-h-[48px] /* Desktop: larger targets */ lg:py-3 lg:px-4 lg:min-w-[60px] /* Touch feedback */ active:scale-95 transition-all duration-150 /* Focus ring for accessibility */ focus:outline-none focus:ring-2 focus:ring-opacity-30 /* Color states */ text-primary /* Mobile: corners for modern feel */ rounded-lg bg-[#8dcaf724]"
                 aria-label={item.label}
               >
                 <Icon size={20} className="mb-1 lg:mb-2 flex-shrink-0" />
@@ -64,7 +49,6 @@ export default function BottomNavigation() {
           );
         })}
       </div>
-      
       {/* Safe area padding for devices with home indicator */}
       <div className="h-safe-bottom bg-surface lg:hidden" />
     </div>
