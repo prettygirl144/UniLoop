@@ -7,7 +7,7 @@ import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
 import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
-import triathlonBannerBg from '@assets/TMT2.0 (1)_1753612106863.png';
+import triathlonBannerBg from '@assets/triathlon-banner-bg.png';
 
 import Asset_12_3x from "@assets/Asset 12@3x.png";
 
