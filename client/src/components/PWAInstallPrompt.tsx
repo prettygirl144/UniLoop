@@ -1,44 +1,72 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Smartphone } from 'lucide-react';
+import { X, Smartphone, Share, Plus } from 'lucide-react';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { isInstallable, installApp, dismissPrompt, canInstall } = usePWAInstall();
+  const [showIOSBanner, setShowIOSBanner] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    // Detect iOS Safari
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = (window.navigator as any).standalone;
+    const isInAppBrowser = !isStandalone && window.matchMedia('(display-mode: browser)').matches;
+
+    if (isIOS && !isStandalone && isInAppBrowser) {
+      // Show iOS-specific install banner after a short delay
+      const timer = setTimeout(() => {
+        setShowIOSBanner(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else if (canInstall) {
       setShowPrompt(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
+    }
+  }, [canInstall]);
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      }
-      
-      setDeferredPrompt(null);
-      setShowPrompt(false);
-    }
-  };
-
-  const dismissPrompt = () => {
+    await installApp();
     setShowPrompt(false);
   };
 
-  if (!showPrompt) return null;
+  const handleDismiss = () => {
+    dismissPrompt();
+    setShowPrompt(false);
+    setShowIOSBanner(false);
+  };
+
+  // iOS Safari install banner
+  if (showIOSBanner) {
+    return (
+      <div className="fixed top-0 left-0 right-0 bg-primary text-white p-4 z-50 shadow-lg">
+        <div className="flex items-start justify-between max-w-sm mx-auto">
+          <div className="flex items-start space-x-3 flex-1">
+            <Smartphone size={20} className="mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-medium mb-1">Install Campus Connect</div>
+              <div className="text-xs opacity-90 flex items-center">
+                Tap <Share size={12} className="mx-1" /> Share → 
+                <Plus size={12} className="mx-1" /> Add to Home Screen
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDismiss}
+            className="text-white hover:bg-white hover:bg-opacity-10 p-1 flex-shrink-0 ml-2"
+            aria-label="Dismiss install prompt"
+          >
+            <X size={16} />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard beforeinstallprompt banner
+  if (!showPrompt || !isInstallable) return null;
 
   return (
     <div className="fixed top-0 left-0 right-0 bg-primary text-white p-4 z-50 shadow-lg">
@@ -59,8 +87,9 @@ export default function PWAInstallPrompt() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={dismissPrompt}
+            onClick={handleDismiss}
             className="text-white hover:bg-white hover:bg-opacity-10 p-1"
+            aria-label="Dismiss install prompt"
           >
             <X size={16} />
           </Button>
