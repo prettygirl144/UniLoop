@@ -144,7 +144,6 @@ export default function Home() {
                     p-4 space-y-4
                     /* Desktop: more generous spacing */
                     lg:p-6 lg:space-y-6">
-      
       {/* Mobile-optimized welcome header */}
       <div className="mb-6 lg:mb-8">
         <h1 className="text-large font-medium text-gray-900 mb-2 leading-tight">
@@ -154,9 +153,8 @@ export default function Home() {
           Here's what's happening at IIM Ranchi today.
         </p>
       </div>
-
       {/* Mobile-optimized quick stats */}
-      <div className="grid grid-cols-2 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-[12px]">
         <Link href="/calendar">
           <Card className="shadow-sm border-gray-100 cursor-pointer 
                            /* Mobile: enhanced touch interaction */
@@ -196,7 +194,6 @@ export default function Home() {
           </Card>
         </Link>
       </div>
-
       {/* Management Triathlon Banner */}
       <Link href="/triathlon">
         <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 active:scale-[0.98] rounded-xl border-0">
@@ -228,7 +225,6 @@ export default function Home() {
           </div>
         </Card>
       </Link>
-      
       {/* This Week's Events Slider */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -329,7 +325,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
       {/* Quick Actions - Always Visible */}
       <div className="grid grid-cols-2 gap-3 mt-4">
         <Link href="/forum">
@@ -350,8 +345,6 @@ export default function Home() {
           </Card>
         </Link>
       </div>
-
-      
     </div>
   );
 }
