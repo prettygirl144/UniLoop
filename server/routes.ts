@@ -28,8 +28,24 @@ import path from "path";
 import fs from "fs";
 
 // Configure multer for file uploads
+const multerStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Ensure uploads directory exists
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads', { recursive: true });
+    }
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname);
+    cb(null, `team-logo-${timestamp}${ext}`);
+  }
+});
+
 const upload = multer({
-  dest: 'uploads/',
+  storage: multerStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -1447,16 +1463,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Generate a unique filename
-      const timestamp = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const filename = `team-logo-${timestamp}${ext}`;
-      const filepath = path.join('uploads', filename);
+      console.log("File uploaded successfully:", req.file);
 
-      // Move file to permanent location
-      fs.renameSync(req.file.path, filepath);
-
-      // Return the URL that can be used to access the file
+      // File is already saved with the correct name by multer diskStorage
+      const filename = req.file.filename;
       const fileUrl = `/uploads/${filename}`;
       
       res.json({ 
