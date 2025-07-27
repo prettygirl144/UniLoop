@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
+import uniloopLogomark from '@assets/uniloop logomark_1753618415583.png';
 
 export default function TopAppBar() {
   const { user } = useAuth();
@@ -32,7 +33,11 @@ export default function TopAppBar() {
           <div className="w-8 h-8 lg:w-10 lg:h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0
                           /* Mobile: touch-optimized */
                           active:bg-opacity-30 transition-colors duration-150">
-            <i className="fas fa-graduation-cap text-small lg:text-medium"></i>
+            <img 
+              src={uniloopLogomark} 
+              alt="UniLoop Logo" 
+              className="w-5 h-5 lg:w-6 lg:h-6 object-contain"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-medium lg:text-large font-medium truncate">UniLoop</h1>
