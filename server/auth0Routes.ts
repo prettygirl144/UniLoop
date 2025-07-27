@@ -83,7 +83,17 @@ router.get('/callback', async (req, res) => {
     const isAdminOverride = ADMIN_OVERRIDE_EMAILS.includes(userInfo.email.toLowerCase());
     
     // Check if user is in student directory (required for non-admin access)
-    const studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
+    let studentRecord = null;
+    try {
+      studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
+    } catch (error) {
+      console.error("Database error checking student record:", error);
+      // For database connection issues, temporarily allow admin overrides through
+      if (!isAdminOverride) {
+        const errorMessage = `Database connection error. Please try again later or contact administrator.`;
+        return res.redirect(`/?error=database&message=${encodeURIComponent(errorMessage)}`);
+      }
+    }
     
     if (!isAdminOverride && !studentRecord) {
       // User not authorized - redirect with error
@@ -91,57 +101,86 @@ router.get('/callback', async (req, res) => {
       return res.redirect(`/?error=unauthorized&message=${encodeURIComponent(errorMessage)}`);
     }
     
-    // Create or update user in our database
-    let user = await storage.getUser(userInfo.sub);
-    
-    if (!user) {
-      // New user - create with appropriate role and student info
-      const role = isAdminOverride ? 'admin' : 'student';
-      const permissions = isAdminOverride ? {
-        calendar: true,
-        attendance: true,
-        gallery: true,
-        forumMod: true,
-        diningHostel: true,
-        postCreation: true,
-      } : {};
+    // Create or update user in our database with error handling
+    let user = null;
+    try {
+      user = await storage.getUser(userInfo.sub);
       
-      user = await storage.upsertUser({
-        id: userInfo.sub,
-        email: userInfo.email,
-        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
-        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
-        profileImageUrl: userInfo.picture,
-        role: role,
-        permissions: permissions,
-        batch: studentRecord?.batch || null,
-        section: studentRecord?.section || null,
-      });
-    } else {
-      // Existing user - update profile info and upgrade to admin if in override list
-      const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
-      
-      user = await storage.upsertUser({
-        id: userInfo.sub,
-        email: userInfo.email,
-        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
-        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
-        profileImageUrl: userInfo.picture,
-        role: shouldUpgradeToAdmin ? 'admin' : user.role,
-        permissions: shouldUpgradeToAdmin ? {
+      if (!user) {
+        // New user - create with appropriate role and student info
+        const role = isAdminOverride ? 'admin' : 'student';
+        const permissions = isAdminOverride ? {
           calendar: true,
           attendance: true,
           gallery: true,
           forumMod: true,
           diningHostel: true,
           postCreation: true,
-        } : user.permissions,
-        batch: studentRecord?.batch || user.batch,
-        section: studentRecord?.section || user.section,
-      });
+        } : {};
+        
+        user = await storage.upsertUser({
+          id: userInfo.sub,
+          email: userInfo.email,
+          firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+          lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+          profileImageUrl: userInfo.picture,
+          role: role,
+          permissions: permissions,
+          batch: studentRecord?.batch || null,
+          section: studentRecord?.section || null,
+        });
+      } else {
+        // Existing user - update profile info and upgrade to admin if in override list
+        const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
+        
+        user = await storage.upsertUser({
+          id: userInfo.sub,
+          email: userInfo.email,
+          firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+          lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+          profileImageUrl: userInfo.picture,
+          role: shouldUpgradeToAdmin ? 'admin' : user.role,
+          permissions: shouldUpgradeToAdmin ? {
+            calendar: true,
+            attendance: true,
+            gallery: true,
+            forumMod: true,
+            diningHostel: true,
+            postCreation: true,
+          } : user.permissions,
+          batch: studentRecord?.batch || user.batch,
+          section: studentRecord?.section || user.section,
+        });
+      }
+    } catch (error) {
+      console.error("Database error creating/updating user:", error);
+      // For database connection issues, create a temporary session user for admin overrides
+      if (isAdminOverride) {
+        user = {
+          id: userInfo.sub,
+          email: userInfo.email,
+          firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+          lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+          profileImageUrl: userInfo.picture,
+          role: 'admin',
+          permissions: {
+            calendar: true,
+            attendance: true,
+            gallery: true,
+            forumMod: true,
+            diningHostel: true,
+            postCreation: true,
+          },
+          batch: null,
+          section: null,
+        };
+      } else {
+        const errorMessage = `Database connection error during user creation. Please try again later.`;
+        return res.redirect(`/?error=database&message=${encodeURIComponent(errorMessage)}`);
+      }
     }
 
-    // Always use the fresh user data from database (after upsert)
+    // Store user data in session
     (req as any).session.user = {
       id: user.id,
       email: user.email,
@@ -160,8 +199,33 @@ router.get('/callback', async (req, res) => {
     console.log('Admin access granted:', user.role === 'admin');
     console.log('Database user retrieved:', user);
 
-    // Redirect to home page
-    res.redirect('/');
+    // Check if this is a popup window auth flow
+    const isPopup = req.query.popup === 'true' || req.headers.referer?.includes('popup');
+    
+    if (isPopup) {
+      // For popup window, close the window with a success message
+      res.send(`
+        <html>
+          <head><title>Authentication Successful</title></head>
+          <body>
+            <script>
+              // Close popup and notify parent window
+              if (window.opener) {
+                window.opener.postMessage({ type: 'AUTH_SUCCESS' }, '*');
+                window.close();
+              } else {
+                // Fallback: redirect to home page
+                window.location.href = '/';
+              }
+            </script>
+            <p>Authentication successful! This window will close automatically.</p>
+          </body>
+        </html>
+      `);
+    } else {
+      // Regular redirect for non-popup flows
+      res.redirect('/');
+    }
     
   } catch (error: any) {
     console.error('Auth0 callback error:', error);

@@ -24,10 +24,54 @@ export default function Landing() {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
     }
+
+    // Listen for popup window authentication success messages
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'AUTH_SUCCESS') {
+        // Authentication was successful, reload the page
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+    return () => window.removeEventListener('message', handleAuthMessage);
   }, [toast]);
 
   const handleGoogleLogin = () => {
-    window.location.href = '/api/login';
+    // Try opening OAuth in a popup window first
+    try {
+      const authWindow = window.open(
+        '/api/login?popup=true', 
+        'auth', 
+        'width=500,height=600,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,status=no'
+      );
+      
+      // Check if popup was blocked
+      if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
+        throw new Error('Popup blocked');
+      }
+      
+      // Monitor the auth window for completion
+      const checkClosed = setInterval(() => {
+        if (authWindow?.closed) {
+          clearInterval(checkClosed);
+          // The message handler will handle the success case
+        }
+      }, 1000);
+      
+      // Cleanup after 60 seconds
+      setTimeout(() => {
+        clearInterval(checkClosed);
+        if (authWindow && !authWindow.closed) {
+          authWindow.close();
+        }
+      }, 60000);
+      
+    } catch (error) {
+      // Fallback to full page redirect if popup fails
+      console.log('Popup blocked or failed, using redirect method');
+      window.location.href = '/api/login';
+    }
   };
 
   return (

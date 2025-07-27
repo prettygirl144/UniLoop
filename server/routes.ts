@@ -33,7 +33,7 @@ function isWithinOneHour(dateString: string): boolean {
   return createdAt >= oneHourAgo;
 }
 
-// Authorization middleware
+// Authorization middleware with database error handling
 function authorize(permission?: string) {
   return async (req: any, res: any, next: any) => {
     const sessionUser = req.session?.user;
@@ -41,7 +41,15 @@ function authorize(permission?: string) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const user = await storage.getUser(sessionUser.id);
+    let user;
+    try {
+      user = await storage.getUser(sessionUser.id);
+    } catch (error) {
+      console.error("Database error in authorize middleware:", error);
+      // Use session user data as fallback during database issues
+      user = sessionUser;
+    }
+    
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
@@ -62,7 +70,7 @@ function authorize(permission?: string) {
   };
 }
 
-// Admin-only middleware
+// Admin-only middleware with database error handling
 function adminOnly() {
   return async (req: any, res: any, next: any) => {
     const sessionUser = req.session?.user;
@@ -70,7 +78,14 @@ function adminOnly() {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const user = await storage.getUser(sessionUser.id);
+    let user;
+    try {
+      user = await storage.getUser(sessionUser.id);
+    } catch (error) {
+      console.error("Database error in adminOnly middleware:", error);
+      // Use session user data as fallback during database issues
+      user = sessionUser;
+    }
     
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: "Admin access required" });
