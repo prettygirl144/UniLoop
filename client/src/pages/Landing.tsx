@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import iimRanchiImage from '@assets/Landing-IIM-Ranchi_1753542981148.webp';
+import uniloopLogomark from '@assets/uniloop logomark_1753618204077.png';
 
 export default function Landing() {
   const { toast } = useToast();
@@ -43,7 +44,7 @@ export default function Landing() {
           <div className="text-center text-white">
             <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
               <img 
-                src="/attached_assets/uniloop logomark_1753618204077.png" 
+                src={uniloopLogomark} 
                 alt="UniLoop Logo" 
                 className="w-12 h-12 object-contain"
               />
