@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import TopAppBar from './TopAppBar';
 import BottomNavigation from './BottomNavigation';
 import PWAInstallPrompt from './PWAInstallPrompt';
-import InstallFAB from './InstallFAB';
 
 interface LayoutProps {
   children: ReactNode;
@@ -36,7 +35,6 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       <BottomNavigation />
-      <InstallFAB />
       
       {/* Responsive Offline Indicator */}
       <div id="offline-indicator" className="hidden fixed top-16 left-4 right-4 bg-error text-white p-3 rounded-lg shadow-lg z-40

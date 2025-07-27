@@ -28,12 +28,9 @@ Preferred communication style: Simple, everyday language.
 - **Session Management**: Express sessions with PostgreSQL storage
 
 ### Progressive Web App (PWA) Features
-- **Complete PWA Implementation**: Full-featured Progressive Web App with reliable "Add to Home Screen" functionality
-- **Service Worker**: Comprehensive offline support with network-first caching and offline fallback page
-- **Web App Manifest**: Proper manifest configuration with local icons (192x192, 512x512) and standalone display mode
-- **Cross-Platform Install Support**: beforeinstallprompt integration for Android/Chrome and iOS-specific install guidance
-- **Install Components**: Floating action button (FAB) and top banner for install prompts with accessibility features
-- **Offline Experience**: Custom offline page with retry functionality and proper error handling
+- Service worker implementation for offline functionality
+- Web app manifest for installable mobile experience
+- Caching strategies for improved performance
 
 ## Key Components
 
@@ -112,24 +109,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Complete PWA "Add to Home Screen" Implementation (COMPLETED)
-- **Reliable PWA Installation**: Implemented all requirements for reliable "Add to Home Screen" functionality across browsers
-  - Fixed web app manifest with proper `start_url: "."` and local icon paths replacing external URLs
-  - Created local 192x192 and 512x512 PNG icons with Campus Connect branding in `/public/icons/`
-  - Added manifest link tag and iOS-specific meta tags (`apple-mobile-web-app-capable`, `apple-touch-icon`) to index.html
-- **Enhanced Service Worker**: Improved offline functionality with proper network-first caching strategy
-  - Updated service worker to cache essential resources including offline fallback page
-  - Created custom `/offline.html` page with Campus Connect branding and retry functionality
-  - Proper service worker registration with feature detection and `window.load` event handling
-- **Cross-Platform Install Support**: Comprehensive beforeinstallprompt integration with iOS fallback
-  - New `usePWAInstall` hook with proper TypeScript typing for beforeinstallprompt event
-  - Enhanced PWAInstallPrompt component with iOS-specific banner showing "Share → Add to Home Screen" instructions
-  - Added floating InstallFAB component with pulse animation for non-intrusive install prompting
-- **Accessibility & UX**: Keyboard-accessible components with proper ARIA labels and error handling
-  - Install components only show when app is installable and hide after successful installation
-  - Graceful fallback handling for different browser capabilities and installation states
-
-### January 2025 - Image Upload System for Triathlon Team Logos (COMPLETED)
+### January 2025 - Image Upload System for Triathlon Team Logos (IN PROGRESS)
 - **Backend Image Upload Route**: Added `/api/upload/image` endpoint with multer diskStorage configuration
   - 5MB file size limit with image-only validation (PNG, JPG, GIF)
   - Unique filename generation with timestamp prefix

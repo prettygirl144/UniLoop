@@ -82,36 +82,19 @@ router.get('/callback', async (req, res) => {
     // Check if user is an admin override
     const isAdminOverride = ADMIN_OVERRIDE_EMAILS.includes(userInfo.email.toLowerCase());
     
-    // Try to check if user is in student directory (required for non-admin access)
-    let studentRecord = null;
-    let databaseError = false;
-    try {
-      studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
-    } catch (error) {
-      console.error('Database connection error during student lookup:', error instanceof Error ? error.message : 'Unknown error');
-      databaseError = true;
-      // If database is unavailable and user is not admin override, allow temporary access
-      if (!isAdminOverride) {
-        console.warn(`Database unavailable, allowing temporary access for ${userInfo.email}`);
-      }
-    }
+    // Check if user is in student directory (required for non-admin access)
+    const studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
     
-    if (!isAdminOverride && studentRecord === null && !databaseError) {
+    if (!isAdminOverride && !studentRecord) {
       // User not authorized - redirect with error
       const errorMessage = `Access denied. Email ${userInfo.email} is not in the approved student directory.`;
       return res.redirect(`/?error=unauthorized&message=${encodeURIComponent(errorMessage)}`);
     }
     
     // Create or update user in our database
-    let user = null;
-    try {
-      user = await storage.getUser(userInfo.sub);
-    } catch (error) {
-      console.error('Database connection error during user lookup:', error instanceof Error ? error.message : 'Unknown error');
-      databaseError = true;
-    }
+    let user = await storage.getUser(userInfo.sub);
     
-    if (!user && !databaseError) {
+    if (!user) {
       // New user - create with appropriate role and student info
       const role = isAdminOverride ? 'admin' : 'student';
       const permissions = isAdminOverride ? {
@@ -123,78 +106,39 @@ router.get('/callback', async (req, res) => {
         postCreation: true,
       } : {};
       
-      try {
-        user = await storage.upsertUser({
-          id: userInfo.sub,
-          email: userInfo.email,
-          firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
-          lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
-          profileImageUrl: userInfo.picture,
-          role: role,
-          permissions: permissions,
-          batch: studentRecord?.batch || null,
-          section: studentRecord?.section || null,
-        });
-      } catch (error) {
-        console.error('Database connection error during user creation:', error instanceof Error ? error.message : 'Unknown error');
-        databaseError = true;
-      }
-    } else if (user && !databaseError) {
-      // Existing user - update profile info and upgrade to admin if in override list
-      const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
-      
-      try {
-        user = await storage.upsertUser({
-          id: userInfo.sub,
-          email: userInfo.email,
-          firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
-          lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
-          profileImageUrl: userInfo.picture,
-          role: shouldUpgradeToAdmin ? 'admin' : user.role,
-          permissions: shouldUpgradeToAdmin ? {
-            calendar: true,
-            attendance: true,
-            gallery: true,
-            forumMod: true,
-            diningHostel: true,
-            postCreation: true,
-          } : user.permissions,
-          batch: studentRecord?.batch || user.batch,
-          section: studentRecord?.section || user.section,
-        });
-      } catch (error) {
-        console.error('Database connection error during user update:', error instanceof Error ? error.message : 'Unknown error');
-        databaseError = true;
-      }
-    }
-
-    // If database is unavailable, create a temporary session user
-    if (databaseError) {
-      console.warn('Creating temporary session due to database unavailability');
-      user = {
+      user = await storage.upsertUser({
         id: userInfo.sub,
         email: userInfo.email,
         firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
         lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
         profileImageUrl: userInfo.picture,
-        role: isAdminOverride ? 'admin' : 'student',
-        permissions: isAdminOverride ? {
+        role: role,
+        permissions: permissions,
+        batch: studentRecord?.batch || null,
+        section: studentRecord?.section || null,
+      });
+    } else {
+      // Existing user - update profile info and upgrade to admin if in override list
+      const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
+      
+      user = await storage.upsertUser({
+        id: userInfo.sub,
+        email: userInfo.email,
+        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || '',
+        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+        profileImageUrl: userInfo.picture,
+        role: shouldUpgradeToAdmin ? 'admin' : user.role,
+        permissions: shouldUpgradeToAdmin ? {
           calendar: true,
           attendance: true,
           gallery: true,
           forumMod: true,
           diningHostel: true,
           postCreation: true,
-        } : {},
-        batch: null,
-        section: null,
-      };
-    }
-
-    // Ensure user exists before setting session
-    if (!user) {
-      console.error('Failed to create or retrieve user data');
-      return res.redirect('/?error=auth_failed&message=Unable to process user authentication');
+        } : user.permissions,
+        batch: studentRecord?.batch || user.batch,
+        section: studentRecord?.section || user.section,
+      });
     }
 
     // Always use the fresh user data from database (after upsert)

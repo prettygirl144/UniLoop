@@ -1,10 +1,11 @@
 const CACHE_NAME = 'campus-connect-v1';
 const urlsToCache = [
   '/',
-  '/offline.html',
+  '/static/js/bundle.js',
+  '/static/css/main.css',
   '/manifest.json',
-  '/icons/192.png',
-  '/icons/512.png'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
 // Install event - cache resources
@@ -24,11 +25,6 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  // Skip caching for API requests to avoid interfering with authentication
-  if (event.request.url.includes('/api/')) {
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -46,23 +42,20 @@ self.addEventListener('fetch', (event) => {
             return response;
           }
           
-          // Only cache http/https requests, skip chrome-extension and other schemes
-          if (event.request.url.startsWith('http')) {
-            // Clone the response because it's a stream
-            const responseToCache = response.clone();
-            
-            // Cache successful responses for non-API requests
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-          }
+          // Clone the response because it's a stream
+          const responseToCache = response.clone();
+          
+          // Cache successful responses
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           
           return response;
         }).catch(() => {
           // Return offline page for navigation requests
           if (event.request.destination === 'document') {
-            return caches.match('/offline.html');
+            return caches.match('/');
           }
         });
       })
