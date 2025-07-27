@@ -44,9 +44,8 @@ export default function BottomNavigation() {
                            lg:py-3 lg:px-4 lg:min-w-[60px] lg:max-w-none lg:flex-initial
                            /* Touch feedback */
                            active:scale-95 transition-all duration-150
-                           /* Focus ring for accessibility */
-                           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-30
-                           /* Clean modern styling - no backgrounds or borders */
+                           /* Clean modern styling - no borders, outlines, or focus rings */
+                           focus:outline-none border-none outline-none
                            text-gray-600 hover:text-primary
                            /* Active state */
                            ${isActive ? 'text-primary' : ''}"
