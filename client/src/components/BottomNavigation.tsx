@@ -36,30 +36,7 @@ export default function BottomNavigation() {
           const isActive = location === item.path;
           
           return (
-            <Link key={item.path} href={item.path}>
-              <button 
-                className="flex flex-col items-center 
-                           /* Mobile: responsive sizing to prevent overflow */
-                           py-2 px-1 min-w-[44px] min-h-[48px] max-w-[80px] flex-1
-                           /* Desktop: larger targets */
-                           lg:py-3 lg:px-4 lg:min-w-[60px] lg:max-w-none lg:flex-initial
-                           /* Touch feedback */
-                           active:scale-95 transition-all duration-150
-                           /* Clean modern styling - no borders, outlines, or focus rings */
-                           focus:outline-none border-none outline-none
-                           text-gray-600 hover:text-primary
-                           /* Active state */
-                           ${isActive ? 'text-primary' : ''}"
-                aria-label={item.label}
-              >
-                <Icon size={20} className="mb-1 lg:mb-2 flex-shrink-0" />
-                <span className="text-small font-medium truncate w-full text-center
-                                 /* Mobile: smaller text to fit */
-                                 text-xs lg:text-small">
-                  {item.label}
-                </span>
-              </button>
-            </Link>
+            
           );
         })}
       </div>
