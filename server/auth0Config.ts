@@ -21,28 +21,14 @@ export const checkAuth0Jwt: RequestHandler = (req, res, next) => next();
 export const checkAuth: RequestHandler = async (req: any, res, next) => {
   const sessionUser = req.session?.user;
   if (!sessionUser) {
-    // For development, allow bypass with admin test user for certain endpoints
-    if (process.env.NODE_ENV === 'development' && (
-      req.url.includes('/api/amenities/menu') || 
-      req.url.includes('/api/auth/user') ||
-      req.url.includes('/api/community')
-    )) {
+    // For testing menu upload, allow bypass with admin test user
+    if (req.url.includes('/api/amenities/menu/upload') && process.env.NODE_ENV === 'development') {
       req.session = req.session || {};
       req.session.user = {
-        id: 'dev-admin-bypass',
-        email: 'admin@dev.com',
+        id: 'test-admin',
+        email: 'admin@test.com',
         role: 'admin',
-        permissions: { 
-          diningHostel: true,
-          forumMod: true,
-          postCreation: true,
-          calendar: true,
-          attendance: true,
-          gallery: true
-        },
-        firstName: 'Dev',
-        lastName: 'Admin',
-        name: 'Dev Admin'
+        permissions: { diningHostel: true }
       };
       return next();
     }
