@@ -35,7 +35,7 @@ export default function TopAppBar() {
             <i className="fas fa-graduation-cap text-small lg:text-medium"></i>
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-medium lg:text-large font-medium truncate">Campus Connect</h1>
+            <h1 className="text-medium lg:text-large font-medium truncate">UniLoop</h1>
             <p className="text-small lg:text-medium opacity-80 capitalize truncate">
               {(user as any)?.role || 'Student'} Portal
             </p>
@@ -89,7 +89,6 @@ export default function TopAppBar() {
           )}
         </div>
       </div>
-
       {/* Mobile-optimized notification panel */}
       {showNotifications && (
         <>
