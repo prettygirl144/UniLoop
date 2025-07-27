@@ -284,7 +284,6 @@ export default function Triathlon() {
           </Dialog>
         )}
       </div>
-
       {/* Leaderboard */}
       <Card>
         <CardHeader>
@@ -353,7 +352,7 @@ export default function Triathlon() {
                             <img 
                               src={team.logoUrl} 
                               alt={`${team.name} logo`}
-                              className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                              className="h-12 w-12 rounded-full object-cover flex-shrink-0 pl-[6px] pr-[6px]"
                             />
                           )}
                           <div className="min-w-0 flex-1">
@@ -443,7 +442,6 @@ export default function Triathlon() {
           )}
         </CardContent>
       </Card>
-
       {/* Edit Points Dialog */}
       {hasTriathlonPermission && (
         <Dialog open={showEditPoints} onOpenChange={setShowEditPoints}>
@@ -554,7 +552,6 @@ export default function Triathlon() {
           </DialogContent>
         </Dialog>
       )}
-
       {/* History Dialog */}
       {hasTriathlonPermission && (
         <Dialog open={showHistory} onOpenChange={setShowHistory}>
@@ -606,7 +603,6 @@ export default function Triathlon() {
           </DialogContent>
         </Dialog>
       )}
-
       {/* Edit Team Dialog */}
       {hasTriathlonPermission && (
         <Dialog open={showEditTeam} onOpenChange={setShowEditTeam}>
@@ -664,7 +660,6 @@ export default function Triathlon() {
           </DialogContent>
         </Dialog>
       )}
-
       {/* Delete Team Confirmation Dialog */}
       <AlertDialog open={!!teamToDelete} onOpenChange={() => setTeamToDelete(null)}>
         <AlertDialogContent>
