@@ -25,11 +25,11 @@ export default function BottomNavigation() {
                     pb-safe
                     /* Desktop: centered with max width */
                     lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:max-w-6xl lg:rounded-t-xl lg:shadow-lg">
-      <div className="flex items-center justify-around 
-                      /* Mobile: compact padding for thumb reach */
-                      py-2 px-2
+      <div className="flex items-center justify-between 
+                      /* Mobile: compact padding, distribute space evenly */
+                      py-2 px-1
                       /* Desktop: more spacious */
-                      lg:py-3 lg:px-4">
+                      lg:py-3 lg:px-4 lg:justify-around">
         {allNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path;
@@ -37,11 +37,25 @@ export default function BottomNavigation() {
           return (
             <Link key={item.path} href={item.path}>
               <button 
-                className="flex flex-col items-center /* Mobile: optimized tap target and spacing */ py-2 px-3 min-w-[52px] min-h-[48px] /* Desktop: larger targets */ lg:py-3 lg:px-4 lg:min-w-[60px] /* Touch feedback */ active:scale-95 transition-all duration-150 /* Focus ring for accessibility */ focus:outline-none focus:ring-2 focus:ring-opacity-30 /* Color states */ text-primary /* Mobile: corners for modern feel */ rounded-lg bg-[#8dcaf724]"
+                className="flex flex-col items-center 
+                           /* Mobile: responsive sizing to prevent overflow */
+                           py-2 px-1 min-w-[44px] min-h-[48px] max-w-[80px] flex-1
+                           /* Desktop: larger targets */
+                           lg:py-3 lg:px-4 lg:min-w-[60px] lg:max-w-none lg:flex-initial
+                           /* Touch feedback */
+                           active:scale-95 transition-all duration-150
+                           /* Focus ring for accessibility */
+                           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-30
+                           /* Clean modern styling - no backgrounds or borders */
+                           text-gray-600 hover:text-primary
+                           /* Active state */
+                           ${isActive ? 'text-primary' : ''}"
                 aria-label={item.label}
               >
                 <Icon size={20} className="mb-1 lg:mb-2 flex-shrink-0" />
-                <span className="text-small font-medium truncate max-w-full">
+                <span className="text-small font-medium truncate w-full text-center
+                                 /* Mobile: smaller text to fit */
+                                 text-xs lg:text-small">
                   {item.label}
                 </span>
               </button>
