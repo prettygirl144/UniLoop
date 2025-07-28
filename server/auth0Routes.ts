@@ -14,7 +14,8 @@ const ADMIN_OVERRIDE_EMAILS = [
 router.get('/login', (req, res) => {
   const auth0Domain = process.env.AUTH0_DOMAIN;
   const clientId = process.env.AUTH0_CLIENT_ID;
-  const redirectUri = `https://${req.get('host')}/api/callback`;
+  const protocol = req.get('x-forwarded-proto') || (req.secure ? 'https' : 'http');
+  const redirectUri = `${protocol}://${req.get('host')}/api/callback`;
   
   console.log('Login redirect URI:', redirectUri);
   
@@ -41,7 +42,8 @@ router.get('/callback', async (req, res) => {
     const auth0Domain = process.env.AUTH0_DOMAIN;
     const clientId = process.env.AUTH0_CLIENT_ID;
     const clientSecret = process.env.AUTH0_CLIENT_SECRET;
-    const redirectUri = `https://${req.get('host')}/api/callback`;
+    const protocol = req.get('x-forwarded-proto') || (req.secure ? 'https' : 'http');
+    const redirectUri = `${protocol}://${req.get('host')}/api/callback`;
     
     console.log('Callback redirect URI:', redirectUri);
 
