@@ -90,47 +90,86 @@ self.addEventListener('activate', (event) => {
 
 // Push notification event
 self.addEventListener('push', (event) => {
-  if (event.data) {
+  if (!event.data) {
+    console.log('Push event but no data');
+    return;
+  }
+
+  try {
     const data = event.data.json();
+    console.log('Push notification received:', data);
+
     const options = {
       body: data.body,
-      icon: '/icon-192.png',
-      badge: '/icon-96.png',
-      vibrate: [100, 50, 100],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: data.primaryKey || 1
+      icon: data.icon || '/icons/192.png',
+      badge: data.badge || '/icons/144.png',
+      image: data.image,
+      tag: data.data?.tag || 'default',
+      data: data.data || {
+        url: '/',
+        timestamp: Date.now()
       },
-      actions: [
+      actions: data.actions || [
         {
-          action: 'explore',
-          title: 'View',
-          icon: '/icon-96.png'
-        },
-        {
-          action: 'close',
-          title: 'Close',
-          icon: '/icon-96.png'
+          action: 'open',
+          title: 'Open',
+          icon: '/icons/192.png'
         }
-      ]
+      ],
+      requireInteraction: data.requireInteraction !== false,
+      vibrate: data.vibrate || [200, 100, 200],
+      timestamp: data.data?.timestamp || Date.now()
     };
-    
+
     event.waitUntil(
       self.registration.showNotification(data.title, options)
+    );
+  } catch (error) {
+    console.error('Error processing push notification:', error);
+    
+    // Fallback notification
+    event.waitUntil(
+      self.registration.showNotification('New Notification', {
+        body: 'You have a new notification from UniLoop@IIMR',
+        icon: '/icons/192.png',
+        badge: '/icons/144.png'
+      })
     );
   }
 });
 
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event.notification);
   event.notification.close();
-  
-  if (event.action === 'explore') {
-    // Open the app
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+
+  const notificationData = event.notification.data;
+  const targetUrl = notificationData?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Check if app is already open
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.focus();
+            // Navigate to the target URL
+            if (targetUrl !== '/') {
+              client.postMessage({
+                type: 'NAVIGATE',
+                url: targetUrl
+              });
+            }
+            return;
+          }
+        }
+        
+        // If app is not open, open it
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
 });
 
 // Background sync for offline actions

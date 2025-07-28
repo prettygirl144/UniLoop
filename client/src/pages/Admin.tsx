@@ -13,8 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Settings, Shield, Search, Upload, Database, FileText, History } from "lucide-react";
+import { Users, Settings, Shield, Search, Upload, Database, FileText, History, Bell } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PushNotificationTest from "@/components/PushNotificationTest";
 
 interface User {
   id: string;
@@ -504,7 +505,7 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-16">
+          <TabsList className="grid w-full grid-cols-4 h-16">
             <TabsTrigger value="users" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
               <Users className="h-3 w-3" />
               <span className="text-xs leading-none">Users</span>
@@ -512,6 +513,10 @@ export default function Admin() {
             <TabsTrigger value="students" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
               <Database className="h-3 w-3" />
               <span className="text-xs leading-none">Students</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
+              <Bell className="h-3 w-3" />
+              <span className="text-xs leading-none">Push</span>
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
               <History className="h-3 w-3" />
@@ -870,6 +875,11 @@ export default function Admin() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Push Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <PushNotificationTest />
           </TabsContent>
 
           {/* Upload Logs Tab */}

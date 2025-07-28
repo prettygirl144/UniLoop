@@ -1,0 +1,90 @@
+Sure, here’s a **well-detailed Replit prompt** in **natural language markdown format** to request **end-to-end push notification support for events and announcements** in your **PWA (Progressive Web App)** using **VAPID** instead of Firebase:
+
+---
+
+### Replit Prompt: Implement Push Notifications for Events and Official Announcements (PWA)
+
+**Objective:**
+Enable full-stack support for push notifications on both **Android** and **iOS** via the PWA for two types of communications:
+
+1. **Event Reminders**
+2. **Official Announcements**
+
+This should be implemented using the **Web Push Protocol** with **VAPID keys**, **not Firebase**.
+
+---
+
+### Functional Requirements
+
+1. **Service Worker Setup**
+
+   * Register a service worker that can handle `push` and `notificationclick` events.
+   * It should be persistent and scoped correctly to the PWA’s root.
+   * The service worker should display notifications with:
+
+     * Title
+     * Message body
+     * Click action URL
+     * Optional image or icon
+
+2. **Client-Side Subscription (Frontend)**
+
+   * On first visit or via a dedicated button, ask for permission to enable notifications.
+   * Once granted, subscribe the user to push notifications using the browser’s `PushManager`.
+   * Use the generated **VAPID public key** to subscribe the user.
+   * Store the subscription object securely in the backend tied to the logged-in user (email as primary key).
+
+3. **Server-Side Notification Triggering (Backend)**
+
+   * Use Node.js or a backend of choice to:
+
+     * Store and manage subscription objects.
+     * Send notifications using the VAPID private key.
+   * Integrate `web-push` npm package or equivalent to send notifications via endpoint URLs.
+   * Create API endpoints:
+
+     * `POST /notify/event` → to send event reminders.
+     * `POST /notify/announcement` → to send official messages.
+
+4. **Admin Interface for Triggering Notifications**
+
+   * Extend the Admin panel with a simple UI to:
+
+     * Select notification type (event/announcement)
+     * Compose title, body, image URL, click-through URL
+     * Target:
+
+       * All users
+       * Specific batches or sections
+       * Specific user(s) by email
+   * On submission, call the backend notification API.
+
+---
+
+### Technical Constraints
+
+* Use **VAPID keys** (public/private) for push authentication.
+* Notifications should work on both:
+
+  * Android (Chrome-based PWA support)
+  * iOS Safari (iOS 16.4+ PWA support for notifications)
+* Must degrade gracefully (if permission denied, no error shown).
+* Handle `unsubscribe` logic if user revokes notification permissions.
+* Use **existing user login/session data** to associate subscriptions.
+
+---
+
+### Deliverables
+
+* Fully functioning push notification system using **VAPID**.
+* Notifications tested on:
+
+  * Android Chrome PWA
+  * iOS Safari PWA (16.4+)
+* Admin control panel support for sending pushes.
+* Rollback-safe: No disruption to existing features or UI components.
+* Deployment-ready on Replit.
+
+---
+
+Let me know if you want a version of this for Firebase as fallback or a mobile-first interaction design prompt too.

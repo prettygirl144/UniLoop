@@ -3,15 +3,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
+import PushNotificationButton from './PushNotificationButton';
 import uniloopLogomark from '@assets/uniloop logomark_1753618415583.png';
 
 export default function TopAppBar() {
   const { user } = useAuth();
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-  };
 
   return (
     <>
@@ -49,25 +45,14 @@ export default function TopAppBar() {
         
         {/* Right section: Actions and profile */}
         <div className="flex items-center space-x-2 lg:space-x-3 flex-shrink-0">
-          {/* Mobile-optimized notification button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleNotifications}
-            className="relative text-white hover:bg-white hover:bg-opacity-10 
-                       /* Mobile: larger tap target */
-                       h-10 w-10 p-2
-                       /* Desktop: standard size */
-                       lg:h-9 lg:w-9
-                       /* Touch feedback */
+          {/* Push notification button */}
+          <PushNotificationButton 
+            className="text-white hover:bg-white hover:bg-opacity-10 
+                       h-10 w-10 p-2 lg:h-9 lg:w-9
                        active:bg-white active:bg-opacity-20 transition-colors duration-150
-                       /* Focus ring for accessibility */
                        focus:ring-2 focus:ring-white focus:ring-opacity-30"
-            aria-label="Toggle notifications"
-          >
-            <Bell size={18} className="lg:w-5 lg:h-5" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse"></div>
-          </Button>
+            showText={false}
+          />
           
           {/* Account Switcher with responsive positioning */}
           <div className="relative z-50">

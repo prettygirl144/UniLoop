@@ -58,6 +58,21 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Push notification subscriptions table
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique().on(table.userId, table.endpoint), // Prevent duplicate subscriptions
+]);
+
 // Announcements/Posts table
 export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
@@ -582,3 +597,14 @@ export type InsertTriathlonTeam = z.infer<typeof insertTriathlonTeamSchema>;
 export type TriathlonTeam = typeof triathlonTeams.$inferSelect;
 export type InsertTriathlonPointHistory = z.infer<typeof insertTriathlonPointHistorySchema>;
 export type TriathlonPointHistory = typeof triathlonPointHistory.$inferSelect;
+
+// Push subscription schemas
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Push subscription types
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
