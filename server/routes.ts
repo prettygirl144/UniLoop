@@ -905,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get sick food bookings with date filter
+  // Get sick food bookings with date filter (admin only)
   app.get('/api/amenities/sick-food', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
     try {
       const date = req.query.date ? new Date(req.query.date as string) : undefined;
@@ -914,6 +914,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching sick food bookings:", error);
       res.status(500).json({ message: "Failed to fetch sick food bookings" });
+    }
+  });
+
+  // Get user's own sick food bookings (for status checking)
+  app.get('/api/user/sick-food-bookings', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const bookings = await storage.getUserSickFoodBookings(userId);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching user sick food bookings:", error);
+      res.status(500).json({ message: "Failed to fetch your sick food bookings" });
     }
   });
 
@@ -937,7 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get leave applications
+  // Get leave applications (admin only)
   app.get('/api/hostel/leave', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
     try {
       const status = req.query.status as string;
@@ -946,6 +958,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching leave applications:", error);
       res.status(500).json({ message: "Failed to fetch leave applications" });
+    }
+  });
+
+  // Get user's own leave applications (for status checking)
+  app.get('/api/user/leave-applications', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const applications = await storage.getUserLeaveApplications(userId);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching user leave applications:", error);
+      res.status(500).json({ message: "Failed to fetch your leave applications" });
     }
   });
 
@@ -1019,7 +1043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get grievances
+  // Get grievances (admin only)
   app.get('/api/grievances', authorizeAmenities('grievanceAccess'), async (req: any, res) => {
     try {
       const category = req.query.category as string;
@@ -1028,6 +1052,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching grievances:", error);
       res.status(500).json({ message: "Failed to fetch grievances" });
+    }
+  });
+
+  // Get user's own grievances (for status checking)
+  app.get('/api/user/grievances', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const grievances = await storage.getUserGrievances(userId);
+      res.json(grievances);
+    } catch (error) {
+      console.error("Error fetching user grievances:", error);
+      res.status(500).json({ message: "Failed to fetch your grievances" });
     }
   });
 

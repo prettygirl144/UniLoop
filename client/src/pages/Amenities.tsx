@@ -82,6 +82,12 @@ export default function Amenities() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [editingMenu, setEditingMenu] = useState<{id: number, date: string, mealType: string, items: string[]} | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  
+  // Status dialog states
+  const [showSickFoodStatusDialog, setShowSickFoodStatusDialog] = useState(false);
+  const [showLeaveStatusDialog, setShowLeaveStatusDialog] = useState(false);
+  const [showGrievanceStatusDialog, setShowGrievanceStatusDialog] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -218,6 +224,22 @@ export default function Amenities() {
     enabled: isAdmin,
   });
 
+  // User-specific queries for status checking
+  const { data: userSickFoodBookings = [] } = useQuery({
+    queryKey: ['/api/user/sick-food-bookings'],
+    enabled: !isAdmin, // Only for regular users
+  });
+
+  const { data: userLeaveApplications = [] } = useQuery({
+    queryKey: ['/api/user/leave-applications'],
+    enabled: !isAdmin, // Only for regular users
+  });
+
+  const { data: userGrievances = [] } = useQuery({
+    queryKey: ['/api/user/grievances'],
+    enabled: !isAdmin, // Only for regular users
+  });
+
   // Mutations
   const sickFoodMutation = useMutation({
     mutationFn: async (data: SickFoodForm) => {
@@ -231,6 +253,7 @@ export default function Amenities() {
         description: 'Sick food booking submitted successfully!',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/sick-food-bookings'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -264,6 +287,7 @@ export default function Amenities() {
         description: 'Leave application submitted successfully!',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/hostel/leave'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/leave-applications'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -297,6 +321,7 @@ export default function Amenities() {
         description: 'Grievance submitted successfully!',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/grievances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/grievances'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -814,10 +839,11 @@ export default function Amenities() {
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Request food delivery to your room when you're unwell
                 </p>
-                <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">Book Sick Food</Button>
-                  </DialogTrigger>
+                <div className="space-y-2">
+                  <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Book Sick Food</Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Book Sick Food</DialogTitle>
@@ -896,6 +922,45 @@ export default function Amenities() {
                     </Form>
                   </DialogContent>
                 </Dialog>
+                
+                {!isAdmin && (
+                  <Dialog open={showSickFoodStatusDialog} onOpenChange={setShowSickFoodStatusDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">Check Status</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>My Sick Food Bookings</DialogTitle>
+                      </DialogHeader>
+                      <div className="max-h-96 overflow-y-auto">
+                        {(userSickFoodBookings as any[]).length > 0 ? (
+                          <div className="space-y-3">
+                            {(userSickFoodBookings as any[]).map((booking: any) => (
+                              <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                                  <p className="text-sm text-muted-foreground">Room: {booking.roomNumber}</p>
+                                  {booking.specialRequirements && (
+                                    <p className="text-sm text-muted-foreground">Special: {booking.specialRequirements}</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">Booked: {new Date(booking.createdAt).toLocaleString()}</p>
+                                </div>
+                                <Badge variant="default" className="w-fit">
+                                  Confirmed
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No sick food bookings found</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
               </CardContent>
             </Card>
 
@@ -911,10 +976,11 @@ export default function Amenities() {
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
-                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">Apply for Leave</Button>
-                  </DialogTrigger>
+                <div className="space-y-2">
+                  <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Apply for Leave</Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Hostel Leave Application</DialogTitle>
@@ -997,6 +1063,52 @@ export default function Amenities() {
                     </Form>
                   </DialogContent>
                 </Dialog>
+                
+                {!isAdmin && (
+                  <Dialog open={showLeaveStatusDialog} onOpenChange={setShowLeaveStatusDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">Check Status</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>My Leave Applications</DialogTitle>
+                      </DialogHeader>
+                      <div className="max-h-96 overflow-y-auto">
+                        {(userLeaveApplications as any[]).length > 0 ? (
+                          <div className="space-y-3">
+                            {(userLeaveApplications as any[]).map((application: any) => (
+                              <div key={application.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}</p>
+                                  <p className="text-sm text-muted-foreground">Reason: {application.reason}</p>
+                                  <p className="text-sm text-muted-foreground">Room: {application.roomNumber}</p>
+                                  <p className="text-xs text-muted-foreground">Applied: {new Date(application.createdAt).toLocaleString()}</p>
+                                </div>
+                                <Badge 
+                                  variant={
+                                    application.status === 'approved' ? 'default' : 
+                                    application.status === 'rejected' ? 'destructive' : 
+                                    'secondary'
+                                  } 
+                                  className="w-fit"
+                                >
+                                  {application.status === 'approved' ? 'Approved' :
+                                   application.status === 'rejected' ? 'Denied' :
+                                   'Pending'}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No leave applications found</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
               </CardContent>
             </Card>
 
@@ -1012,10 +1124,11 @@ export default function Amenities() {
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Report issues with mess, hostel, IT, or other services
                 </p>
-                <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">Submit Grievance</Button>
-                  </DialogTrigger>
+                <div className="space-y-2">
+                  <Dialog open={showGrievanceDialog} onOpenChange={setShowGrievanceDialog}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Submit Grievance</Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Submit Grievance</DialogTitle>
@@ -1082,6 +1195,49 @@ export default function Amenities() {
                     </Form>
                   </DialogContent>
                 </Dialog>
+                
+                {!isAdmin && (
+                  <Dialog open={showGrievanceStatusDialog} onOpenChange={setShowGrievanceStatusDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">Check Status</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>My Grievances</DialogTitle>
+                      </DialogHeader>
+                      <div className="max-h-96 overflow-y-auto">
+                        {(userGrievances as any[]).length > 0 ? (
+                          <div className="space-y-3">
+                            {(userGrievances as any[]).map((grievance: any) => (
+                              <div key={grievance.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{grievance.category}</p>
+                                  <p className="text-sm text-muted-foreground">Description: {grievance.description}</p>
+                                  <p className="text-sm text-muted-foreground">Room: {grievance.roomNumber}</p>
+                                  <p className="text-xs text-muted-foreground">Submitted: {new Date(grievance.createdAt).toLocaleString()}</p>
+                                  {grievance.resolvedAt && (
+                                    <p className="text-xs text-muted-foreground">Resolved: {new Date(grievance.resolvedAt).toLocaleString()}</p>
+                                  )}
+                                </div>
+                                <Badge 
+                                  variant={grievance.status === 'resolved' ? 'default' : 'secondary'} 
+                                  className="w-fit"
+                                >
+                                  {grievance.status === 'resolved' ? 'Resolved' : 'Pending'}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No grievances found</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
               </CardContent>
             </Card>
           </div>
