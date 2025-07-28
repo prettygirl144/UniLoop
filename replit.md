@@ -128,6 +128,8 @@ Preferred communication style: Simple, everyday language.
   - Integration with existing RBAC system ensuring only authorized users can send notifications
 - **Critical Frontend Rendering Fix**: Resolved JavaScript runtime errors preventing app display
   - Fixed React component mounting and rendering issues that caused white screen problems
+  - Resolved "Invalid hook call" error by correcting provider wrapper order (QueryClientProvider > AuthProvider)
+  - AuthProvider now properly wrapped inside QueryClientProvider to enable useQuery hook usage
   - Implemented proper error boundaries and fallback handling for robust application loading
   - Server port conflict resolution ensuring stable application serving on port 5000
 - **Cross-Platform Installation Ready**: All PWA components verified and functional
