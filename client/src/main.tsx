@@ -1,7 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Toaster } from "@/components/ui/toaster";
-import App from "./App";
+import DebugApp from "./DebugApp";
+// Temporarily use DebugApp to check authentication flow
+// import { Toaster } from "@/components/ui/toaster";
+// import App from "./App";
 import "./index.css";
 import { register } from "./utils/serviceWorkerRegistration";
 
@@ -24,8 +26,7 @@ function initializeApp() {
   try {
     createRoot(rootElement).render(
       <StrictMode>
-        <App />
-        <Toaster />
+        <DebugApp />
       </StrictMode>
     );
     
