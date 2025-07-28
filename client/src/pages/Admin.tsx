@@ -31,6 +31,10 @@ interface User {
     diningHostel?: boolean;
     postCreation?: boolean;
     triathlon?: boolean;
+    sickFoodAccess?: boolean;
+    leaveApplicationAccess?: boolean;
+    grievanceAccess?: boolean;
+    menuUpload?: boolean;
   };
   createdAt: string;
   updatedAt: string;
@@ -80,6 +84,10 @@ export default function Admin() {
       diningHostel: false,
       postCreation: false,
       triathlon: false,
+      sickFoodAccess: false,
+      leaveApplicationAccess: false,
+      grievanceAccess: false,
+      menuUpload: false,
     }
   });
 
@@ -325,6 +333,10 @@ export default function Admin() {
         diningHostel: user.permissions?.diningHostel || false,
         postCreation: user.permissions?.postCreation || false,
         triathlon: user.permissions?.triathlon || false,
+        sickFoodAccess: user.permissions?.sickFoodAccess || false,
+        leaveApplicationAccess: user.permissions?.leaveApplicationAccess || false,
+        grievanceAccess: user.permissions?.grievanceAccess || false,
+        menuUpload: user.permissions?.menuUpload || false,
       }
     });
     setIsEditModalOpen(true);
@@ -366,6 +378,10 @@ export default function Admin() {
       diningHostel: false,
       postCreation: false,
       triathlon: false,
+      sickFoodAccess: false,
+      leaveApplicationAccess: false,
+      grievanceAccess: false,
+      menuUpload: false,
     };
 
     if (role === 'admin') {
@@ -377,6 +393,10 @@ export default function Admin() {
         diningHostel: true,
         postCreation: true,
         triathlon: true,
+        sickFoodAccess: true,
+        leaveApplicationAccess: true,
+        grievanceAccess: true,
+        menuUpload: true,
       };
     } else if (role === 'committee_club') {
       defaultPermissions = {
@@ -387,6 +407,10 @@ export default function Admin() {
         diningHostel: false,
         postCreation: true,
         triathlon: false,
+        sickFoodAccess: true,
+        leaveApplicationAccess: true,
+        grievanceAccess: true,
+        menuUpload: false,
       };
     } else if (role === 'student') {
       // Students start with basic view permissions but can be customized
@@ -398,6 +422,10 @@ export default function Admin() {
         diningHostel: false,
         postCreation: false,
         triathlon: false,
+        sickFoodAccess: false,
+        leaveApplicationAccess: false,
+        grievanceAccess: false,
+        menuUpload: false,
       };
     }
 
@@ -529,20 +557,24 @@ export default function Admin() {
                     <TableHead>Dining/Hostel</TableHead>
                     <TableHead>Post Creation</TableHead>
                     <TableHead>Triathlon</TableHead>
+                    <TableHead>Sick Food</TableHead>
+                    <TableHead>Leave Apps</TableHead>
+                    <TableHead>Grievance</TableHead>
+                    <TableHead>Menu Upload</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {usersLoading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
+                      <TableCell colSpan={14} className="text-center py-8">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
                         Loading users...
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -607,6 +639,26 @@ export default function Admin() {
                         <TableCell>
                           <div className="flex justify-center">
                             {user.permissions?.triathlon ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {user.permissions?.sickFoodAccess ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {user.permissions?.leaveApplicationAccess ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {user.permissions?.grievanceAccess ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {user.permissions?.menuUpload ? '✅' : '❌'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -990,6 +1042,58 @@ export default function Admin() {
                         setEditForm(prev => ({ 
                           ...prev, 
                           permissions: { ...prev.permissions, triathlon: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sickFoodAccess" className="text-sm">Sick Food Access</Label>
+                    <Switch
+                      id="sickFoodAccess"
+                      checked={editForm.permissions.sickFoodAccess}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, sickFoodAccess: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="leaveApplicationAccess" className="text-sm">Leave Application Access</Label>
+                    <Switch
+                      id="leaveApplicationAccess"
+                      checked={editForm.permissions.leaveApplicationAccess}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, leaveApplicationAccess: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="grievanceAccess" className="text-sm">Grievance Access</Label>
+                    <Switch
+                      id="grievanceAccess"
+                      checked={editForm.permissions.grievanceAccess}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, grievanceAccess: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="menuUpload" className="text-sm">Menu Upload</Label>
+                    <Switch
+                      id="menuUpload"
+                      checked={editForm.permissions.menuUpload}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, menuUpload: checked }
                         }))
                       }
                     />
