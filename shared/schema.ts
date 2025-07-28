@@ -41,6 +41,11 @@ export const users = pgTable("users", {
     diningHostel?: boolean;
     postCreation?: boolean;
     triathlon?: boolean;
+    // Amenities granular permissions
+    sickFoodAccess?: boolean;
+    leaveApplicationAccess?: boolean;
+    grievanceAccess?: boolean;
+    menuUpload?: boolean;
   }>().default({}),
   accountType: varchar("account_type").default("primary"), // primary, alternate
   linkedAccountId: varchar("linked_account_id"), // References primary account for alternates
@@ -199,7 +204,7 @@ export const sickFoodBookings = pgTable("sick_food_bookings", {
   mealType: varchar("meal_type").notNull(),
   specialRequirements: text("special_requirements"),
   roomNumber: varchar("room_number").notNull(),
-  status: varchar("status").default("pending"), // pending, approved, rejected
+  // Removed status field - sick food bookings are always confirmed when created
   createdAt: timestamp("created_at").defaultNow(),
 });
 

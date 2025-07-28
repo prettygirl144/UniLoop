@@ -107,6 +107,7 @@ export interface IStorage {
   getLeaveApplications(status?: string): Promise<HostelLeave[]>;
   approveLeave(id: number, token: string): Promise<HostelLeave>;
   denyLeave(id: number, token: string): Promise<HostelLeave>;
+  updateLeaveStatus(id: number, status: string): Promise<HostelLeave>;
   submitGrievance(grievance: InsertGrievance): Promise<Grievance>;
   getGrievances(category?: string): Promise<Grievance[]>;
   resolveGrievance(id: number, adminNotes?: string): Promise<Grievance>;
@@ -750,6 +751,15 @@ export class DatabaseStorage implements IStorage {
         eq(hostelLeave.approvalToken, token),
         gte(hostelLeave.tokenExpiry, new Date())
       ))
+      .returning();
+    return updated;
+  }
+
+  async updateLeaveStatus(id: number, status: string): Promise<HostelLeave> {
+    const [updated] = await db
+      .update(hostelLeave)
+      .set({ status })
+      .where(eq(hostelLeave.id, id))
       .returning();
     return updated;
   }

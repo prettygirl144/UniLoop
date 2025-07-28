@@ -69,6 +69,30 @@ function isWithinOneHour(dateString: string): boolean {
   return createdAt >= oneHourAgo;
 }
 
+// Amenities RBAC middleware
+function authorizeAmenities(permission: string) {
+  return async (req: any, res: any, next: any) => {
+    const sessionUser = req.session?.user;
+    
+    if (!sessionUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Admin users have full access to all amenities features
+    if (sessionUser.role === 'admin') {
+      return next();
+    }
+
+    // Check specific amenities permission
+    const hasPermission = sessionUser.permissions?.[permission] === true;
+    if (!hasPermission) {
+      return res.status(403).json({ message: `Access denied. Required permission: ${permission}` });
+    }
+
+    next();
+  };
+}
+
 // Authorization middleware
 function authorize(permission?: string) {
   return async (req: any, res: any, next: any) => {
@@ -781,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload weekly menu via Excel file (RBAC protected)
-  app.post('/api/amenities/menu/upload', checkAuth, upload.single('menuFile'), async (req: any, res) => {
+  app.post('/api/amenities/menu/upload', authorizeAmenities('menuUpload'), upload.single('menuFile'), async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       if (!userInfo) {
@@ -811,13 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
       
-      // RBAC check - admin or user with diningHostel permission
-      const hasMenuPermission = user.role === 'admin' || user.permissions?.diningHostel === true;
-      if (!hasMenuPermission) {
-        return res.status(403).json({ 
-          message: 'Menu upload access denied. Admin or dining permissions required.' 
-        });
-      }
+      // RBAC middleware already handled permission check
 
       if (!req.file) {
         return res.status(400).json({ message: 'No Excel file uploaded' });
@@ -887,14 +905,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get sick food bookings (admin only)
-  app.get('/api/amenities/sick-food', checkAuth, async (req: any, res) => {
+  // Get sick food bookings with date filter
+  app.get('/api/amenities/sick-food', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const date = req.query.date ? new Date(req.query.date as string) : undefined;
       const bookings = await storage.getSickFoodBookings(date);
       res.json(bookings);
@@ -924,14 +937,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get leave applications (admin only)
-  app.get('/api/hostel/leave', checkAuth, async (req: any, res) => {
+  // Get leave applications
+  app.get('/api/hostel/leave', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const status = req.query.status as string;
       const applications = await storage.getLeaveApplications(status);
       res.json(applications);
@@ -969,6 +977,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin approve leave application (direct admin action)
+  app.post('/api/hostel/leave/:id/approve', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const leave = await storage.updateLeaveStatus(id, 'approved');
+      res.json({ message: "Leave approved successfully", leave });
+    } catch (error) {
+      console.error("Error approving leave:", error);
+      res.status(500).json({ message: "Failed to approve leave" });
+    }
+  });
+
+  // Admin deny leave application (direct admin action)
+  app.post('/api/hostel/leave/:id/deny', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const leave = await storage.updateLeaveStatus(id, 'rejected');
+      res.json({ message: "Leave denied successfully", leave });
+    } catch (error) {
+      console.error("Error denying leave:", error);
+      res.status(500).json({ message: "Failed to deny leave" });
+    }
+  });
+
   // Submit grievance
   app.post('/api/grievances', checkAuth, async (req: any, res) => {
     try {
@@ -987,14 +1019,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get grievances (admin only)
-  app.get('/api/grievances', checkAuth, async (req: any, res) => {
+  // Get grievances
+  app.get('/api/grievances', authorizeAmenities('grievanceAccess'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const category = req.query.category as string;
       const grievances = await storage.getGrievances(category);
       res.json(grievances);
@@ -1004,14 +1031,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Resolve grievance (admin only)
-  app.post('/api/grievances/:id/resolve', checkAuth, async (req: any, res) => {
+  // Resolve grievance
+  app.post('/api/grievances/:id/resolve', authorizeAmenities('grievanceAccess'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      if (req.session.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const id = parseInt(req.params.id);
       const { adminNotes } = req.body;
       

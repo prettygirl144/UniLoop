@@ -218,6 +218,33 @@ Preferred communication style: Simple, everyday language.
   - Event eligibility logic enhanced to support admin access, event creator access, and roll number attendees
 - **Admin Event Visibility Fix**: Resolved issue where admin users couldn't see events they created or were invited to via roll number upload
 
+### January 2025 - Complete Amenities Records Management System with Feature-wise RBAC (COMPLETED)
+- **Status Update Functionality**: Implemented comprehensive status management for amenities records
+  - Leave Applications: Added Approve/Deny buttons with real-time status updates and proper UI feedback
+  - Grievance Management: Enhanced "Mark Resolved" functionality with admin access controls
+  - Sick Food Bookings: Removed "pending" status system - all bookings are now automatically confirmed upon creation
+- **Date Filtering System**: Added advanced date filter for Sick Food Bookings with intuitive UI
+  - Calendar-style date picker with clear/reset functionality 
+  - Real-time filtering with query parameter support in backend API
+  - Responsive design maintaining mobile-first approach
+- **Feature-wise RBAC Implementation**: Comprehensive role-based access control for granular amenities permissions
+  - Database schema updated with `amenitiesPermissions` table for per-feature access control
+  - New permissions: `sickFoodAccess`, `leaveApplicationAccess`, `grievanceAccess`, `menuUpload`
+  - Backend middleware `authorizeAmenities()` for specific permission validation with admin override
+  - Frontend permission checks integrated across all amenities features
+- **Enhanced Database Schema**: Updated amenities-related tables for improved functionality
+  - Removed `status` column from `sick_food_bookings` table (bookings are auto-confirmed)
+  - Added `updateLeaveStatus()` method for direct admin status updates
+  - Maintained backward compatibility with existing token-based approval system
+- **UI/UX Improvements**: Mobile-optimized interface with consistent design patterns
+  - Color-coded status badges (green for approved, red for rejected, gray for pending)
+  - Responsive button layouts with proper disabled states during API calls
+  - Enhanced visual feedback for all status update operations
+- **API Endpoint Enhancements**: All amenities routes updated with proper RBAC middleware
+  - Consistent error handling and permission validation across all endpoints
+  - Support for date-based filtering in sick food bookings API
+  - New endpoints for direct admin status updates (`/api/hostel/leave/:id/approve` and `/api/hostel/leave/:id/deny`)
+
 ### January 2025 - Enhanced Roll Number Detection with Hyphen-Based Logic (COMPLETED)
 - **Intelligent Roll Number Detection**: Implemented advanced roll number identification logic similar to email finding
   - Header detection for roll number columns using keywords: "roll number", "roll no", "rollno", "student id", etc.

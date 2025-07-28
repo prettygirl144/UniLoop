@@ -25,7 +25,10 @@ import {
   XCircle,
   Users,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Check,
+  X,
+  Filter
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -73,6 +76,7 @@ type MenuUploadForm = z.infer<typeof menuUploadSchema>;
 export default function Amenities() {
   const [showSickFoodDialog, setShowSickFoodDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [sickFoodDateFilter, setSickFoodDateFilter] = useState('');
   const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
   const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -196,7 +200,11 @@ export default function Amenities() {
   };
 
   const { data: sickFoodBookings = [] } = useQuery({
-    queryKey: ['/api/amenities/sick-food'],
+    queryKey: ['/api/amenities/sick-food', sickFoodDateFilter],
+    queryFn: async () => {
+      const params = sickFoodDateFilter ? `?date=${sickFoodDateFilter}` : '';
+      return await apiRequest('GET', `/api/amenities/sick-food${params}`);
+    },
     enabled: isAdmin,
   });
 
@@ -386,6 +394,69 @@ export default function Amenities() {
       toast({
         title: 'Error',
         description: 'Failed to resolve grievance.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Leave status update mutations
+  const approveLeaveApplication = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest('POST', `/api/hostel/leave/${id}/approve`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Leave application approved successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/hostel/leave'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to approve leave application. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const denyLeaveApplication = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest('POST', `/api/hostel/leave/${id}/deny`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Leave application denied successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/hostel/leave'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to deny leave application. Please try again.',
         variant: 'destructive',
       });
     },
@@ -1023,15 +1094,37 @@ export default function Amenities() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-medium">Sick Food Bookings</CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadReports('sick-food')}
-                    className="flex items-center gap-1 h-8 px-2"
-                  >
-                    <Download className="h-3 w-3" />
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      <Input
+                        type="date"
+                        value={sickFoodDateFilter}
+                        onChange={(e) => setSickFoodDateFilter(e.target.value)}
+                        className="w-36 h-8"
+                        placeholder="Filter by date"
+                      />
+                      {sickFoodDateFilter && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setSickFoodDateFilter('')}
+                          className="h-8 px-2"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadReports('sick-food')}
+                      className="flex items-center gap-1 h-8 px-2"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span className="hidden sm:inline">Download</span>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="h-48 flex flex-col">
@@ -1046,8 +1139,8 @@ export default function Amenities() {
                                 <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
                               )}
                             </div>
-                            <Badge variant={booking.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                              {booking.status}
+                            <Badge variant="default" className="w-fit">
+                              Confirmed
                             </Badge>
                           </div>
                         ))}
@@ -1080,18 +1173,45 @@ export default function Amenities() {
                     {(leaveApplications as any[]).length > 0 ? (
                       <div className="space-y-2 overflow-y-auto flex-1 pr-2">
                         {(leaveApplications as any[]).map((application: any) => (
-                          <div key={application.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-small font-medium truncate">
-                                {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
-                              </p>
-                              <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
-                              <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
-                              <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
+                          <div key={application.id} className="p-3 border rounded-lg space-y-2 flex-shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-2 sm:space-y-0">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-small font-medium truncate">
+                                  {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                                </p>
+                                <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
+                                <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
+                                <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit">
+                                  {application.status}
+                                </Badge>
+                                {application.status === 'pending' && (
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => approveLeaveApplication.mutate(application.id)}
+                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                      className="h-8 px-3 bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => denyLeaveApplication.mutate(application.id)}
+                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                      className="h-8 px-3"
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Deny
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <Badge variant={application.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                              {application.status}
-                            </Badge>
                           </div>
                         ))}
                       </div>
