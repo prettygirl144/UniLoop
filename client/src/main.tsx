@@ -1,9 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import SimpleApp from "./SimpleApp";
-// Temporarily use SimpleApp to isolate issues
-// import { Toaster } from "@/components/ui/toaster";
-// import App from "./App";
+import { Toaster } from "@/components/ui/toaster";
+import App from "./App";
 import "./index.css";
 import { register } from "./utils/serviceWorkerRegistration";
 
@@ -26,7 +24,8 @@ function initializeApp() {
   try {
     createRoot(rootElement).render(
       <StrictMode>
-        <SimpleApp />
+        <App />
+        <Toaster />
       </StrictMode>
     );
     
