@@ -929,6 +929,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's own leave applications (for status checking)
+  app.get('/api/user/leave-applications', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const applications = await storage.getUserLeaveApplications(userId);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching user leave applications:", error);
+      res.status(500).json({ message: "Failed to fetch your leave applications" });
+    }
+  });
+
+  // Get user's own grievances (for status checking)
+  app.get('/api/user/grievances', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const userGrievances = await storage.getUserGrievances(userId);
+      res.json(userGrievances);
+    } catch (error) {
+      console.error("Error fetching user grievances:", error);
+      res.status(500).json({ message: "Failed to fetch your grievances" });
+    }
+  });
+
   // Apply for hostel leave
   app.post('/api/hostel/leave', checkAuth, async (req: any, res) => {
     try {
