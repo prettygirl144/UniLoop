@@ -923,11 +923,10 @@ export default function Amenities() {
                   </DialogContent>
                 </Dialog>
                 
-                {!isAdmin && (
-                  <Dialog open={showSickFoodStatusDialog} onOpenChange={setShowSickFoodStatusDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">Check Status</Button>
-                    </DialogTrigger>
+                <Dialog open={showSickFoodStatusDialog} onOpenChange={setShowSickFoodStatusDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">Check Status</Button>
+                  </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>My Sick Food Bookings</DialogTitle>
@@ -959,7 +958,6 @@ export default function Amenities() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                )}
               </div>
               </CardContent>
             </Card>
@@ -1064,11 +1062,10 @@ export default function Amenities() {
                   </DialogContent>
                 </Dialog>
                 
-                {!isAdmin && (
-                  <Dialog open={showLeaveStatusDialog} onOpenChange={setShowLeaveStatusDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">Check Status</Button>
-                    </DialogTrigger>
+                <Dialog open={showLeaveStatusDialog} onOpenChange={setShowLeaveStatusDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">Check Status</Button>
+                  </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>My Leave Applications</DialogTitle>
@@ -1107,7 +1104,6 @@ export default function Amenities() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                )}
               </div>
               </CardContent>
             </Card>
@@ -1196,11 +1192,10 @@ export default function Amenities() {
                   </DialogContent>
                 </Dialog>
                 
-                {!isAdmin && (
-                  <Dialog open={showGrievanceStatusDialog} onOpenChange={setShowGrievanceStatusDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">Check Status</Button>
-                    </DialogTrigger>
+                <Dialog open={showGrievanceStatusDialog} onOpenChange={setShowGrievanceStatusDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">Check Status</Button>
+                  </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>My Grievances</DialogTitle>
@@ -1236,7 +1231,6 @@ export default function Amenities() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                )}
               </div>
               </CardContent>
             </Card>
