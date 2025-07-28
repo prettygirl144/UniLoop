@@ -79,58 +79,6 @@ export default function TopAppBar() {
           )}
         </div>
       </div>
-      {/* Mobile-optimized notification panel */}
-      {showNotifications && (
-        <>
-          {/* Mobile: overlay backdrop for touch dismissal */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-20 z-40 lg:hidden"
-            onClick={toggleNotifications}
-            aria-hidden="true"
-          />
-          
-          <div className="fixed 
-                          /* Mobile: full width dropdown */
-                          top-16 left-4 right-4 
-                          /* Desktop: positioned dropdown */
-                          lg:top-20 lg:left-auto lg:right-6 lg:w-80
-                          /* Styling */
-                          bg-surface rounded-xl shadow-xl border border-gray-200 z-50
-                          /* Mobile optimization */
-                          max-h-[70vh] overflow-y-auto">
-            <div className="p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-medium font-medium">Notifications</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleNotifications}
-                  className="text-text-secondary 
-                             /* Mobile: larger tap target */
-                             h-8 w-8 p-0
-                             /* Touch feedback */
-                             active:bg-gray-100 transition-colors duration-150
-                             /* Focus ring */
-                             focus:ring-2 focus:ring-primary focus:ring-opacity-20"
-                  aria-label="Close notifications"
-                >
-                  ×
-                </Button>
-              </div>
-              <div className="space-y-3">
-                <div className="p-3 bg-primary bg-opacity-5 rounded-lg border-l-4 border-primary lg:p-4">
-                  <p className="text-small font-medium">Welcome to UniLoop@IIMR!</p>
-                  <p className="text-small text-text-secondary mt-1">Get started by exploring the features</p>
-                </div>
-                <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400 lg:p-4">
-                  <p className="text-small font-medium text-blue-800">New announcement posted</p>
-                  <p className="text-small text-blue-600 mt-1">Check the Community tab for updates</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </>
   );
 }

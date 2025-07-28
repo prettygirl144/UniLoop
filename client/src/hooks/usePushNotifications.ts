@@ -103,7 +103,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       if (subscription) {
         // Send subscription to server
         const subscriptionData = {
-          userId: user.id,
+          userId: (user as any).id,
           endpoint: subscription.endpoint,
           p256dh: arrayBufferToBase64(subscription.getKey('p256dh')!),
           auth: arrayBufferToBase64(subscription.getKey('auth')!),
@@ -147,7 +147,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         await subscription.unsubscribe();
         
         // Notify server
-        await apiRequest('POST', '/api/push/unsubscribe', { userId: user.id });
+        await apiRequest('POST', '/api/push/unsubscribe', { userId: (user as any).id });
         setIsSubscribed(false);
         
         toast({
