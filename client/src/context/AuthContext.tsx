@@ -13,43 +13,55 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [fallbackLoading, setFallbackLoading] = useState(true);
   
-  // Add error handling for query
+  // Add error handling for query with proper 401 handling
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
     retry: false,
     retryOnMount: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const response = await fetch('/api/auth/user', {
+        credentials: 'include'
+      });
+      
+      // If 401, return null to indicate unauthenticated
+      if (response.status === 401) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.json();
+    }
   });
 
   // Fallback mechanism if query fails completely
   useEffect(() => {
     const timer = setTimeout(() => {
       setFallbackLoading(false);
-    }, 3000); // 3 second timeout
+    }, 2000); // 2 second timeout
     
     return () => clearTimeout(timer);
   }, []);
 
+  // Stop loading when we have a result (user or null) or when query completes
+  const actualLoading = isLoading && fallbackLoading && !error;
+
   const contextValue = {
     user: user as User | null,
-    isLoading: isLoading && fallbackLoading,
+    isLoading: actualLoading,
     isAuthenticated: !!user
   };
 
-  // If there's a critical error, provide fallback context
-  if (error && !fallbackLoading) {
-    console.warn('Auth query failed, using fallback:', error);
-    return (
-      <AuthContext.Provider value={{
-        user: null,
-        isLoading: false,
-        isAuthenticated: false
-      }}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
+  console.log('AuthContext state:', {
+    user: !!user,
+    isLoading: actualLoading,
+    isAuthenticated: !!user,
+    error: !!error
+  });
 
   return (
     <AuthContext.Provider value={contextValue}>
