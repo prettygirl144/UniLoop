@@ -227,14 +227,17 @@ export default function Amenities() {
   // User-specific queries for status checking
   const { data: userSickFoodBookings = [] } = useQuery({
     queryKey: ['/api/user/sick-food-bookings'],
+    enabled: !isAdmin, // Only for regular users
   });
 
   const { data: userLeaveApplications = [] } = useQuery({
     queryKey: ['/api/user/leave-applications'],
+    enabled: !isAdmin, // Only for regular users
   });
 
   const { data: userGrievances = [] } = useQuery({
     queryKey: ['/api/user/grievances'],
+    enabled: !isAdmin, // Only for regular users
   });
 
   // Mutations
