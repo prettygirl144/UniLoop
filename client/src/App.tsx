@@ -57,11 +57,11 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <TooltipProvider>
           <Router />
-        </AuthProvider>
-      </TooltipProvider>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -69,25 +69,10 @@ if (isAuth0Configured) {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  
-  server.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is already in use, attempting to use alternative port...`);
-      const altPort = port + 1;
-      server.listen({
-        port: altPort,
-        host: "0.0.0.0",
-      }, () => {
-        log(`serving on alternative port ${altPort}`);
-      });
-    } else {
-      throw err;
-    }
-  });
-  
   server.listen({
     port,
     host: "0.0.0.0",
+    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
   });

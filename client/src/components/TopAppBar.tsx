@@ -3,11 +3,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
-import PushNotificationButton from './PushNotificationButton';
 import uniloopLogomark from '@assets/uniloop logomark_1753618415583.png';
 
 export default function TopAppBar() {
   const { user } = useAuth();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+  };
 
   return (
     <>
@@ -45,14 +49,25 @@ export default function TopAppBar() {
         
         {/* Right section: Actions and profile */}
         <div className="flex items-center space-x-2 lg:space-x-3 flex-shrink-0">
-          {/* Push notification button */}
-          <PushNotificationButton 
-            className="text-white hover:bg-white hover:bg-opacity-10 
-                       h-10 w-10 p-2 lg:h-9 lg:w-9
+          {/* Mobile-optimized notification button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleNotifications}
+            className="relative text-white hover:bg-white hover:bg-opacity-10 
+                       /* Mobile: larger tap target */
+                       h-10 w-10 p-2
+                       /* Desktop: standard size */
+                       lg:h-9 lg:w-9
+                       /* Touch feedback */
                        active:bg-white active:bg-opacity-20 transition-colors duration-150
+                       /* Focus ring for accessibility */
                        focus:ring-2 focus:ring-white focus:ring-opacity-30"
-            showText={false}
-          />
+            aria-label="Toggle notifications"
+          >
+            <Bell size={18} className="lg:w-5 lg:h-5" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse"></div>
+          </Button>
           
           {/* Account Switcher with responsive positioning */}
           <div className="relative z-50">
@@ -79,6 +94,58 @@ export default function TopAppBar() {
           )}
         </div>
       </div>
+      {/* Mobile-optimized notification panel */}
+      {showNotifications && (
+        <>
+          {/* Mobile: overlay backdrop for touch dismissal */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-20 z-40 lg:hidden"
+            onClick={toggleNotifications}
+            aria-hidden="true"
+          />
+          
+          <div className="fixed 
+                          /* Mobile: full width dropdown */
+                          top-16 left-4 right-4 
+                          /* Desktop: positioned dropdown */
+                          lg:top-20 lg:left-auto lg:right-6 lg:w-80
+                          /* Styling */
+                          bg-surface rounded-xl shadow-xl border border-gray-200 z-50
+                          /* Mobile optimization */
+                          max-h-[70vh] overflow-y-auto">
+            <div className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-medium font-medium">Notifications</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleNotifications}
+                  className="text-text-secondary 
+                             /* Mobile: larger tap target */
+                             h-8 w-8 p-0
+                             /* Touch feedback */
+                             active:bg-gray-100 transition-colors duration-150
+                             /* Focus ring */
+                             focus:ring-2 focus:ring-primary focus:ring-opacity-20"
+                  aria-label="Close notifications"
+                >
+                  ×
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 bg-primary bg-opacity-5 rounded-lg border-l-4 border-primary lg:p-4">
+                  <p className="text-small font-medium">Welcome to UniLoop@IIMR!</p>
+                  <p className="text-small text-text-secondary mt-1">Get started by exploring the features</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400 lg:p-4">
+                  <p className="text-small font-medium text-blue-800">New announcement posted</p>
+                  <p className="text-small text-blue-600 mt-1">Check the Community tab for updates</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

@@ -18,7 +18,6 @@ import {
   studentUploadLogs,
   triathlonTeams,
   triathlonPointHistory,
-  pushSubscriptions,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -55,8 +54,6 @@ import {
   type InsertTriathlonTeam,
   type TriathlonPointHistory,
   type InsertTriathlonPointHistory,
-  type PushSubscription,
-  type InsertPushSubscription,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -145,21 +142,6 @@ export interface IStorage {
   getSectionsForBatches(batches: string[]): Promise<{ batch: string; section: string }[]>;
   getAllBatches(): Promise<string[]>;
   
-  // Push Notifications
-  createPushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription>;
-  getActivePushSubscriptions(userIds: string[]): Promise<PushSubscription[]>;
-  getUserPushSubscriptions(userId: string): Promise<PushSubscription[]>;
-  deactivatePushSubscription(subscriptionId: number): Promise<void>;
-  getAllActiveUsers(): Promise<User[]>;
-  getUsersByBatch(batch: string): Promise<User[]>;
-  getUsersBySection(section: string): Promise<User[]>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getEventById(eventId: string): Promise<Event | undefined>;
-  getEventAttendees(eventId: string): Promise<EventRsvp[]>;
-  getUserSickFoodBookings(userId: string): Promise<SickFoodBooking[]>;
-  getUserLeaveApplications(userId: string): Promise<HostelLeave[]>;
-  getUserGrievances(userId: string): Promise<Grievance[]>;
-
   // Event Management Extended
   deleteEvent(id: number): Promise<void>;
 }
@@ -331,7 +313,10 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-
+  async getEventById(id: number): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event;
+  }
 
   async updateEvent(id: number, eventData: Partial<InsertEvent>): Promise<Event> {
     const updateData: any = {
@@ -719,7 +704,23 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
   }
 
+  async getUserSickFoodBookings(userId: string): Promise<SickFoodBooking[]> {
+    return await db.select().from(sickFoodBookings)
+      .where(eq(sickFoodBookings.userId, userId))
+      .orderBy(desc(sickFoodBookings.createdAt));
+  }
 
+  async getUserLeaveApplications(userId: string): Promise<HostelLeave[]> {
+    return await db.select().from(hostelLeave)
+      .where(eq(hostelLeave.userId, userId))
+      .orderBy(desc(hostelLeave.createdAt));
+  }
+
+  async getUserGrievances(userId: string): Promise<Grievance[]> {
+    return await db.select().from(grievances)
+      .where(eq(grievances.userId, userId))
+      .orderBy(desc(grievances.createdAt));
+  }
 
   async applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave> {
     // Generate approval token
@@ -1139,129 +1140,6 @@ export class DatabaseStorage implements IStorage {
       .from(triathlonPointHistory)
       .where(eq(triathlonPointHistory.teamId, teamId))
       .orderBy(desc(triathlonPointHistory.createdAt));
-  }
-
-  // Push notification methods
-  async createPushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription> {
-    const [created] = await db
-      .insert(pushSubscriptions)
-      .values(subscription)
-      .onConflictDoUpdate({
-        target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
-        set: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
-          userAgent: subscription.userAgent,
-          isActive: true,
-          updatedAt: new Date()
-        }
-      })
-      .returning();
-    return created;
-  }
-
-  async getActivePushSubscriptions(userIds: string[]): Promise<PushSubscription[]> {
-    if (userIds.length === 0) return [];
-    return await db
-      .select()
-      .from(pushSubscriptions)
-      .where(and(
-        inArray(pushSubscriptions.userId, userIds),
-        eq(pushSubscriptions.isActive, true)
-      ));
-  }
-
-  async getUserPushSubscriptions(userId: string): Promise<PushSubscription[]> {
-    return await db
-      .select()
-      .from(pushSubscriptions)
-      .where(and(
-        eq(pushSubscriptions.userId, userId),
-        eq(pushSubscriptions.isActive, true)
-      ));
-  }
-
-  async deactivatePushSubscription(subscriptionId: number): Promise<void> {
-    await db
-      .update(pushSubscriptions)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(pushSubscriptions.id, subscriptionId));
-  }
-
-  async getAllActiveUsers(): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(eq(users.isActive, true));
-  }
-
-  async getUsersByBatch(batch: string): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.batch, batch),
-        eq(users.isActive, true)
-      ));
-  }
-
-  async getUsersBySection(section: string): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.section, section),
-        eq(users.isActive, true)
-      ));
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email));
-    return user;
-  }
-
-  async getEventById(eventId: string): Promise<Event | undefined> {
-    const id = parseInt(eventId);
-    const [event] = await db
-      .select()
-      .from(events)
-      .where(eq(events.id, id));
-    return event;
-  }
-
-  async getEventAttendees(eventId: string): Promise<EventRsvp[]> {
-    const id = parseInt(eventId);
-    return await db
-      .select()
-      .from(eventRsvps)
-      .where(eq(eventRsvps.eventId, id));
-  }
-
-  async getUserSickFoodBookings(userId: string): Promise<SickFoodBooking[]> {
-    return await db
-      .select()
-      .from(sickFoodBookings)
-      .where(eq(sickFoodBookings.userId, userId))
-      .orderBy(desc(sickFoodBookings.createdAt));
-  }
-
-  async getUserLeaveApplications(userId: string): Promise<HostelLeave[]> {
-    return await db
-      .select()
-      .from(hostelLeave)
-      .where(eq(hostelLeave.userId, userId))
-      .orderBy(desc(hostelLeave.createdAt));
-  }
-
-  async getUserGrievances(userId: string): Promise<Grievance[]> {
-    return await db
-      .select()
-      .from(grievances)
-      .where(eq(grievances.userId, userId))
-      .orderBy(desc(grievances.createdAt));
   }
 }
 

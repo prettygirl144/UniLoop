@@ -26,7 +26,6 @@ import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { PushNotificationService } from "./pushService";
 
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
@@ -1682,98 +1681,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching point history:", error);
       res.status(500).json({ message: "Failed to fetch history" });
-    }
-  });
-
-  // Push Notification Routes
-  app.post('/api/push/subscribe', checkAuth, async (req: any, res) => {
-    try {
-      const user = extractUser(req);
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const subscriptionData = {
-        userId: user.id,
-        endpoint: req.body.endpoint,
-        p256dh: req.body.p256dh,
-        auth: req.body.auth,
-        userAgent: req.body.userAgent || req.headers['user-agent'] || 'Unknown'
-      };
-
-      const subscription = await storage.createPushSubscription(subscriptionData);
-      res.json({ success: true, subscription });
-    } catch (error) {
-      console.error("Error subscribing to push notifications:", error);
-      res.status(500).json({ message: "Failed to subscribe to notifications" });
-    }
-  });
-
-  app.post('/api/push/unsubscribe', checkAuth, async (req: any, res) => {
-    try {
-      const user = extractUser(req);
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // Get user's subscriptions and deactivate them
-      const subscriptions = await storage.getUserPushSubscriptions(user.id);
-      await Promise.all(
-        subscriptions.map(sub => storage.deactivatePushSubscription(sub.id))
-      );
-
-      res.json({ success: true, message: "Unsubscribed from notifications" });
-    } catch (error) {
-      console.error("Error unsubscribing from push notifications:", error);
-      res.status(500).json({ message: "Failed to unsubscribe from notifications" });
-    }
-  });
-
-  app.post('/api/push/send', adminOnly(), async (req: any, res) => {
-    try {
-      const { title, body, target, data } = req.body;
-      
-      if (!title || !body) {
-        return res.status(400).json({ message: "Title and body are required" });
-      }
-
-      const result = await PushNotificationService.sendNotification({
-        title,
-        body,
-        icon: '/icons/192.png',
-        badge: '/icons/144.png',
-        data: data || {}
-      }, target || { type: 'all' });
-
-      res.json(result);
-    } catch (error) {
-      console.error("Error sending push notification:", error);
-      res.status(500).json({ message: "Failed to send notification" });
-    }
-  });
-
-  app.post('/api/push/test', adminOnly(), async (req: any, res) => {
-    try {
-      const user = extractUser(req);
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const result = await PushNotificationService.sendNotification({
-        title: 'Test Notification',
-        body: 'This is a test push notification from UniLoop@IIMR',
-        icon: '/icons/192.png',
-        badge: '/icons/144.png',
-        data: {
-          url: '/',
-          type: 'test'
-        }
-      }, { type: 'users', value: [user.id] });
-
-      res.json(result);
-    } catch (error) {
-      console.error("Error sending test notification:", error);
-      res.status(500).json({ message: "Failed to send test notification" });
     }
   });
 

@@ -1,4 +1,5 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
+import { useQuery } from "@tanstack/react-query";
 import type { User } from '@shared/schema';
 
 interface AuthContextType {
@@ -10,36 +11,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch('/api/auth/user', {
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, []);
+  // Session-based authentication using Auth0 Google OAuth
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
+      user: user as User | null, 
       isLoading, 
       isAuthenticated: !!user 
     }}>

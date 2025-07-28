@@ -1,6 +1,15 @@
-import { useAuthContext } from "@/context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 export function useAuth() {
-  // Use the AuthContext instead of direct React Query
-  return useAuthContext();
+  // Session-based authentication using Auth0 Google OAuth
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
+  return {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+  };
 }
