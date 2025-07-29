@@ -704,24 +704,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
   }
 
-  async getUserSickFoodBookings(userId: string): Promise<SickFoodBooking[]> {
-    return await db.select().from(sickFoodBookings)
-      .where(eq(sickFoodBookings.userId, userId))
-      .orderBy(desc(sickFoodBookings.createdAt));
-  }
-
-  async getUserLeaveApplications(userId: string): Promise<HostelLeave[]> {
-    return await db.select().from(hostelLeave)
-      .where(eq(hostelLeave.userId, userId))
-      .orderBy(desc(hostelLeave.createdAt));
-  }
-
-  async getUserGrievances(userId: string): Promise<Grievance[]> {
-    return await db.select().from(grievances)
-      .where(eq(grievances.userId, userId))
-      .orderBy(desc(grievances.createdAt));
-  }
-
   async applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave> {
     // Generate approval token
     const approvalToken = crypto.randomUUID();

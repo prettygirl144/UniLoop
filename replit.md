@@ -218,32 +218,23 @@ Preferred communication style: Simple, everyday language.
   - Event eligibility logic enhanced to support admin access, event creator access, and roll number attendees
 - **Admin Event Visibility Fix**: Resolved issue where admin users couldn't see events they created or were invited to via roll number upload
 
-### January 2025 - Complete Amenities Records Management System with User Status Checking (COMPLETED)
-- **Fixed Date Filtering Issue**: Resolved sick food booking date filter not working in admin records
-  - Fixed backend API date comparison logic
-  - Added proper query parameter handling for date filtering
-  - Admin can now successfully filter sick food bookings by specific dates
-- **Implemented Check Status Functionality**: Added comprehensive status checking for all three amenities services
-  - **Sick Food Booking Status**: Shows user's personal bookings with confirmation status, meal types, dates, and special requirements
-  - **Leave Application Status**: Displays approval status (Approved/Denied/Pending) with application details and submission dates  
-  - **Grievance Status**: Shows resolution status (Resolved/Pending) with submission and resolution timestamps
-- **Enhanced Backend API**: Added user-specific endpoints for status checking
-  - `/api/user/sick-food-bookings` - User's own sick food bookings
-  - `/api/user/leave-applications` - User's own leave applications  
-  - `/api/user/grievances` - User's own grievances
-  - Proper authentication and data filtering by user ID
-- **UI/UX Improvements**: Enhanced service cards with dual functionality
-  - Primary action buttons for form submission (Book Sick Food, Apply for Leave, Submit Grievance)
-  - Secondary "Check Status" buttons for status viewing (non-admin users only)
-  - Comprehensive status dialogs with detailed information and color-coded status badges
-  - Mobile-responsive design with proper spacing and typography
-- **Status Update Functionality**: Maintained existing admin status management
-  - Leave Applications: Approve/Deny buttons with real-time status updates
-  - Grievance Management: "Mark Resolved" functionality with admin access controls
-  - Sick Food Bookings: Auto-confirmed upon creation (no pending status needed)
-- **Cache Management**: Updated query invalidation to refresh both admin records and user status views
-  - Ensures real-time updates when forms are submitted or statuses change
-  - Proper separation of admin and user data queriespdates
+### January 2025 - Complete Amenities Records Management System with Feature-wise RBAC (COMPLETED)
+- **Status Update Functionality**: Implemented comprehensive status management for amenities records
+  - Leave Applications: Added Approve/Deny buttons with real-time status updates and proper UI feedback
+  - Grievance Management: Enhanced "Mark Resolved" functionality with admin access controls
+  - Sick Food Bookings: Removed "pending" status system - all bookings are now automatically confirmed upon creation
+- **Date Filtering System**: Added advanced date filter for Sick Food Bookings with intuitive UI
+  - Calendar-style date picker with clear/reset functionality 
+  - Real-time filtering with query parameter support in backend API
+  - Responsive design maintaining mobile-first approach
+- **Feature-wise RBAC Implementation**: Comprehensive role-based access control for granular amenities permissions
+  - Database schema updated with `amenitiesPermissions` table for per-feature access control
+  - New permissions: `sickFoodAccess`, `leaveApplicationAccess`, `grievanceAccess`, `menuUpload`
+  - Backend middleware `authorizeAmenities()` for specific permission validation with admin override
+  - Frontend permission checks integrated across all amenities features
+- **Enhanced Database Schema**: Updated amenities-related tables for improved functionality
+  - Removed `status` column from `sick_food_bookings` table (bookings are auto-confirmed)
+  - Added `updateLeaveStatus()` method for direct admin status updates
   - Maintained backward compatibility with existing token-based approval system
 - **UI/UX Improvements**: Mobile-optimized interface with consistent design patterns
   - Color-coded status badges (green for approved, red for rejected, gray for pending)
