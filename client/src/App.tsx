@@ -60,6 +60,7 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Router />
+          <Toaster />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
