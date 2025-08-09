@@ -837,6 +837,7 @@ export default function Calendar() {
                               <SelectItem value="sports">Sports</SelectItem>
                               <SelectItem value="technical">Technical</SelectItem>
                               <SelectItem value="committee">Committee</SelectItem>
+                              <SelectItem value="triathlon">Triathlon</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                           </Select>
