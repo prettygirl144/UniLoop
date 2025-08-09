@@ -1,14 +1,71 @@
 # UniLoop Codebase Analysis Report
 *Generated on: January 8, 2025*
+*Updated with Critical Runtime Errors: January 8, 2025*
 
 ## Executive Summary
 
-This report provides a comprehensive analysis of the UniLoop codebase, identifying critical issues, security vulnerabilities, and technical debt that require immediate attention. The analysis covers authentication systems, database architecture, API security, frontend reliability, and code quality.
+This report provides a comprehensive analysis of the UniLoop codebase, identifying critical issues, security vulnerabilities, and technical debt that require immediate attention. **The application is currently experiencing complete failure with white screen and React runtime errors.**
 
+**BLOCKING Issues Found:** 4 (Application completely broken)
 **Critical Issues Found:** 12
 **Security Vulnerabilities:** 4  
 **Performance Concerns:** 6
 **Code Quality Issues:** 8
+
+## 🚨 EMERGENCY BLOCKING ISSUES (Application Broken - White Screen)
+
+### CRITICAL: React Hooks Rule Violations (BLOCKING)
+**Status:** 🔴 APPLICATION DOWN - White screen, cannot load
+**Console Errors:**
+```
+Warning: Invalid hook call. Hooks can only be called inside of the body of a function component
+Cannot read properties of null (reading 'useContext')
+Cannot read properties of null (reading 'useState')
+```
+
+**Root Causes Identified:**
+1. **🔴 CRITICAL: Toaster Outside Context Providers** - `main.tsx:11` renders `<Toaster />` outside React context
+   - Toaster component uses `useToast` hook with `React.useState`
+   - Toaster is rendered OUTSIDE of QueryClientProvider and AuthProvider
+   - Hook calls fail because React context is not available
+   
+2. **🔴 Context Provider Structure Issue** - Provider nesting conflicts
+   ```
+   main.tsx:
+     <App />          // Contains all providers
+     <Toaster />      // ❌ OUTSIDE providers - causes hook failures
+   ```
+
+3. **🟡 WebSocket Connection Failures** - Development server connectivity issues
+   - Multiple WebSocket connection attempts failing
+   - Hot reload functionality broken
+   - URL construction errors: `'wss://localhost:undefined/?token=...'`
+
+**Technical Details:**
+- Error occurs when `useToast()` calls `React.useState` at line 172
+- React context is null because Toaster is outside provider tree
+- AuthContext useQuery hook also fails due to same issue
+
+**Immediate Impact:** Complete application failure, users cannot access any functionality
+
+### EMERGENCY FIX REQUIRED (5-minute fix):
+**Location:** `client/src/main.tsx`
+**Action:** Move `<Toaster />` inside `<App />` component or remove duplicate
+
+**Before (Broken):**
+```tsx
+<StrictMode>
+  <App />
+  <Toaster />  // ❌ Outside all contexts
+</StrictMode>
+```
+
+**After (Fixed):**
+```tsx
+<StrictMode>
+  <App />  // Toaster should be inside App component
+</StrictMode>
+```
 
 ---
 
@@ -149,7 +206,45 @@ if (req.url.includes('/api/amenities/menu/upload') && process.env.NODE_ENV === '
 
 ---
 
+---
+
 ## 📋 Phased Fix Plan
+
+## Phase 0: EMERGENCY APPLICATION RECOVERY (IMMEDIATE - 15 minutes)
+
+### BLOCKING FIX 0.1: Fix Toaster Context Issue (CRITICAL)
+**Duration:** 5 minutes
+**Status:** 🔴 BLOCKING APPLICATION STARTUP
+**Actions:**
+1. **IMMEDIATE:** Remove `<Toaster />` from `main.tsx:11` 
+2. **VERIFY:** Ensure `<Toaster />` exists inside App component within provider context
+3. **TEST:** Confirm application loads without white screen
+
+**Files to modify:**
+- `client/src/main.tsx` - Remove line 11: `<Toaster />`
+- `client/src/App.tsx` - Verify Toaster is inside providers (likely already exists)
+
+### BLOCKING FIX 0.2: Fix Provider Structure (CRITICAL)  
+**Duration:** 5 minutes
+**Actions:**
+1. Ensure proper provider nesting order
+2. Verify QueryClientProvider wraps AuthProvider 
+3. Confirm all hook-using components are inside providers
+
+### BLOCKING FIX 0.3: WebSocket Development Issues (MEDIUM)
+**Duration:** 5 minutes  
+**Actions:**
+1. Check development server configuration
+2. Verify port conflicts (multiple servers on port 5000)
+3. Restart development workflow if needed
+
+**Success Criteria for Phase 0:**
+- [ ] Application loads without white screen
+- [ ] No React hook rule violation errors
+- [ ] Basic navigation functional
+- [ ] Console shows normal application logs only
+
+---
 
 ## Phase 1: Security & Critical Issues (IMMEDIATE - Week 1)
 
@@ -272,7 +367,55 @@ if (req.url.includes('/api/amenities/menu/upload') && process.env.NODE_ENV === '
 
 ---
 
+---
+
+## 🔍 Detailed Error Analysis
+
+### Console Error Breakdown:
+
+**1. Hook Rule Violations (AuthContext.tsx:15)**
+```
+Warning: Invalid hook call. Hooks can only be called inside of the body of a function component
+```
+- **Location:** `useQuery` hook in AuthProvider component
+- **Cause:** Component rendered outside React context providers
+- **Fix:** Move Toaster inside provider tree
+
+**2. React Context Null Errors**
+```
+Cannot read properties of null (reading 'useContext')
+Cannot read properties of null (reading 'useState')
+```
+- **Location:** AuthContext.tsx:15, use-toast.ts:172
+- **Cause:** React context is null when hooks are called
+- **Fix:** Proper provider nesting structure
+
+**3. Component Tree Errors**
+```
+The above error occurred in the <AuthProvider> component
+The above error occurred in the <Toaster> component
+```
+- **Cause:** Both components trying to use hooks outside proper context
+- **Fix:** Restructure component hierarchy
+
+**4. WebSocket Connection Failures**
+```
+WebSocket connection to 'wss://localhost:undefined/?token=...' failed
+```
+- **Cause:** Development server configuration issues
+- **Impact:** Hot reload and development features broken
+- **Fix:** Check server configuration and port settings
+
+---
+
 ## 🎯 Success Metrics
+
+### Emergency Recovery Metrics (Phase 0)
+- [ ] Application loads without white screen
+- [ ] Zero React hook rule violations
+- [ ] AuthContext and Toaster components functional
+- [ ] No null context errors in console
+- [ ] Basic page navigation working
 
 ### Security Metrics
 - [ ] Zero authentication bypasses in production
@@ -318,9 +461,15 @@ if (req.url.includes('/api/amenities/menu/upload') && process.env.NODE_ENV === '
 
 ## 📝 Recommendations
 
-### Immediate Actions (This Week)
+### Immediate Actions (Next 15 Minutes - EMERGENCY)
+1. **🚨 BLOCKING:** Fix Toaster context issue causing white screen
+2. **🚨 BLOCKING:** Verify provider structure for proper React context
+3. **🚨 BLOCKING:** Test application startup and basic functionality
+4. **🚨 BLOCKING:** Resolve WebSocket development server issues
+
+### Critical Actions (This Week)
 1. **CRITICAL:** Remove authentication bypass from production code
-2. **CRITICAL:** Implement proper logging and remove console statements
+2. **CRITICAL:** Implement proper logging and remove console statements  
 3. **HIGH:** Secure file upload functionality
 4. **HIGH:** Fix input validation vulnerabilities
 
@@ -342,7 +491,10 @@ if (req.url.includes('/api/amenities/menu/upload') && process.env.NODE_ENV === '
 
 | Issue Category | Probability | Impact | Risk Level | Timeline |
 |---------------|-------------|--------|------------|----------|
-| Authentication Bypass | High | Critical | 🔴 Critical | Immediate |
+| **React Hook Violations** | **Certain** | **Critical** | **🔴 BLOCKING** | **15 minutes** |
+| **Toaster Context Issue** | **Certain** | **Critical** | **🔴 BLOCKING** | **5 minutes** |
+| WebSocket Development Issues | High | Medium | 🟡 Medium | 15 minutes |
+| Authentication Bypass | High | Critical | 🔴 Critical | Week 1 |
 | File Upload Vulnerabilities | Medium | High | 🔴 High | Week 1 |
 | Information Leakage | High | Medium | 🟡 Medium | Week 1 |
 | Database Inconsistencies | Medium | Medium | 🟡 Medium | Week 2 |
