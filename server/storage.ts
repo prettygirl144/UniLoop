@@ -12,6 +12,8 @@ import {
   grievances,
   weeklyMenu,
   attendance,
+  attendanceSheets,
+  attendanceRecords,
   galleryFolders,
   amenitiesPermissions,
   studentDirectory,
@@ -57,6 +59,10 @@ import {
   type InsertTriathlonPointHistory,
   type PushSubscription,
   type InsertPushSubscription,
+  type AttendanceSheet,
+  type InsertAttendanceSheet,
+  type AttendanceRecord,
+  type InsertAttendanceRecord,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -119,8 +125,18 @@ export interface IStorage {
   getAmenitiesPermissions(userId: string): Promise<AmenitiesPermissions | undefined>;
   setAmenitiesPermissions(permissions: InsertAmenitiesPermissions): Promise<AmenitiesPermissions>;
 
-  // Attendance
+  // Attendance (legacy)
   saveAttendance(eventId: number, attendees: string[], markedBy: string): Promise<void>;
+  
+  // Attendance Sheets Management
+  createAttendanceSheet(sheet: InsertAttendanceSheet): Promise<AttendanceSheet>;
+  getAttendanceSheetByEventId(eventId: number): Promise<AttendanceSheet | undefined>;
+  getAttendanceSheetById(sheetId: number): Promise<AttendanceSheet | undefined>;
+  getAttendanceRecordsBySheetId(sheetId: number): Promise<AttendanceRecord[]>;
+  createAttendanceRecords(records: InsertAttendanceRecord[]): Promise<AttendanceRecord[]>;
+  updateAttendanceRecord(recordId: number, status: string, note?: string, markedBy?: string): Promise<AttendanceRecord>;
+  bulkUpdateAttendanceRecords(sheetId: number, status: string, markedBy: string): Promise<void>;
+  syncStudentsToAttendanceSheet(sheetId: number, batch: string, section: string): Promise<AttendanceRecord[]>;
 
   // Directory
   getAllUsers(): Promise<User[]>;
@@ -320,6 +336,52 @@ export class DatabaseStorage implements IStorage {
       .insert(events)
       .values([eventData])
       .returning();
+
+    // Auto-create attendance sheet if event has batch-section targeting
+    if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {
+      // For each batch-section pair, create an attendance sheet
+      for (const batchSection of event.targetBatchSections) {
+        const [batch, section] = batchSection.split('::');
+        if (batch && section) {
+          try {
+            // Check if attendance sheet already exists (idempotent)
+            const existingSheet = await this.getAttendanceSheetByEventId(created.id);
+            if (!existingSheet) {
+              // Create attendance sheet
+              const sheet = await this.createAttendanceSheet({
+                eventId: created.id,
+                batch,
+                section,
+                createdBy: event.authorId,
+              });
+
+              // Get all students in this batch-section and create attendance records
+              const students = await db
+                .select()
+                .from(studentDirectory)
+                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
+
+              if (students.length > 0) {
+                const attendanceRecords = students.map(student => ({
+                  sheetId: sheet.id,
+                  studentEmail: student.email,
+                  studentName: student.email.split('@')[0] || '', // Use email prefix as name
+                  rollNumber: student.rollNumber || null,
+                  status: 'UNMARKED' as const,
+                }));
+
+                await this.createAttendanceRecords(attendanceRecords);
+                console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section}`);
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
+            // Don't throw - event creation should succeed even if attendance sheet fails
+          }
+        }
+      }
+    }
+    
     return created;
   }
 
@@ -1183,6 +1245,128 @@ export class DatabaseStorage implements IStorage {
       .from(pushSubscriptions)
       .where(eq(pushSubscriptions.userEmail, userEmail))
       .orderBy(desc(pushSubscriptions.lastSeenAt));
+  }
+
+  // Attendance Sheets Management Implementation
+  async createAttendanceSheet(sheet: InsertAttendanceSheet): Promise<AttendanceSheet> {
+    const [created] = await db
+      .insert(attendanceSheets)
+      .values([sheet])
+      .returning();
+    return created;
+  }
+
+  async getAttendanceSheetByEventId(eventId: number): Promise<AttendanceSheet | undefined> {
+    const [sheet] = await db
+      .select()
+      .from(attendanceSheets)
+      .where(eq(attendanceSheets.eventId, eventId));
+    return sheet;
+  }
+
+  async getAttendanceSheetById(sheetId: number): Promise<AttendanceSheet | undefined> {
+    const [sheet] = await db
+      .select()
+      .from(attendanceSheets)
+      .where(eq(attendanceSheets.id, sheetId));
+    return sheet;
+  }
+
+  async getAttendanceRecordsBySheetId(sheetId: number): Promise<AttendanceRecord[]> {
+    return await db
+      .select()
+      .from(attendanceRecords)
+      .where(and(eq(attendanceRecords.sheetId, sheetId), eq(attendanceRecords.isArchived, false)))
+      .orderBy(attendanceRecords.rollNumber, attendanceRecords.studentName);
+  }
+
+  async createAttendanceRecords(records: InsertAttendanceRecord[]): Promise<AttendanceRecord[]> {
+    if (records.length === 0) return [];
+    
+    const created = await db
+      .insert(attendanceRecords)
+      .values(records)
+      .onConflictDoNothing() // Prevent duplicates
+      .returning();
+    return created;
+  }
+
+  async updateAttendanceRecord(recordId: number, status: string, note?: string, markedBy?: string): Promise<AttendanceRecord> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+    
+    if (note !== undefined) updateData.note = note;
+    if (markedBy) {
+      updateData.markedBy = markedBy;
+      updateData.markedAt = new Date();
+    }
+
+    const [updated] = await db
+      .update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, recordId))
+      .returning();
+    return updated;
+  }
+
+  async bulkUpdateAttendanceRecords(sheetId: number, status: string, markedBy: string): Promise<void> {
+    await db
+      .update(attendanceRecords)
+      .set({
+        status,
+        markedBy,
+        markedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(attendanceRecords.sheetId, sheetId), eq(attendanceRecords.isArchived, false)));
+  }
+
+  async syncStudentsToAttendanceSheet(sheetId: number, batch: string, section: string): Promise<AttendanceRecord[]> {
+    // Get all students in the specified batch and section
+    const students = await db
+      .select()
+      .from(studentDirectory)
+      .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
+
+    // Get existing records for this sheet
+    const existingRecords = await db
+      .select()
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.sheetId, sheetId));
+
+    const existingEmails = new Set(existingRecords.map(r => r.studentEmail));
+    
+    // Find students to add (new students not in attendance sheet)
+    const newStudents = students.filter(s => !existingEmails.has(s.email));
+    
+    // Create records for new students
+    if (newStudents.length > 0) {
+      const newRecords = newStudents.map(student => ({
+        sheetId,
+        studentEmail: student.email,
+        studentName: student.email.split('@')[0] || '', // Use email prefix as name
+        rollNumber: student.rollNumber || null,
+        status: 'UNMARKED' as const,
+      }));
+
+      await this.createAttendanceRecords(newRecords);
+    }
+
+    // Archive records for students no longer in section (don't delete)
+    const currentStudentEmails = new Set(students.map(s => s.email));
+    const recordsToArchive = existingRecords.filter(r => !currentStudentEmails.has(r.studentEmail) && !r.isArchived);
+    
+    if (recordsToArchive.length > 0) {
+      await db
+        .update(attendanceRecords)
+        .set({ isArchived: true, updatedAt: new Date() })
+        .where(inArray(attendanceRecords.id, recordsToArchive.map(r => r.id)));
+    }
+
+    // Return updated attendance records
+    return await this.getAttendanceRecordsBySheetId(sheetId);
   }
 }
 

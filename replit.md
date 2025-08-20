@@ -27,6 +27,14 @@ UniLoop follows a modular architecture with distinct frontend and backend compon
 ### Core Modules & Features
 - **Announcements**: Campus-wide communication with role-based posting.
 - **Event Management**: Calendar with RSVP and attendance tracking, including roll number-based targeting.
+- **Attendance Management**: Auto-generated attendance sheets for batch-section targeted events with comprehensive tracking features:
+  - Automatic sheet creation when events are created with batch-section targeting
+  - Individual student attendance records with status (Present/Absent/Late/Unmarked) and notes
+  - Bulk actions for marking all students present/absent or clearing all records
+  - Student roster synchronization to handle enrollment changes
+  - CSV export functionality for attendance reports
+  - Admin-only editing with audit trail (marked by, marked at timestamps)
+  - Real-time attendance statistics and filtering capabilities
 - **Forum Platform**: Discussion boards with categories, reactions, moderation, and anonymous posting.
 - **Dining Services**: Sick food booking, hostel leave applications, and weekly menu upload.
 - **Directory**: User lookup with messaging.
@@ -37,7 +45,7 @@ UniLoop follows a modular architecture with distinct frontend and backend compon
 ### System Design Choices
 - **Security**: XSS prevention in user-generated content, secure session management, and JWT validation.
 - **Mobile Optimization**: Comprehensive mobile-first UI with enhanced touch interactions, responsive layouts, and standardized typography (3-font-size system across all pages).
-- **Database Schema**: Structured for users, content, interactions, and services, supporting relational integrity and specific features like batch-section targeting and amenities permissions.
+- **Database Schema**: Structured for users, content, interactions, and services, supporting relational integrity and specific features like batch-section targeting, amenities permissions, and automated attendance sheet management with comprehensive audit trails.
 
 ## External Dependencies
 - **Development & Build**: Vite, TypeScript, Replit integration.

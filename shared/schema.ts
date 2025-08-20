@@ -103,7 +103,7 @@ export const eventRsvps = pgTable("event_rsvps", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Attendance table
+// Legacy attendance table (keeping for backward compatibility)
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").notNull().references(() => events.id),
@@ -111,6 +111,35 @@ export const attendance = pgTable("attendance", {
   markedBy: varchar("marked_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Attendance Sheets - one per event with auto-generated student records
+export const attendanceSheets = pgTable("attendance_sheets", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id).unique(), // one sheet per event
+  batch: varchar("batch").notNull(),
+  section: varchar("section").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Attendance Records - individual student records within a sheet
+export const attendanceRecords = pgTable("attendance_records", {
+  id: serial("id").primaryKey(),
+  sheetId: integer("sheet_id").notNull().references(() => attendanceSheets.id, { onDelete: "cascade" }),
+  studentEmail: varchar("student_email").notNull(),
+  studentName: varchar("student_name").notNull(),
+  rollNumber: varchar("roll_number"),
+  status: varchar("status").default("UNMARKED").notNull(), // UNMARKED, PRESENT, ABSENT, LATE
+  note: text("note"),
+  markedBy: varchar("marked_by").references(() => users.id),
+  markedAt: timestamp("marked_at"),
+  isArchived: boolean("is_archived").default(false), // for sync functionality
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique("unique_sheet_student").on(table.sheetId, table.studentEmail),
+]);
 
 // Community Board Posts table (Section 1)
 export const communityPosts = pgTable("community_posts", {
@@ -263,6 +292,33 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [users.id],
   }),
   rsvps: many(eventRsvps),
+  attendanceSheet: one(attendanceSheets, {
+    fields: [events.id],
+    references: [attendanceSheets.eventId],
+  }),
+}));
+
+export const attendanceSheetsRelations = relations(attendanceSheets, ({ one, many }) => ({
+  event: one(events, {
+    fields: [attendanceSheets.eventId],
+    references: [events.id],
+  }),
+  createdBy: one(users, {
+    fields: [attendanceSheets.createdBy],
+    references: [users.id],
+  }),
+  records: many(attendanceRecords),
+}));
+
+export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  sheet: one(attendanceSheets, {
+    fields: [attendanceRecords.sheetId],
+    references: [attendanceSheets.id],
+  }),
+  markedBy: one(users, {
+    fields: [attendanceRecords.markedBy],
+    references: [users.id],
+  }),
 }));
 
 export const eventRsvpsRelations = relations(eventRsvps, ({ one }) => ({
@@ -341,6 +397,18 @@ export const insertEventSchema = createInsertSchema(events).omit({
 export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertAttendanceSheetSchema = createInsertSchema(attendanceSheets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Community Board Insert Schemas
@@ -495,6 +563,10 @@ export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
 export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
 export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertAttendanceSheet = z.infer<typeof insertAttendanceSheetSchema>;
+export type AttendanceSheet = typeof attendanceSheets.$inferSelect;
+export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 // Community Board Types
 export type InsertCommunityPost = z.infer<typeof insertCommunityPostSchema>;
 export type CommunityPost = typeof communityPosts.$inferSelect;

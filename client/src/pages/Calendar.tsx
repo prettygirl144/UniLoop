@@ -1815,6 +1815,25 @@ export default function Calendar() {
                 )}
               </div>
 
+              {/* Attendance Management Button - Admin Only */}
+              {(user?.role === 'admin' || user?.permissions?.attendance) && selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0 && (
+                <div className="pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => {
+                      setShowEventDetails(false);
+                      // Navigate to attendance page
+                      window.location.href = `/attendance/${selectedEvent.id}`;
+                    }}
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    View Attendance Sheet
+                  </Button>
+                </div>
+              )}
+
               {/* Target Audience Info */}
               {selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0 && (
                 <div className="text-xs text-muted-foreground space-y-2">

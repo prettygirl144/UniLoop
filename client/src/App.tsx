@@ -47,6 +47,7 @@ function Router() {
           <Route path="/directory" component={Directory} />
           <Route path="/admin" component={Admin} />
           <Route path="/attendance" component={Attendance} />
+          <Route path="/attendance/:eventId" component={Attendance} />
         </Layout>
       )}
       <Route component={NotFound} />

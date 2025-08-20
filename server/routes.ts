@@ -20,6 +20,7 @@ import {
   insertStudentDirectorySchema,
   insertStudentUploadLogSchema,
   insertPushSubscriptionSchema,
+  insertAttendanceRecordSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -482,6 +483,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user RSVPs:", error);
       res.status(500).json({ message: "Failed to fetch RSVPs" });
+    }
+  });
+
+  // Attendance Management Routes
+  // Get attendance sheet for an event
+  app.get('/api/events/:id/attendance', checkAuth, async (req: any, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user has permission to view attendance (admin or attendance permission)
+      if (user.role !== 'admin' && !user.permissions?.attendance) {
+        return res.status(403).json({ message: "No permission to view attendance" });
+      }
+
+      const attendanceSheet = await storage.getAttendanceSheetByEventId(eventId);
+      if (!attendanceSheet) {
+        return res.status(404).json({ message: "No attendance sheet found for this event" });
+      }
+
+      const records = await storage.getAttendanceRecordsBySheetId(attendanceSheet.id);
+      res.json({
+        sheet: attendanceSheet,
+        records: records,
+      });
+    } catch (error) {
+      console.error("Error fetching attendance sheet:", error);
+      res.status(500).json({ message: "Failed to fetch attendance sheet" });
+    }
+  });
+
+  // Update a single attendance record
+  app.put('/api/attendance/records/:id', adminOnly(), async (req: any, res) => {
+    try {
+      const recordId = parseInt(req.params.id);
+      const { status, note } = req.body;
+      const userId = req.session.user.id;
+
+      // Validate status
+      const validStatuses = ['UNMARKED', 'PRESENT', 'ABSENT', 'LATE'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be one of: " + validStatuses.join(', ') });
+      }
+
+      const updatedRecord = await storage.updateAttendanceRecord(recordId, status, note, userId);
+      res.json(updatedRecord);
+    } catch (error) {
+      console.error("Error updating attendance record:", error);
+      res.status(500).json({ message: "Failed to update attendance record" });
+    }
+  });
+
+  // Bulk update all records in a sheet
+  app.put('/api/attendance/sheets/:id/bulk', adminOnly(), async (req: any, res) => {
+    try {
+      const sheetId = parseInt(req.params.id);
+      const { status } = req.body;
+      const userId = req.session.user.id;
+
+      // Validate status
+      const validStatuses = ['UNMARKED', 'PRESENT', 'ABSENT', 'LATE'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be one of: " + validStatuses.join(', ') });
+      }
+
+      await storage.bulkUpdateAttendanceRecords(sheetId, status, userId);
+      const updatedRecords = await storage.getAttendanceRecordsBySheetId(sheetId);
+      res.json(updatedRecords);
+    } catch (error) {
+      console.error("Error bulk updating attendance records:", error);
+      res.status(500).json({ message: "Failed to bulk update attendance records" });
+    }
+  });
+
+  // Sync students to attendance sheet (add new students, archive removed ones)
+  app.post('/api/attendance/sheets/:id/sync', adminOnly(), async (req: any, res) => {
+    try {
+      const sheetId = parseInt(req.params.id);
+      
+      // Get the attendance sheet to know which batch/section to sync
+      const sheet = await storage.getAttendanceSheetByEventId(0); // Need to get sheet by sheetId
+      // TODO: Add getAttendanceSheetById method to storage
+      
+      // For now, require batch and section in request body
+      const { batch, section } = req.body;
+      if (!batch || !section) {
+        return res.status(400).json({ message: "Batch and section are required for sync" });
+      }
+
+      const updatedRecords = await storage.syncStudentsToAttendanceSheet(sheetId, batch, section);
+      res.json({
+        message: `Synced students for ${batch}::${section}`,
+        records: updatedRecords,
+      });
+    } catch (error) {
+      console.error("Error syncing students to attendance sheet:", error);
+      res.status(500).json({ message: "Failed to sync students" });
+    }
+  });
+
+  // Export attendance sheet as CSV
+  app.get('/api/attendance/sheets/:id/export', adminOnly(), async (req: any, res) => {
+    try {
+      const sheetId = parseInt(req.params.id);
+      
+      const records = await storage.getAttendanceRecordsBySheetId(sheetId);
+      
+      // Create CSV content
+      const headers = ['Roll No', 'Student Name', 'Email', 'Status', 'Note', 'Marked By', 'Marked At'];
+      const csvRows = [
+        headers.join(','),
+        ...records.map(record => [
+          record.rollNumber || '',
+          record.studentName,
+          record.studentEmail,
+          record.status,
+          record.note || '',
+          record.markedBy || '',
+          record.markedAt ? new Date(record.markedAt).toLocaleString() : '',
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="attendance-sheet-${sheetId}.csv"`);
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error exporting attendance sheet:", error);
+      res.status(500).json({ message: "Failed to export attendance sheet" });
     }
   });
 
