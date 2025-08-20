@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import type { User } from '@shared/schema';
 
@@ -16,6 +16,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/auth/user"],
     retry: false,
   });
+
+  // Heartbeat to keep sessions alive
+  useEffect(() => {
+    const heartbeat = async () => {
+      try {
+        await fetch('/api/auth/heartbeat', {
+          method: 'GET',
+          credentials: 'include', // Include cookies
+        });
+      } catch (error) {
+        console.log('Heartbeat failed:', error);
+      }
+    };
+
+    // Call heartbeat on mount
+    heartbeat();
+
+    // Call heartbeat when app comes back to foreground
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        heartbeat();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Optional: Set up periodic heartbeat every 5 minutes for very active users
+    const interval = setInterval(heartbeat, 5 * 60 * 1000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ 

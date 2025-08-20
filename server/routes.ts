@@ -146,15 +146,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const expressStaticImport = await import('express');
   app.use(expressStaticImport.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
   
-  // Session middleware for Auth0
+  // Session middleware for Auth0 with hardened persistence
   const session = await import('express-session');
   app.use(session.default({
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh expiry on activity
     cookie: {
-      secure: false, // Set to true in production with HTTPS
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      sameSite: 'none', // Allow cross-origin for PWA
+      secure: true,     // Require HTTPS (trust proxy handles this)
+      httpOnly: true,   // Prevent XSS attacks
+      maxAge: 1000 * 60 * 60 * 24 * 14 // 14 days
     }
   }));
 
@@ -188,6 +191,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       role: sessionUser.role,
       permissions: sessionUser.permissions,
     });
+  });
+
+  // Heartbeat endpoint to keep sessions alive
+  app.get('/api/auth/heartbeat', (req: any, res) => {
+    const sessionUser = req.session?.user;
+    
+    if (!sessionUser) {
+      return res.json({ ok: false });
+    }
+    
+    // Session exists and will be renewed due to rolling: true
+    // Touch the session to refresh expiry
+    req.session.touch();
+    
+    res.json({ ok: true });
   });
 
   // Auth0 user sync endpoint
