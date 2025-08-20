@@ -1664,8 +1664,10 @@ export default function Calendar() {
                     key={event.id}
                     className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
                     onClick={() => {
+                      console.log('EVENT CLICKED:', event.title, event.id);
                       setSelectedEvent(event);
                       setShowEventDetails(true);
+                      console.log('AFTER SETTING STATE - selectedEvent should be:', event.title);
                     }}
                   >
                     <div className="space-y-3">
@@ -1762,14 +1764,17 @@ export default function Calendar() {
       ) : (
         /* Calendar View */
         <CalendarGrid events={events || []} onEventClick={(event) => {
+          console.log('CALENDAR GRID EVENT CLICKED:', event.title, event.id);
           setSelectedEvent(event);
           setShowEventDetails(true);
+          console.log('CALENDAR GRID - AFTER SETTING STATE');
         }} />
       )}
 
       {/* Event Details Modal */}
       <Dialog open={showEventDetails} onOpenChange={setShowEventDetails}>
-        <DialogContent className="max-w-md" aria-describedby="event-details-description">
+        <DialogContent className="max-w-md">
+          <div id="event-details-description" className="sr-only">Event details and options</div>
           <DialogHeader>
             <DialogTitle>{selectedEvent?.title}</DialogTitle>
           </DialogHeader>
