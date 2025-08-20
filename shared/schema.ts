@@ -112,16 +112,18 @@ export const attendance = pgTable("attendance", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Attendance Sheets - one per event with auto-generated student records
+// Attendance Sheets - multiple sheets per event (one per batch-section pair)
 export const attendanceSheets = pgTable("attendance_sheets", {
   id: serial("id").primaryKey(),
-  eventId: integer("event_id").notNull().references(() => events.id).unique(), // one sheet per event
+  eventId: integer("event_id").notNull().references(() => events.id),
   batch: varchar("batch").notNull(),
   section: varchar("section").notNull(),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  unique("unique_event_batch_section").on(table.eventId, table.batch, table.section),
+]);
 
 // Attendance Records - individual student records within a sheet
 export const attendanceRecords = pgTable("attendance_records", {

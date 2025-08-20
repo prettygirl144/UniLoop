@@ -344,9 +344,17 @@ export class DatabaseStorage implements IStorage {
         const [batch, section] = batchSection.split('::');
         if (batch && section) {
           try {
-            // Check if attendance sheet already exists (idempotent)
-            const existingSheet = await this.getAttendanceSheetByEventId(created.id);
-            if (!existingSheet) {
+            // Check if attendance sheet already exists for this specific batch-section (idempotent)
+            const existingSheets = await db
+              .select()
+              .from(attendanceSheets)
+              .where(and(
+                eq(attendanceSheets.eventId, created.id),
+                eq(attendanceSheets.batch, batch),
+                eq(attendanceSheets.section, section)
+              ));
+              
+            if (existingSheets.length === 0) {
               // Create attendance sheet
               const sheet = await this.createAttendanceSheet({
                 eventId: created.id,
@@ -356,10 +364,11 @@ export class DatabaseStorage implements IStorage {
               });
 
               // Get all students in this batch-section and create attendance records
+              // Note: studentDirectory stores section as "batch::section" format, so we need to match the full batchSection
               const students = await db
                 .select()
                 .from(studentDirectory)
-                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
+                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
 
               if (students.length > 0) {
                 const attendanceRecords = students.map(student => ({
@@ -1270,6 +1279,26 @@ export class DatabaseStorage implements IStorage {
       .from(attendanceSheets)
       .where(eq(attendanceSheets.id, sheetId));
     return sheet;
+  }
+
+  async deleteAttendanceSheetsForEvent(eventId: number): Promise<void> {
+    // First, delete all attendance records for sheets belonging to this event
+    const sheets = await db
+      .select({ id: attendanceSheets.id })
+      .from(attendanceSheets)
+      .where(eq(attendanceSheets.eventId, eventId));
+    
+    if (sheets.length > 0) {
+      const sheetIds = sheets.map(sheet => sheet.id);
+      await db
+        .delete(attendanceRecords)
+        .where(inArray(attendanceRecords.sheetId, sheetIds));
+    }
+    
+    // Then delete the attendance sheets
+    await db
+      .delete(attendanceSheets)
+      .where(eq(attendanceSheets.eventId, eventId));
   }
 
   async getAttendanceRecordsBySheetId(sheetId: number): Promise<AttendanceRecord[]> {

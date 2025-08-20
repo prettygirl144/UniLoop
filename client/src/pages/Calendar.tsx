@@ -1820,17 +1820,6 @@ export default function Calendar() {
                 const hasAdminAccess = user?.role === 'admin' || user?.permissions?.attendance;
                 const hasTargetSections = selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0;
                 
-                console.log('Attendance Button Debug:', {
-                  userRole: user?.role,
-                  userPermissions: user?.permissions,
-                  hasAdminAccess,
-                  targetBatchSections: selectedEvent.targetBatchSections,
-                  hasTargetSections,
-                  eventId: selectedEvent.id,
-                  shouldShow: hasAdminAccess && hasTargetSections,
-                  fullEvent: selectedEvent
-                });
-                
                 // Show button for admin users if event has target sections or is mandatory
                 const shouldShowButton = hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory);
                 

@@ -28,6 +28,9 @@ import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { db } from "./db";
+import { studentDirectory } from "@shared/schema";
+import { and, eq } from "drizzle-orm";
 
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
@@ -516,6 +519,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching attendance sheet:", error);
       res.status(500).json({ message: "Failed to fetch attendance sheet" });
+    }
+  });
+
+  // Regenerate attendance sheets for an event (admin only)
+  app.post('/api/events/:id/regenerate-attendance', adminOnly(), async (req: any, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const userId = req.session.user.id;
+      
+      // Get the event
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Delete existing attendance sheets for this event
+      await storage.deleteAttendanceSheetsForEvent(eventId);
+
+      // Recreate attendance sheets using the same logic as event creation
+      if (event.targetBatchSections && event.targetBatchSections.length > 0) {
+        const createdSheets = [];
+        
+        for (const batchSection of event.targetBatchSections) {
+          const [batch, section] = batchSection.split('::');
+          if (batch && section) {
+            try {
+              // Create attendance sheet
+              const sheet = await storage.createAttendanceSheet({
+                eventId: event.id,
+                batch,
+                section,
+                createdBy: userId,
+              });
+
+              // Get all students in this batch-section and create attendance records
+              const students = await db
+                .select()
+                .from(studentDirectory)
+                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
+
+              if (students.length > 0) {
+                const attendanceRecords = students.map(student => ({
+                  sheetId: sheet.id,
+                  studentEmail: student.email,
+                  studentName: student.email.split('@')[0] || '',
+                  rollNumber: student.rollNumber || null,
+                  status: 'UNMARKED' as const,
+                }));
+
+                await storage.createAttendanceRecords(attendanceRecords);
+                console.log(`Regenerated attendance sheet for event ${eventId} with ${students.length} students from ${batchSection}`);
+                createdSheets.push({ sheet, studentCount: students.length });
+              }
+            } catch (error) {
+              console.error(`Failed to regenerate attendance sheet for event ${eventId}, batch-section ${batchSection}:`, error);
+            }
+          }
+        }
+
+        res.json({
+          message: `Successfully regenerated attendance sheets for event "${event.title}"`,
+          sheets: createdSheets,
+        });
+      } else {
+        res.json({
+          message: "Event has no target batch sections, no attendance sheets created",
+        });
+      }
+    } catch (error) {
+      console.error("Error regenerating attendance sheets:", error);
+      res.status(500).json({ message: "Failed to regenerate attendance sheets" });
     }
   });
 
