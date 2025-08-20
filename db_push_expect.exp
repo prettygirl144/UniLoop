@@ -1,0 +1,5 @@
+#!/usr/bin/expect -f
+spawn npm run db:push
+expect "Is attendance_records table created or renamed from another table?"
+send "+ attendance_records\r"
+expect "Done in"
