@@ -18,6 +18,7 @@ import {
   studentUploadLogs,
   triathlonTeams,
   triathlonPointHistory,
+  pushSubscriptions,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -54,6 +55,8 @@ import {
   type InsertTriathlonTeam,
   type TriathlonPointHistory,
   type InsertTriathlonPointHistory,
+  type PushSubscription,
+  type InsertPushSubscription,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -144,6 +147,13 @@ export interface IStorage {
   
   // Event Management Extended
   deleteEvent(id: number): Promise<void>;
+
+  // Push Subscriptions
+  savePushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription>;
+  deletePushSubscription(endpoint: string): Promise<void>;
+  renewPushSubscription(endpoint: string): Promise<void>;
+  getAllActiveSubscriptions(): Promise<PushSubscription[]>;
+  getSubscriptionsForUser(userEmail: string): Promise<PushSubscription[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1122,6 +1132,57 @@ export class DatabaseStorage implements IStorage {
       .from(triathlonPointHistory)
       .where(eq(triathlonPointHistory.teamId, teamId))
       .orderBy(desc(triathlonPointHistory.createdAt));
+  }
+
+  // Push Subscriptions Implementation
+  async savePushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription> {
+    // Upsert subscription by endpoint
+    const [result] = await db
+      .insert(pushSubscriptions)
+      .values({
+        ...subscription,
+        lastSeenAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: {
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+          userEmail: subscription.userEmail,
+          ua: subscription.ua,
+          lastSeenAt: new Date(),
+        }
+      })
+      .returning();
+    return result;
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await db
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async renewPushSubscription(endpoint: string): Promise<void> {
+    await db
+      .update(pushSubscriptions)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async getAllActiveSubscriptions(): Promise<PushSubscription[]> {
+    return await db
+      .select()
+      .from(pushSubscriptions)
+      .orderBy(desc(pushSubscriptions.lastSeenAt));
+  }
+
+  async getSubscriptionsForUser(userEmail: string): Promise<PushSubscription[]> {
+    return await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userEmail, userEmail))
+      .orderBy(desc(pushSubscriptions.lastSeenAt));
   }
 }
 

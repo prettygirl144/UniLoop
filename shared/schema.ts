@@ -577,6 +577,37 @@ export const insertTriathlonPointHistorySchema = createInsertSchema(triathlonPoi
   createdAt: true,
 });
 
+// Push subscriptions table
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").unique().notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userEmail: varchar("user_email"), // nullable - can have anonymous subscriptions
+  ua: text("ua"), // user agent
+  createdAt: timestamp("created_at").defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+});
+
+// Push subscription relations
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [pushSubscriptions.userEmail],
+    references: [users.email],
+  }),
+}));
+
+// Push subscription schemas
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  lastSeenAt: true,
+});
+
+// Push subscription types
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
 // Triathlon types
 export type InsertTriathlonTeam = z.infer<typeof insertTriathlonTeamSchema>;
 export type TriathlonTeam = typeof triathlonTeams.$inferSelect;

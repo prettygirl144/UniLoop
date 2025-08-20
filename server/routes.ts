@@ -19,6 +19,7 @@ import {
   InsertGalleryFolder,
   insertStudentDirectorySchema,
   insertStudentUploadLogSchema,
+  insertPushSubscriptionSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -1639,6 +1640,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching point history:", error);
       res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  // Push Subscription endpoints
+  app.post('/api/push/subscribe', async (req: any, res) => {
+    try {
+      const sessionUser = req.session?.user;
+      const subscriptionData = insertPushSubscriptionSchema.parse(req.body);
+      
+      // Associate with user email if logged in
+      if (sessionUser) {
+        subscriptionData.userEmail = sessionUser.email;
+      }
+      
+      // Add user agent if present
+      subscriptionData.ua = req.get('User-Agent') || '';
+      
+      const subscription = await storage.savePushSubscription(subscriptionData);
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error saving push subscription:", error);
+      res.status(500).json({ message: "Failed to save subscription" });
+    }
+  });
+
+  app.post('/api/push/unsubscribe', async (req: any, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ message: "Endpoint is required" });
+      }
+      
+      await storage.deletePushSubscription(endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error unsubscribing:", error);
+      res.status(500).json({ message: "Failed to unsubscribe" });
+    }
+  });
+
+  app.post('/api/push/renew', async (req: any, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ message: "Endpoint is required" });
+      }
+      
+      await storage.renewPushSubscription(endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error renewing subscription:", error);
+      res.status(500).json({ message: "Failed to renew subscription" });
+    }
+  });
+
+  // Test endpoint to send push notifications (admin only for testing)
+  app.post('/api/push/test', adminOnly(), async (req: any, res) => {
+    try {
+      const { title, body, userEmail } = req.body;
+      
+      let subscriptions;
+      if (userEmail) {
+        // Send to specific user
+        subscriptions = await storage.getSubscriptionsForUser(userEmail);
+      } else {
+        // Send to all active subscriptions
+        subscriptions = await storage.getAllActiveSubscriptions();
+      }
+
+      if (subscriptions.length === 0) {
+        return res.json({ message: "No subscriptions found", sent: 0 });
+      }
+
+      // For demo purposes, just return the count of subscriptions that would receive the notification
+      // In a real implementation, you would use web-push library to send actual notifications
+      res.json({ 
+        message: `Test notification would be sent to ${subscriptions.length} subscription(s)`,
+        subscriptions: subscriptions.map(s => ({ 
+          endpoint: s.endpoint.substring(0, 50) + '...', 
+          userEmail: s.userEmail 
+        })),
+        sent: subscriptions.length
+      });
+    } catch (error) {
+      console.error("Error sending test push:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
     }
   });
 
