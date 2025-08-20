@@ -199,8 +199,11 @@ export default function Amenities() {
     return menus;
   };
 
+  // Standardized query key
+  const baseKey = ['sick-food', 'bookings', { date: sickFoodDateFilter || null, scope: 'all' }];
+  
   const { data: sickFoodBookings = [], isLoading: sickFoodLoading, error: sickFoodError } = useQuery({
-    queryKey: ['/api/amenities/sick-food', sickFoodDateFilter],
+    queryKey: baseKey,
     queryFn: async () => {
       const requestId = `sf_fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       console.log(`📋 [CLIENT-SICK-FOOD-FETCH] Fetching bookings - Filter: ${sickFoodDateFilter || 'None'}, RequestID: ${requestId}`);
@@ -208,32 +211,50 @@ export default function Amenities() {
       const params = sickFoodDateFilter ? `?date=${sickFoodDateFilter}` : '';
       const endpoint = `/api/amenities/sick-food${params}`;
       
-      // TRIAGE: Log exact query key being used
-      const currentQueryKey = ['/api/amenities/sick-food', sickFoodDateFilter];
-      console.log(`🔑 [CLIENT-TRIAGE] EXACT QUERY KEY:`, JSON.stringify(currentQueryKey));
+      console.log(`🔑 [CLIENT-TRIAGE] EXACT QUERY KEY:`, JSON.stringify(baseKey));
       console.log(`🔗 [CLIENT-SICK-FOOD-FETCH] Full endpoint: ${window.location.origin}${endpoint}`);
       
       try {
-        const response = await apiRequest('GET', endpoint);
-        console.log(`✅ [CLIENT-SICK-FOOD-FETCH] Bookings fetched - Count: ${Array.isArray(response) ? response.length : 'Unknown'}, RequestID: ${requestId}`);
-        console.log(`🧪 [CLIENT-TRIAGE] RAW RESPONSE:`, response);
+        // Normalized fetcher function
+        const res = await fetch(`${window.location.origin}${endpoint}`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
         
-        // TRIAGE: Validate response structure
-        if (Array.isArray(response) && response.length > 0) {
-          console.log(`🧪 [CLIENT-TRIAGE] SAMPLE BOOKING:`, response[0]);
-        } else {
-          console.log(`🧪 [CLIENT-TRIAGE] EMPTY OR INVALID RESPONSE TYPE:`, typeof response);
-        }
+        // Accept common shapes: array | {data} | {rows} | {items}
+        const list = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json?.rows)
+          ? json.rows
+          : Array.isArray(json?.items)
+          ? json.items
+          : [];
+          
+        // Optional: expose total for pagination
+        const total = json?.total ?? json?.count ?? (Array.isArray(list) ? list.length : 0);
         
-        return response;
+        console.debug('records payload', {
+          typeof: typeof json,
+          isArray: Array.isArray(json),
+          keys: Object.keys(json || {}),
+          sample: list.slice(0, 2),
+          total,
+          requestId
+        });
+        
+        console.log(`✅ [CLIENT-SICK-FOOD-FETCH] Normalized bookings - Count: ${list.length}, RequestID: ${requestId}`);
+        console.log(`🧪 [CLIENT-TRIAGE] NORMALIZED RESPONSE:`, { list: list.slice(0, 2), total });
+        
+        return list;
       } catch (error) {
         console.error(`❌ [CLIENT-SICK-FOOD-FETCH] Fetch failed - RequestID: ${requestId}:`, error);
         throw error;
       }
     },
     enabled: isAdmin,
-    staleTime: 0, // TRIAGE: Force fresh data every time
-    gcTime: 0, // TRIAGE: No cache retention
+    staleTime: 0,
+    gcTime: 0,
   });
   
   // TRIAGE: Log query state changes
@@ -295,28 +316,17 @@ export default function Amenities() {
         title: 'Success',
         description: `Sick food booking submitted successfully! ${(response as any)?._diagnostics?.requestId ? `(ID: ${(response as any)._diagnostics.requestId})` : ''}`,
       });
-      // TRIAGE: Log exact invalidation keys and invalidate both filtered and unfiltered queries
-      const invalidationKey1 = ['/api/amenities/sick-food'];
-      const invalidationKey2 = ['/api/amenities/sick-food', sickFoodDateFilter];
-      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY 1:`, JSON.stringify(invalidationKey1));
-      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY 2:`, JSON.stringify(invalidationKey2));
-      console.log(`🔄 [CLIENT-TRIAGE] CURRENT FILTER STATE:`, sickFoodDateFilter);
+      // Standardized invalidation with exact key matching
+      const currentBaseKey = ['sick-food', 'bookings', { date: sickFoodDateFilter || null, scope: 'all' }];
+      const safetyKey = ['sick-food', 'bookings'];
       
-      queryClient.invalidateQueries({ queryKey: invalidationKey1 });
-      queryClient.invalidateQueries({ queryKey: invalidationKey2 });
+      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY (exact):`, JSON.stringify(currentBaseKey));
+      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY (safety):`, JSON.stringify(safetyKey));
       
-      // TRIAGE: Force refetch to see immediate results  
-      console.log(`🔄 [CLIENT-TRIAGE] Forcing immediate refetch...`);
-      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food'] });
-      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
-      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', ''] });
+      queryClient.invalidateQueries({ queryKey: currentBaseKey, exact: true });
+      queryClient.invalidateQueries({ queryKey: safetyKey, exact: true });
       
-      // TRIAGE: Additional aggressive cache clearing
-      setTimeout(() => {
-        console.log(`🔄 [CLIENT-TRIAGE] Secondary refetch starting...`);
-        queryClient.invalidateQueries();
-        queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
-      }, 100);
+      console.log(`🔄 [CLIENT-TRIAGE] Cache invalidation completed`);
     },
     onError: (error) => {
       console.error(`🚨 [CLIENT-SICK-FOOD] Error handler triggered:`, error);
@@ -1224,45 +1234,60 @@ export default function Amenities() {
                       return null;
                     })()}
                     
-                    {(sickFoodBookings as any[]).length > 0 ? (
-                      <div className="space-y-2 overflow-y-auto flex-1 pr-2">
-                        <div className="text-xs text-green-600 mb-2 p-1 bg-green-50 rounded">
-                          🧪 TRIAGE: Showing {(sickFoodBookings as any[]).length} booking(s)
-                        </div>
-                        {(sickFoodBookings as any[]).map((booking: any, index: number) => {
-                          console.log(`🧪 [CLIENT-TRIAGE] RENDER ITEM ${index}:`, booking);
-                          return (
-                            <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
-                              <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
-                              <p className="text-xs text-blue-600">ID: {booking.id} | User: {booking.userId?.substring(0, 10)}...</p>
-                              {booking.specialRequirements && (
-                                <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
-                              )}
+                    {(() => {
+                      const hasData = Array.isArray(sickFoodBookings) && sickFoodBookings.length > 0;
+                      const isLoadingOrError = sickFoodLoading || sickFoodError;
+                      
+                      if (!isLoadingOrError && hasData) {
+                        return (
+                          <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                            <div className="text-xs text-green-600 mb-2 p-1 bg-green-50 rounded">
+                              🧪 NORMALIZED: Showing {sickFoodBookings.length} booking(s)
                             </div>
-                            <Badge variant="default" className="w-fit">
-                              Confirmed
-                            </Badge>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <p className="text-center text-muted-foreground text-small">No bookings found</p>
-                          <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded max-w-xs">
-                            🧪 TRIAGE DEBUG:<br/>
-                            Type: {typeof sickFoodBookings}<br/>
-                            Length: {(sickFoodBookings as any[])?.length || 'N/A'}<br/>
-                            IsAdmin: {isAdmin ? 'YES' : 'NO'}<br/>
-                            Filter: {sickFoodDateFilter || 'None'}<br/>
-                            Raw: {JSON.stringify(sickFoodBookings).substring(0, 50)}...
+                            {sickFoodBookings.map((booking: any, index: number) => {
+                              console.log(`🧪 [CLIENT-TRIAGE] RENDER ITEM ${index}:`, booking);
+                              return (
+                                <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                                    <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
+                                    <p className="text-xs text-blue-600">ID: {booking.id} | User: {booking.userId?.substring(0, 10)}...</p>
+                                    {booking.specialRequirements && (
+                                      <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
+                                    )}
+                                  </div>
+                                  <Badge variant="default" className="w-fit">
+                                    Confirmed
+                                  </Badge>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      </div>
-                    )}
+                        );
+                      } else {
+                        // Show diagnostics and empty state
+                        return (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                              <p className="text-center text-muted-foreground text-small">
+                                {sickFoodLoading ? 'Loading...' : sickFoodError ? 'Error loading bookings' : 'No bookings found'}
+                              </p>
+                              <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded max-w-xs">
+                                🧪 NORMALIZED TRIAGE:<br/>
+                                Type: {typeof sickFoodBookings}<br/>
+                                IsArray: {Array.isArray(sickFoodBookings) ? 'YES' : 'NO'}<br/>
+                                Length: {Array.isArray(sickFoodBookings) ? sickFoodBookings.length : 'N/A'}<br/>
+                                Loading: {sickFoodLoading ? 'YES' : 'NO'}<br/>
+                                Error: {sickFoodError ? 'YES' : 'NO'}<br/>
+                                IsAdmin: {isAdmin ? 'YES' : 'NO'}<br/>
+                                Filter: {sickFoodDateFilter || 'None'}<br/>
+                                Raw: {JSON.stringify(sickFoodBookings).substring(0, 50)}...
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                 </CardContent>
               </Card>
