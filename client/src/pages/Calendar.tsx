@@ -1816,23 +1816,39 @@ export default function Calendar() {
               </div>
 
               {/* Attendance Management Button - Admin Only */}
-              {(user?.role === 'admin' || user?.permissions?.attendance) && selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0 && (
-                <div className="pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => {
-                      setShowEventDetails(false);
-                      // Navigate to attendance page
-                      window.location.href = `/attendance/${selectedEvent.id}`;
-                    }}
-                  >
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    View Attendance Sheet
-                  </Button>
-                </div>
-              )}
+              {(() => {
+                const hasAdminAccess = user?.role === 'admin' || user?.permissions?.attendance;
+                const hasTargetSections = selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0;
+                
+                console.log('Attendance Button Debug:', {
+                  userRole: user?.role,
+                  userPermissions: user?.permissions,
+                  hasAdminAccess,
+                  targetBatchSections: selectedEvent.targetBatchSections,
+                  hasTargetSections,
+                  eventId: selectedEvent.id,
+                  shouldShow: hasAdminAccess && hasTargetSections
+                });
+                
+                return hasAdminAccess && hasTargetSections && (
+                  <div className="pt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        setShowEventDetails(false);
+                        // Navigate to attendance page
+                        window.location.href = `/attendance/${selectedEvent.id}`;
+                      }}
+                      data-testid="button-view-attendance"
+                    >
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      View Attendance Sheet
+                    </Button>
+                  </div>
+                );
+              })()}
 
               {/* Target Audience Info */}
               {selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0 && (
