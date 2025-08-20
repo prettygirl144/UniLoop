@@ -328,6 +328,27 @@ export default function Calendar() {
     console.log('=== END DIALOG STATE ===');
   }, [showEventDetails, selectedEvent, user]);
 
+  // Debug effect to check what events are loaded
+  useEffect(() => {
+    console.log('=== EVENTS DATA UPDATED ===');
+    console.log('Number of events:', events?.length || 0);
+    console.log('isLoading:', isLoading);
+    if (events?.length) {
+      console.log('All events:', events.map(e => `${e.id}: ${e.title}`));
+      const finalEvent = events.find(e => e.id === 12);
+      console.log('Final event (ID 12):', finalEvent);
+      if (finalEvent) {
+        console.log('Final event details:', {
+          id: finalEvent.id,
+          title: finalEvent.title,
+          isMandatory: finalEvent.isMandatory,
+          targetBatchSections: finalEvent.targetBatchSections
+        });
+      }
+    }
+    console.log('=== END EVENTS DEBUG ===');
+  }, [events, isLoading]);
+
   // Helper function to calculate event duration
   const calculateDuration = (startTime: string, endTime: string) => {
     const [startHour, startMin] = startTime.split(':').map(Number);
