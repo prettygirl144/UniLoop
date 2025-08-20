@@ -85,11 +85,22 @@ if (isAuth0Configured) {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is busy, retrying in 1 second...`);
+      setTimeout(() => {
+        server.close();
+        server.listen(port, "0.0.0.0", () => {
+          log(`serving on port ${port}`);
+        });
+      }, 1000);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+  
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();
