@@ -51,8 +51,20 @@ if (isAuth0Configured) {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    // Log the error for debugging
+    console.error("Server error:", {
+      status,
+      message: err.message,
+      stack: err.stack,
+      url: _req.url,
+      method: _req.method
+    });
+
+    // Send error response to client
     res.status(status).json({ message });
-    throw err;
+    
+    // Do not throw after response - this can crash the server
+    // The error has been logged and response sent, middleware should return
   });
 
   // importantly only setup vite in development and after
