@@ -202,8 +202,22 @@ export default function Amenities() {
   const { data: sickFoodBookings = [] } = useQuery({
     queryKey: ['/api/amenities/sick-food', sickFoodDateFilter],
     queryFn: async () => {
+      const requestId = `sf_fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`📋 [CLIENT-SICK-FOOD-FETCH] Fetching bookings - Filter: ${sickFoodDateFilter || 'None'}, RequestID: ${requestId}`);
+      
       const params = sickFoodDateFilter ? `?date=${sickFoodDateFilter}` : '';
-      return await apiRequest('GET', `/api/amenities/sick-food${params}`);
+      const endpoint = `/api/amenities/sick-food${params}`;
+      
+      console.log(`🔗 [CLIENT-SICK-FOOD-FETCH] Full endpoint: ${window.location.origin}${endpoint}`);
+      
+      try {
+        const response = await apiRequest('GET', endpoint);
+        console.log(`✅ [CLIENT-SICK-FOOD-FETCH] Bookings fetched - Count: ${Array.isArray(response) ? response.length : 'Unknown'}, RequestID: ${requestId}`);
+        return response;
+      } catch (error) {
+        console.error(`❌ [CLIENT-SICK-FOOD-FETCH] Fetch failed - RequestID: ${requestId}:`, error);
+        throw error;
+      }
     },
     enabled: isAdmin,
   });
@@ -254,7 +268,9 @@ export default function Amenities() {
         title: 'Success',
         description: `Sick food booking submitted successfully! ${(response as any)?._diagnostics?.requestId ? `(ID: ${(response as any)._diagnostics.requestId})` : ''}`,
       });
+      // Invalidate both the filtered and unfiltered queries
       queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
     },
     onError: (error) => {
       console.error(`🚨 [CLIENT-SICK-FOOD] Error handler triggered:`, error);

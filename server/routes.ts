@@ -75,26 +75,40 @@ function isWithinOneHour(dateString: string): boolean {
   return createdAt >= oneHourAgo;
 }
 
-// Amenities RBAC middleware
+// Amenities RBAC middleware - Enhanced with diagnostics
 function authorizeAmenities(permission: string) {
   return async (req: any, res: any, next: any) => {
     const sessionUser = req.session?.user;
+    const requestId = req.headers['x-request-id'] || 'auth_check';
+    
+    console.log(`🔐 [AMENITIES-AUTH] Checking permission '${permission}' - RequestID: ${requestId}`);
+    console.log(`👤 [AMENITIES-AUTH] User details:`, {
+      hasUser: !!sessionUser,
+      userId: sessionUser?.id,
+      role: sessionUser?.role,
+      permissions: sessionUser?.permissions,
+      requestId
+    });
     
     if (!sessionUser) {
+      console.log(`❌ [AMENITIES-AUTH] No session user - RequestID: ${requestId}`);
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     // Admin users have full access to all amenities features
     if (sessionUser.role === 'admin') {
+      console.log(`✅ [AMENITIES-AUTH] Admin access granted - RequestID: ${requestId}`);
       return next();
     }
 
     // Check specific amenities permission
     const hasPermission = sessionUser.permissions?.[permission] === true;
     if (!hasPermission) {
+      console.log(`❌ [AMENITIES-AUTH] Permission denied - Required: ${permission}, User permissions:`, sessionUser.permissions, `RequestID: ${requestId}`);
       return res.status(403).json({ message: `Access denied. Required permission: ${permission}` });
     }
 
+    console.log(`✅ [AMENITIES-AUTH] Permission granted - RequestID: ${requestId}`);
     next();
   };
 }
@@ -1225,14 +1239,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get sick food bookings with date filter
+  // Get sick food bookings with date filter - Enhanced with diagnostics
   app.get('/api/amenities/sick-food', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `sf_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    console.log(`📋 [SICK-FOOD-GET] Fetching bookings - RequestID: ${requestId}`);
+    console.log(`👤 [SICK-FOOD-GET] User session:`, {
+      hasSession: !!req.session,
+      userId: req.session?.user?.id,
+      userEmail: req.session?.user?.email,
+      role: req.session?.user?.role,
+      hasPermissions: !!req.session?.user?.permissions,
+      sickFoodAccess: req.session?.user?.permissions?.sickFoodAccess,
+      requestId
+    });
+    
     try {
       const date = req.query.date ? new Date(req.query.date as string) : undefined;
+      console.log(`🔍 [SICK-FOOD-GET] Query params - Date filter: ${date ? date.toISOString() : 'None'}, RequestID: ${requestId}`);
+      
       const bookings = await storage.getSickFoodBookings(date);
+      const responseTime = Date.now() - startTime;
+      
+      console.log(`✅ [SICK-FOOD-GET] Bookings retrieved - Count: ${bookings.length}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      console.log(`📊 [SICK-FOOD-GET] Bookings sample:`, bookings.slice(0, 2).map(b => ({ id: b.id, date: b.date, mealType: b.mealType, userId: b.userId })));
+      
       res.json(bookings);
     } catch (error) {
-      console.error("Error fetching sick food bookings:", error);
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ [SICK-FOOD-GET] Error fetching bookings - RequestID: ${requestId}, Response time: ${responseTime}ms:`, error);
       res.status(500).json({ message: "Failed to fetch sick food bookings" });
     }
   });
