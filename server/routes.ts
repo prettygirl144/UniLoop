@@ -1202,6 +1202,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       console.log(`📤 [SICK-FOOD-BOOKING] Sending success response - RequestID: ${requestId}`);
+      
+      // TRIAGE: Immediate read-after-write verification
+      setTimeout(async () => {
+        try {
+          console.log(`🔬 [TRIAGE-READ-AFTER-WRITE] Verifying booking visibility - RequestID: ${requestId}`);
+          const verifyBookings = await storage.getSickFoodBookings();
+          const newBooking = verifyBookings.find(b => b.id === booking.id);
+          console.log(`🔬 [TRIAGE-READ-AFTER-WRITE] Found new booking:`, newBooking ? { id: newBooking.id, date: newBooking.date, mealType: newBooking.mealType } : 'NOT FOUND');
+          console.log(`🔬 [TRIAGE-READ-AFTER-WRITE] Total bookings now: ${verifyBookings.length}`);
+        } catch (error) {
+          console.error(`❌ [TRIAGE-READ-AFTER-WRITE] Verification failed - RequestID: ${requestId}:`, error);
+        }
+      }, 100);
+      
       res.json(response);
       
     } catch (error) {
@@ -1265,7 +1279,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`✅ [SICK-FOOD-GET] Bookings retrieved - Count: ${bookings.length}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
       console.log(`📊 [SICK-FOOD-GET] Bookings sample:`, bookings.slice(0, 2).map(b => ({ id: b.id, date: b.date, mealType: b.mealType, userId: b.userId })));
       
-      res.json(bookings);
+      // TRIAGE: Add comprehensive diagnostics to response
+      const diagnosticResponse = {
+        success: true,
+        data: bookings,
+        _triage: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          totalCount: bookings.length,
+          appliedFilters: {
+            date: date ? date.toISOString() : null,
+            userScope: req.session?.user?.id,
+            role: req.session?.user?.role
+          },
+          sampleIds: bookings.slice(0, 3).map(b => b.id),
+          firstCreatedAt: bookings.length > 0 ? bookings[bookings.length - 1].createdAt : null,
+          lastCreatedAt: bookings.length > 0 ? bookings[0].createdAt : null,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      console.log(`🧪 [SICK-FOOD-GET] TRIAGE Response:`, diagnosticResponse._triage);
+      res.json(bookings); // Keep original format for compatibility
     } catch (error) {
       const responseTime = Date.now() - startTime;
       console.error(`❌ [SICK-FOOD-GET] Error fetching bookings - RequestID: ${requestId}, Response time: ${responseTime}ms:`, error);

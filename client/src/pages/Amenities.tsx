@@ -208,11 +208,23 @@ export default function Amenities() {
       const params = sickFoodDateFilter ? `?date=${sickFoodDateFilter}` : '';
       const endpoint = `/api/amenities/sick-food${params}`;
       
+      // TRIAGE: Log exact query key being used
+      const currentQueryKey = ['/api/amenities/sick-food', sickFoodDateFilter];
+      console.log(`🔑 [CLIENT-TRIAGE] EXACT QUERY KEY:`, JSON.stringify(currentQueryKey));
       console.log(`🔗 [CLIENT-SICK-FOOD-FETCH] Full endpoint: ${window.location.origin}${endpoint}`);
       
       try {
         const response = await apiRequest('GET', endpoint);
         console.log(`✅ [CLIENT-SICK-FOOD-FETCH] Bookings fetched - Count: ${Array.isArray(response) ? response.length : 'Unknown'}, RequestID: ${requestId}`);
+        console.log(`🧪 [CLIENT-TRIAGE] RAW RESPONSE:`, response);
+        
+        // TRIAGE: Validate response structure
+        if (Array.isArray(response) && response.length > 0) {
+          console.log(`🧪 [CLIENT-TRIAGE] SAMPLE BOOKING:`, response[0]);
+        } else {
+          console.log(`🧪 [CLIENT-TRIAGE] EMPTY OR INVALID RESPONSE TYPE:`, typeof response);
+        }
+        
         return response;
       } catch (error) {
         console.error(`❌ [CLIENT-SICK-FOOD-FETCH] Fetch failed - RequestID: ${requestId}:`, error);
@@ -268,9 +280,21 @@ export default function Amenities() {
         title: 'Success',
         description: `Sick food booking submitted successfully! ${(response as any)?._diagnostics?.requestId ? `(ID: ${(response as any)._diagnostics.requestId})` : ''}`,
       });
-      // Invalidate both the filtered and unfiltered queries
-      queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
+      // TRIAGE: Log exact invalidation keys and invalidate both filtered and unfiltered queries
+      const invalidationKey1 = ['/api/amenities/sick-food'];
+      const invalidationKey2 = ['/api/amenities/sick-food', sickFoodDateFilter];
+      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY 1:`, JSON.stringify(invalidationKey1));
+      console.log(`🔄 [CLIENT-TRIAGE] INVALIDATION KEY 2:`, JSON.stringify(invalidationKey2));
+      console.log(`🔄 [CLIENT-TRIAGE] CURRENT FILTER STATE:`, sickFoodDateFilter);
+      
+      queryClient.invalidateQueries({ queryKey: invalidationKey1 });
+      queryClient.invalidateQueries({ queryKey: invalidationKey2 });
+      
+      // TRIAGE: Force refetch to see immediate results
+      console.log(`🔄 [CLIENT-TRIAGE] Forcing immediate refetch...`);
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
+      }, 100);
     },
     onError: (error) => {
       console.error(`🚨 [CLIENT-SICK-FOOD] Error handler triggered:`, error);
@@ -1170,13 +1194,27 @@ export default function Amenities() {
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="h-48 flex flex-col">
+                    {(() => {
+                      console.log(`🧪 [CLIENT-TRIAGE] RENDER CHECK - sickFoodBookings:`, sickFoodBookings);
+                      console.log(`🧪 [CLIENT-TRIAGE] RENDER CHECK - Length:`, (sickFoodBookings as any[]).length);
+                      console.log(`🧪 [CLIENT-TRIAGE] RENDER CHECK - Type:`, typeof sickFoodBookings);
+                      console.log(`🧪 [CLIENT-TRIAGE] RENDER CHECK - IsArray:`, Array.isArray(sickFoodBookings));
+                      return null;
+                    })()}
+                    
                     {(sickFoodBookings as any[]).length > 0 ? (
                       <div className="space-y-2 overflow-y-auto flex-1 pr-2">
-                        {(sickFoodBookings as any[]).map((booking: any) => (
-                          <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
+                        <div className="text-xs text-green-600 mb-2 p-1 bg-green-50 rounded">
+                          🧪 TRIAGE: Showing {(sickFoodBookings as any[]).length} booking(s)
+                        </div>
+                        {(sickFoodBookings as any[]).map((booking: any, index: number) => {
+                          console.log(`🧪 [CLIENT-TRIAGE] RENDER ITEM ${index}:`, booking);
+                          return (
+                            <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
                             <div className="flex-1 min-w-0">
                               <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
                               <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
+                              <p className="text-xs text-blue-600">ID: {booking.id} | User: {booking.userId?.substring(0, 10)}...</p>
                               {booking.specialRequirements && (
                                 <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
                               )}
@@ -1184,12 +1222,23 @@ export default function Amenities() {
                             <Badge variant="default" className="w-fit">
                               Confirmed
                             </Badge>
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="flex items-center justify-center h-full">
-                        <p className="text-center text-muted-foreground text-small">No bookings found</p>
+                        <div className="text-center">
+                          <p className="text-center text-muted-foreground text-small">No bookings found</p>
+                          <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded max-w-xs">
+                            🧪 TRIAGE DEBUG:<br/>
+                            Type: {typeof sickFoodBookings}<br/>
+                            Length: {(sickFoodBookings as any[])?.length || 'N/A'}<br/>
+                            IsAdmin: {isAdmin ? 'YES' : 'NO'}<br/>
+                            Filter: {sickFoodDateFilter || 'None'}<br/>
+                            Raw: {JSON.stringify(sickFoodBookings).substring(0, 50)}...
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

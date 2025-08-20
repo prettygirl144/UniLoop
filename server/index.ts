@@ -53,13 +53,15 @@ app.use((req, res, next) => {
 });
 
 // Environment verification logging
-console.log(`🚀 Server Starting - Version 1.0.2 - ${new Date().toISOString()}`);
+console.log(`🚀 Server Starting - Version 1.0.3-TRIAGE - ${new Date().toISOString()}`);
 console.log(`📍 Environment: ${process.env.NODE_ENV}`);
 console.log(`🗄️ Database URL: ${process.env.DATABASE_URL ? '[CONFIGURED]' : '[MISSING]'}`);
 console.log(`🔑 Auth0 Domain: ${process.env.AUTH0_DOMAIN ? '[CONFIGURED]' : '[MISSING]'}`);
 console.log(`🌐 Port: ${process.env.PORT || 5000}`);
 console.log(`🌐 API Base URL: http://localhost:${process.env.PORT || 5000}`);
 console.log(`🔧 CORS Origins: ${JSON.stringify(process.env.CORS_ORIGINS || ['*'])}`);
+console.log(`🛠️ DB SCHEMA: sick_food_bookings table targeting`);
+console.log(`🔍 TRIAGE MODE: Full query/cache debugging active`);
 
 // Check Auth0 configuration
 const isAuth0Configured = !!(process.env.AUTH0_DOMAIN && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET);
