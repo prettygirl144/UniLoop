@@ -305,10 +305,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
+    const requestId = `ann_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`🔧 [DB-WRITE] Creating announcement - RequestID: ${requestId}`);
+    console.log(`📝 [DB-WRITE] Announcement payload:`, JSON.stringify({ title: announcement.title, authorId: announcement.authorId }, null, 2));
+    
     const [created] = await db
       .insert(announcements)
       .values([announcement])
       .returning();
+    
+    console.log(`✅ [DB-WRITE] Announcement created successfully - ID: ${created.id}, RequestID: ${requestId}`);
     return created;
   }
 
@@ -321,6 +327,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEvent(event: InsertEvent): Promise<Event> {
+    const requestId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`🔧 [DB-WRITE] Creating event - RequestID: ${requestId}`);
+    console.log(`📝 [DB-WRITE] Event payload:`, JSON.stringify({ title: event.title, date: event.date, location: event.location, authorId: event.authorId }, null, 2));
+    
     // Convert mediaUrls properly for JSONB field
     const eventData: any = {
       ...event,
@@ -336,6 +346,9 @@ export class DatabaseStorage implements IStorage {
       .insert(events)
       .values([eventData])
       .returning();
+    
+    console.log(`✅ [DB-WRITE] Event created successfully - ID: ${created.id}, RequestID: ${requestId}`);
+    console.log(`📊 [DB-WRITE] Created event details:`, { id: created.id, title: created.title, date: created.date });
 
     // Auto-create attendance sheet if event has batch-section targeting
     if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {

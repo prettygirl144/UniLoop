@@ -1,6 +1,7 @@
 // Dynamic cache name that changes with each deployment to prevent stale cache issues
-const CACHE_VERSION = Date.now(); // Will be updated by build process
+const CACHE_VERSION = `1.0.1-${Date.now()}`; // Bumped version for verification
 const CACHE_NAME = `uniloop-v${CACHE_VERSION}`;
+console.log(`🔄 Service Worker Version: ${CACHE_VERSION} - ${new Date().toISOString()}`);
 const urlsToCache = [
   '/',
   '/offline.html',

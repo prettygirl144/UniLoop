@@ -4,6 +4,7 @@ import { storage } from "./storage";
 // Replit auth removed - using Auth0 only
 import { checkAuth, handleAuthError, extractUser } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
+import healthRoutes from "./routes/health";
 import {
   insertAnnouncementSchema,
   insertEventSchema,
@@ -1938,6 +1939,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to send test notification" });
     }
   });
+
+  // Health endpoints for database verification
+  app.use('/api', healthRoutes);
 
   // Static file serving moved to top of function to fix PWA installability
 

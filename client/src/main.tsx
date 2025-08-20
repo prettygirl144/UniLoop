@@ -4,6 +4,11 @@ import App from "./App";
 import "./index.css";
 import { register } from "./utils/serviceWorkerRegistration";
 
+// Verification marker - unique timestamp to confirm code is running
+console.log(`🚀 Client App Started - Version 1.0.1 - ${new Date().toISOString()}`);
+console.log(`📍 Environment: ${import.meta.env.MODE}`);
+console.log(`🌐 Base URL: ${window.location.origin}`);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

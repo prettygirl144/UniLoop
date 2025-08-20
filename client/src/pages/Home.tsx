@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy, Activity } from 'lucide-react';
 import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
@@ -28,6 +28,8 @@ interface Event {
 
 export default function Home() {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
     queryKey: ['/api/community/announcements'],
@@ -150,7 +152,7 @@ export default function Home() {
       {/* Mobile-optimized welcome header */}
       <div className="mb-6 lg:mb-8">
         <h1 className="font-medium text-gray-900 text-[24px] mt-[3px] mb-[3px]">
-          Good day! ✨ Cache Fix Applied
+          Good day! ✨ Code Verified v1.0.1
         </h1>
         <p className="text-small text-gray-600">
           Here's what's happening at IIM Ranchi today.
@@ -352,6 +354,64 @@ export default function Home() {
             </CardContent>
           </Card>
         </Link>
+      </div>
+
+      {/* System Verification Section */}
+      <div className="mt-6 pt-4 border-t border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-gray-600" />
+            <span className="text-small font-medium text-gray-700">System Status</span>
+            <Badge variant="outline" className="text-xs">v1.0.1</Badge>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              setHealthLoading(true);
+              console.log("🏥 Running manual health verification...");
+              
+              try {
+                const healthResponse = await fetch("/api/health");
+                const healthData = await healthResponse.json();
+                setHealthStatus(healthData);
+                console.log("✅ Health check completed:", healthData);
+              } catch (error) {
+                console.error("❌ Health check failed:", error);
+                setHealthStatus({ ok: false, error: error instanceof Error ? error.message : "Unknown error" });
+              } finally {
+                setHealthLoading(false);
+              }
+            }}
+            disabled={healthLoading}
+            data-testid="button-health-check"
+          >
+            {healthLoading ? "Checking..." : "🧪 Test"}
+          </Button>
+        </div>
+        
+        {healthStatus && (
+          <div className="p-3 rounded-lg bg-gray-50 text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              {healthStatus.ok ? (
+                <CheckCircle className="h-3 w-3 text-green-600" />
+              ) : (
+                <AlertCircle className="h-3 w-3 text-red-600" />
+              )}
+              <span className={healthStatus.ok ? "text-green-700" : "text-red-700"}>
+                Database: {healthStatus.ok ? "Connected" : "Failed"}
+              </span>
+            </div>
+            {healthStatus.requestId && (
+              <div className="text-gray-500">
+                Request ID: <code className="bg-gray-200 px-1 rounded">{healthStatus.requestId}</code>
+              </div>
+            )}
+            {healthStatus.responseTime && (
+              <div className="text-gray-500">Response: {healthStatus.responseTime}</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

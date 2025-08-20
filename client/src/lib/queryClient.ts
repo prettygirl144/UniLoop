@@ -19,6 +19,13 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const requestId = `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`🚀 [API-REQUEST] Starting ${method} request - URL: ${url}, RequestID: ${requestId}`);
+  
+  if (data) {
+    console.log(`📝 [API-REQUEST] Request data (RequestID: ${requestId}):`, data);
+  }
+
   const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
 
   // Add Auth0 JWT token if available
@@ -33,15 +40,27 @@ export async function apiRequest(
     }
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  // Add request ID to headers for server tracking
+  headers['X-Request-ID'] = requestId;
 
-  await throwIfResNotOk(res);
-  return res;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+
+    console.log(`📊 [API-REQUEST] Response received - Status: ${res.status}, RequestID: ${requestId}`);
+    
+    await throwIfResNotOk(res);
+    
+    console.log(`✅ [API-REQUEST] Request successful - RequestID: ${requestId}`);
+    return res;
+  } catch (error) {
+    console.error(`❌ [API-REQUEST] Request failed - RequestID: ${requestId}:`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
