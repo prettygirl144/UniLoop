@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -309,6 +309,24 @@ export default function Calendar() {
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Debug effect to track dialog state and selected event
+  useEffect(() => {
+    console.log('=== DIALOG STATE CHANGE ===');
+    console.log('showEventDetails:', showEventDetails);
+    console.log('selectedEvent:', selectedEvent);
+    if (selectedEvent) {
+      console.log('selectedEvent.id:', selectedEvent.id);
+      console.log('selectedEvent.title:', selectedEvent.title);
+      console.log('selectedEvent.isMandatory:', selectedEvent.isMandatory);
+      console.log('selectedEvent.targetBatchSections:', selectedEvent.targetBatchSections);
+    }
+    if (user) {
+      console.log('user.role:', user.role);
+      console.log('user.permissions:', user.permissions);
+    }
+    console.log('=== END DIALOG STATE ===');
+  }, [showEventDetails, selectedEvent, user]);
 
   // Helper function to calculate event duration
   const calculateDuration = (startTime: string, endTime: string) => {
