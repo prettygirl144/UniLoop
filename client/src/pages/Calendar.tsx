@@ -1820,25 +1820,52 @@ export default function Calendar() {
                 const hasAdminAccess = user?.role === 'admin' || user?.permissions?.attendance;
                 const hasTargetSections = selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0;
                 
-                // Debug logging
-                console.log('=== ATTENDANCE BUTTON DEBUG ===');
-                console.log('user:', user);
+                // Debug logging with detailed analysis
+                console.log('=== ATTENDANCE BUTTON DEBUG START ===');
+                console.log('selectedEvent FULL OBJECT:', JSON.stringify(selectedEvent, null, 2));
+                console.log('user FULL OBJECT:', JSON.stringify(user, null, 2));
+                console.log('user?.role === "admin":', user?.role === 'admin');
+                console.log('user?.permissions?.attendance:', user?.permissions?.attendance);
                 console.log('hasAdminAccess:', hasAdminAccess);
                 console.log('selectedEvent.targetBatchSections:', selectedEvent.targetBatchSections);
+                console.log('Array.isArray(selectedEvent.targetBatchSections):', Array.isArray(selectedEvent.targetBatchSections));
+                console.log('selectedEvent.targetBatchSections.length:', selectedEvent.targetBatchSections?.length);
                 console.log('hasTargetSections:', hasTargetSections);
                 console.log('selectedEvent.isMandatory:', selectedEvent.isMandatory);
-                console.log('shouldShowButton calculation:', hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory));
+                console.log('typeof selectedEvent.isMandatory:', typeof selectedEvent.isMandatory);
+                console.log('Boolean(selectedEvent.isMandatory):', Boolean(selectedEvent.isMandatory));
+                
+                const conditionA = hasTargetSections || selectedEvent.isMandatory;
+                const finalCondition = hasAdminAccess && conditionA;
+                
+                console.log('(hasTargetSections || selectedEvent.isMandatory):', conditionA);
+                console.log('hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory):', finalCondition);
+                console.log('=== ATTENDANCE BUTTON DEBUG END ===');
                 
                 // Show button for admin users if event has target sections or is mandatory
                 const shouldShowButton = hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory);
                 
-                return shouldShowButton && (
-                  <div className="pt-2">
+                console.log('FINAL DECISION - shouldShowButton:', shouldShowButton);
+                
+                // Force render button for debugging - REMOVE THIS AFTER DEBUGGING
+                return (
+                  <div className="pt-2 space-y-2">
+                    {/* Debug Info Panel */}
+                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                      <div><strong>Debug Info:</strong></div>
+                      <div>Admin: {String(hasAdminAccess)}</div>
+                      <div>HasTargetSections: {String(hasTargetSections)}</div>
+                      <div>IsMandatory: {String(selectedEvent.isMandatory)}</div>
+                      <div>ShouldShow: {String(shouldShowButton)}</div>
+                    </div>
+                    
+                    {/* Always show button for debugging */}
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full"
                       onClick={() => {
+                        console.log('BUTTON CLICKED! Event ID:', selectedEvent.id);
                         setShowEventDetails(false);
                         // Navigate to attendance page
                         window.location.href = `/attendance/${selectedEvent.id}`;
