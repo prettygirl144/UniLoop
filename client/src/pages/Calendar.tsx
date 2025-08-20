@@ -310,6 +310,11 @@ export default function Calendar() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch events data - moved before useEffect to fix variable declaration order
+  const { data: events, isLoading } = useQuery<Event[]>({
+    queryKey: ['/api/events'],
+  });
+
   // Debug effect to track dialog state and selected event
   useEffect(() => {
     console.log('=== DIALOG STATE CHANGE ===');
@@ -401,10 +406,6 @@ export default function Calendar() {
     
     return batchMatch && sectionMatch;
   };
-
-  const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ['/api/events'],
-  });
 
   // Fetch batches and sections for admin event creation
   const { data: batchesAndSections, isLoading: batchesLoading } = useQuery({

@@ -1,4 +1,6 @@
-const CACHE_NAME = 'uniloop-v1';
+// Dynamic cache name that changes with each deployment to prevent stale cache issues
+const CACHE_VERSION = Date.now(); // Will be updated by build process
+const CACHE_NAME = `uniloop-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
   '/offline.html',
@@ -7,25 +9,46 @@ const urlsToCache = [
   '/icons/512.png'
 ];
 
-// Install event - cache resources
+// Install event - cache resources with cache busting
 self.addEventListener('install', (event) => {
+  console.log(`SW installing with cache version: ${CACHE_VERSION}`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('Opened cache:', CACHE_NAME);
         return cache.addAll(urlsToCache);
       })
       .catch((error) => {
         console.log('Cache install failed:', error);
       })
   );
+  // Force immediate activation of new service worker
   self.skipWaiting();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - serve from cache, fallback to network with smart caching strategy
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const isApiRequest = url.pathname.startsWith('/api/');
+  const isHtmlDocument = event.request.destination === 'document' || 
+                        event.request.headers.get('accept')?.includes('text/html');
+  const isDevelopment = url.hostname === 'localhost' || 
+                       url.hostname.includes('replit.dev') ||
+                       url.hostname.includes('replit.app');
+  
   // Skip caching for API requests to avoid interfering with authentication
-  if (event.request.url.includes('/api/')) {
+  if (isApiRequest) {
+    return;
+  }
+  
+  // In development, always fetch HTML documents to get latest changes
+  if (isDevelopment && isHtmlDocument) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        // Return offline page only if network fails
+        return caches.match('/offline.html');
+      })
+    );
     return;
   }
 
@@ -33,7 +56,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        if (response) {
+        if (response && !isDevelopment) {
           return response;
         }
         
@@ -47,11 +70,11 @@ self.addEventListener('fetch', (event) => {
           }
           
           // Only cache http/https requests, skip chrome-extension and other schemes
-          if (event.request.url.startsWith('http')) {
+          if (event.request.url.startsWith('http') && !isDevelopment) {
             // Clone the response because it's a stream
             const responseToCache = response.clone();
             
-            // Cache successful responses for non-API requests
+            // Cache successful responses for non-API requests (not in development)
             caches.open(CACHE_NAME)
               .then((cache) => {
                 cache.put(event.request, responseToCache);
@@ -69,22 +92,41 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and force immediate control
 self.addEventListener('activate', (event) => {
+  console.log(`SW activating with cache: ${CACHE_NAME}`);
   const cacheWhitelist = [CACHE_NAME];
   
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheWhitelist.indexOf(cacheName) === -1) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clear all caches if this is a development environment for fresh start
+      (() => {
+        const isDevelopment = self.location.hostname === 'localhost' || 
+                             self.location.hostname.includes('replit.dev') ||
+                             self.location.hostname.includes('replit.app');
+        if (isDevelopment) {
+          console.log('Development environment detected, clearing all caches');
+          return caches.keys().then(cacheNames => 
+            Promise.all(cacheNames.map(name => caches.delete(name)))
+          );
+        }
+        return Promise.resolve();
+      })()
+    ])
   );
   
+  // Take control of all pages immediately
   self.clients.claim();
 });
 

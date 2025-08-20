@@ -150,7 +150,7 @@ export default function Home() {
       {/* Mobile-optimized welcome header */}
       <div className="mb-6 lg:mb-8">
         <h1 className="font-medium text-gray-900 text-[24px] mt-[3px] mb-[3px]">
-          Good day!
+          Good day! ✨ Cache Fix Applied
         </h1>
         <p className="text-small text-gray-600">
           Here's what's happening at IIM Ranchi today.

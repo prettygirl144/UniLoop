@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuthContext } from "@/context/AuthContext";
+import { CacheStatusIndicator } from "@/components/CacheRefreshButton";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
@@ -62,6 +63,7 @@ function App() {
         <TooltipProvider>
           <Router />
           <Toaster />
+          <CacheStatusIndicator />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

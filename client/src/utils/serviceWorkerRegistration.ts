@@ -50,6 +50,17 @@ function registerValidSW(swUrl: string, config?: Config) {
                   'tabs for this page are closed. See https://cra.link/PWA.'
               );
 
+              // For development or when needed, automatically reload to get fresh content
+              const isDevelopment = window.location.hostname === 'localhost' || 
+                                   window.location.hostname.includes('replit.dev') ||
+                                   window.location.hostname.includes('replit.app');
+              
+              if (isDevelopment) {
+                console.log('Development environment detected, forcing refresh for new content');
+                window.location.reload();
+                return;
+              }
+
               // Execute callback
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
@@ -114,4 +125,33 @@ export function unregister() {
         console.error(error.message);
       });
   }
+}
+
+// Add function to force service worker update
+export function forceUpdate() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      if (registration) {
+        registration.update();
+      }
+    });
+  }
+}
+
+// Add function to clear all caches (for development/debugging)
+export function clearAllCaches() {
+  if ('caches' in window) {
+    return caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          console.log('Clearing cache:', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
+    }).then(() => {
+      console.log('All caches cleared');
+      window.location.reload();
+    });
+  }
+  return Promise.resolve();
 }
