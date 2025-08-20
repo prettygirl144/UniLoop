@@ -1,5 +1,5 @@
 // Dynamic cache name that changes with each deployment to prevent stale cache issues
-const CACHE_VERSION = `1.0.1-${Date.now()}`; // Bumped version for verification
+const CACHE_VERSION = `1.0.2-${Date.now()}`; // Bumped version for sick food diagnostics
 const CACHE_NAME = `uniloop-v${CACHE_VERSION}`;
 console.log(`🔄 Service Worker Version: ${CACHE_VERSION} - ${new Date().toISOString()}`);
 const urlsToCache = [
@@ -37,8 +37,14 @@ self.addEventListener('fetch', (event) => {
                        url.hostname.includes('replit.dev') ||
                        url.hostname.includes('replit.app');
   
-  // Skip caching for API requests to avoid interfering with authentication
+  // Enhanced logging and bypass for sick food booking diagnostics
+  if (url.pathname.includes('/api/amenities/sick-food')) {
+    console.log(`🔄 [SERVICE-WORKER] Intercepted sick food request - Method: ${event.request.method}, URL: ${url.pathname}`);
+  }
+
+  // Skip caching for API requests to avoid interfering with authentication and bookings
   if (isApiRequest) {
+    console.log(`🚫 [SERVICE-WORKER] Bypassing cache for API request: ${url.pathname}`);
     return;
   }
   

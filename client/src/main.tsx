@@ -5,9 +5,11 @@ import "./index.css";
 import { register } from "./utils/serviceWorkerRegistration";
 
 // Verification marker - unique timestamp to confirm code is running
-console.log(`🚀 Client App Started - Version 1.0.1 - ${new Date().toISOString()}`);
+console.log(`🚀 Client App Started - Version 1.0.2 - ${new Date().toISOString()}`);
 console.log(`📍 Environment: ${import.meta.env.MODE}`);
 console.log(`🌐 Base URL: ${window.location.origin}`);
+console.log(`🍽️ Sick Food Diagnostics: Enhanced logging active`);
+console.log(`📦 Service Worker: ${navigator.serviceWorker ? 'Supported' : 'Not Supported'}`);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

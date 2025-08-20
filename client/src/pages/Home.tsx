@@ -152,7 +152,7 @@ export default function Home() {
       {/* Mobile-optimized welcome header */}
       <div className="mb-6 lg:mb-8">
         <h1 className="font-medium text-gray-900 text-[24px] mt-[3px] mb-[3px]">
-          Good day! ✨ Code Verified v1.0.1
+          Good day! ✨ Diagnostics v1.0.2
         </h1>
         <p className="text-small text-gray-600">
           Here's what's happening at IIM Ranchi today.
@@ -362,20 +362,40 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-gray-600" />
             <span className="text-small font-medium text-gray-700">System Status</span>
-            <Badge variant="outline" className="text-xs">v1.0.1</Badge>
+            <Badge variant="outline" className="text-xs">v1.0.2</Badge>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={async () => {
               setHealthLoading(true);
-              console.log("🏥 Running manual health verification...");
+              console.log("🏥 Running comprehensive health verification...");
               
               try {
+                // Test 1: Basic health check
+                console.log("🔍 Test 1: Basic database health...");
                 const healthResponse = await fetch("/api/health");
                 const healthData = await healthResponse.json();
-                setHealthStatus(healthData);
-                console.log("✅ Health check completed:", healthData);
+                
+                // Test 2: Database write test
+                console.log("🔍 Test 2: Database write test...");
+                const dbTestResponse = await fetch("/api/db-test", { method: "POST" });
+                const dbTestData = await dbTestResponse.json();
+                
+                // Test 3: Sick food endpoint accessibility (GET)
+                console.log("🔍 Test 3: Sick food endpoint accessibility...");
+                const sickFoodResponse = await fetch("/api/amenities/sick-food");
+                const sickFoodAccessible = sickFoodResponse.status !== 404;
+                
+                const combinedStatus = {
+                  ...healthData,
+                  dbWriteTest: dbTestData.ok,
+                  sickFoodEndpoint: sickFoodAccessible,
+                  allTests: healthData.ok && dbTestData.ok && sickFoodAccessible
+                };
+                
+                setHealthStatus(combinedStatus);
+                console.log("✅ Comprehensive health check completed:", combinedStatus);
               } catch (error) {
                 console.error("❌ Health check failed:", error);
                 setHealthStatus({ ok: false, error: error instanceof Error ? error.message : "Unknown error" });
@@ -391,17 +411,33 @@ export default function Home() {
         </div>
         
         {healthStatus && (
-          <div className="p-3 rounded-lg bg-gray-50 text-xs space-y-1">
+          <div className="p-3 rounded-lg bg-gray-50 text-xs space-y-2">
             <div className="flex items-center gap-2">
-              {healthStatus.ok ? (
+              {healthStatus.allTests ? (
                 <CheckCircle className="h-3 w-3 text-green-600" />
               ) : (
                 <AlertCircle className="h-3 w-3 text-red-600" />
               )}
-              <span className={healthStatus.ok ? "text-green-700" : "text-red-700"}>
-                Database: {healthStatus.ok ? "Connected" : "Failed"}
+              <span className={healthStatus.allTests ? "text-green-700" : "text-red-700"}>
+                Overall: {healthStatus.allTests ? "All Systems Operational" : "Issues Detected"}
               </span>
             </div>
+            
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className={healthStatus.ok ? "text-green-600" : "text-red-600"}>●</span>
+                <span>DB Connect</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className={healthStatus.dbWriteTest ? "text-green-600" : "text-red-600"}>●</span>
+                <span>DB Write</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className={healthStatus.sickFoodEndpoint ? "text-green-600" : "text-red-600"}>●</span>
+                <span>Sick Food API</span>
+              </div>
+            </div>
+            
             {healthStatus.requestId && (
               <div className="text-gray-500">
                 Request ID: <code className="bg-gray-200 px-1 rounded">{healthStatus.requestId}</code>

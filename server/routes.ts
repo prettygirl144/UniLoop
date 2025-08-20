@@ -1116,10 +1116,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Book sick food
+  // Book sick food - Enhanced with comprehensive diagnostics
   app.post('/api/amenities/sick-food', checkAuth, async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `sf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    // 1. REQUEST ENTRY LOGGING
+    console.log(`🍽️ [SICK-FOOD-BOOKING] Request entry - Method: ${req.method}, Path: ${req.path}, RequestID: ${requestId}`);
+    console.log(`👤 [SICK-FOOD-BOOKING] User session:`, {
+      hasSession: !!req.session,
+      userId: req.session?.user?.id,
+      userEmail: req.session?.user?.email,
+      requestId
+    });
+    
     try {
       const userId = req.session.user.id;
+      
+      // 2. BODY SNAPSHOT (safe fields only)
+      const safeBodySnapshot = {
+        hasDate: !!req.body.date,
+        hasMealType: !!req.body.mealType,
+        hasRoomNumber: !!req.body.roomNumber,
+        hasSpecialRequirements: !!req.body.specialRequirements,
+        bodyKeys: Object.keys(req.body || {}),
+        requestId
+      };
+      console.log(`📝 [SICK-FOOD-BOOKING] Request body snapshot:`, safeBodySnapshot);
+      
+      // 3. BEFORE VALIDATION
+      console.log(`🔍 [SICK-FOOD-BOOKING] Starting validation - RequestID: ${requestId}`);
       
       const bookingData = insertSickFoodBookingSchema.parse({
         ...req.body,
@@ -1127,11 +1153,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: new Date(req.body.date),
       });
       
+      // 4. BEFORE DB INSERT
+      console.log(`💾 [SICK-FOOD-BOOKING] Payload validated, calling DB insert - RequestID: ${requestId}`);
+      console.log(`📊 [SICK-FOOD-BOOKING] Validated payload:`, {
+        userId: bookingData.userId,
+        date: bookingData.date.toISOString(),
+        mealType: bookingData.mealType,
+        roomNumber: bookingData.roomNumber,
+        hasSpecialRequirements: !!bookingData.specialRequirements,
+        requestId
+      });
+      
       const booking = await storage.bookSickFood(bookingData);
-      res.json(booking);
+      
+      // 5. AFTER DB CALL
+      const responseTime = Date.now() - startTime;
+      console.log(`✅ [SICK-FOOD-BOOKING] DB insert successful - RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      console.log(`🎯 [SICK-FOOD-BOOKING] Insert result:`, {
+        insertedId: booking.id,
+        createdAt: booking.createdAt,
+        userId: booking.userId,
+        requestId
+      });
+      
+      // Enhanced response with diagnostics
+      const response = {
+        ...booking,
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          success: true
+        }
+      };
+      
+      console.log(`📤 [SICK-FOOD-BOOKING] Sending success response - RequestID: ${requestId}`);
+      res.json(response);
+      
     } catch (error) {
-      console.error("Error booking sick food:", error);
-      res.status(500).json({ message: "Failed to book sick food" });
+      const responseTime = Date.now() - startTime;
+      
+      // 6. ON ERROR - FULL STACK TRACE
+      console.error(`❌ [SICK-FOOD-BOOKING] ERROR - RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      console.error(`🚨 [SICK-FOOD-BOOKING] Error details:`, {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'UnknownError',
+        requestId,
+        userId: req.session?.user?.id,
+        bodyReceived: !!req.body,
+        requestHeaders: {
+          contentType: req.headers['content-type'],
+          userAgent: req.headers['user-agent'],
+          origin: req.headers['origin']
+        }
+      });
+      
+      // Ensure logs flush immediately
+      process.stdout.write('');
+      
+      res.status(500).json({ 
+        message: "Failed to book sick food",
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
     }
   });
 

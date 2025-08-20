@@ -15,6 +15,15 @@ app.use((req, res, next) => {
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // Enhanced CORS and request logging for diagnostics
+  const origin = req.headers.origin;
+  const userAgent = req.headers['user-agent'];
+  const requestId = req.headers['x-request-id'];
+  
+  if (path.includes('/api/amenities/sick-food')) {
+    console.log(`🔍 [REQUEST-TRACE] Sick food request - Origin: ${origin}, User-Agent: ${userAgent?.substring(0, 50)}...`);
+  }
+
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -28,9 +37,12 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
+      if (requestId) {
+        logLine += ` [${requestId}]`;
+      }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (logLine.length > 100) {
+        logLine = logLine.slice(0, 99) + "…";
       }
 
       log(logLine);
@@ -41,11 +53,13 @@ app.use((req, res, next) => {
 });
 
 // Environment verification logging
-console.log(`🚀 Server Starting - Version 1.0.1 - ${new Date().toISOString()}`);
+console.log(`🚀 Server Starting - Version 1.0.2 - ${new Date().toISOString()}`);
 console.log(`📍 Environment: ${process.env.NODE_ENV}`);
 console.log(`🗄️ Database URL: ${process.env.DATABASE_URL ? '[CONFIGURED]' : '[MISSING]'}`);
 console.log(`🔑 Auth0 Domain: ${process.env.AUTH0_DOMAIN ? '[CONFIGURED]' : '[MISSING]'}`);
 console.log(`🌐 Port: ${process.env.PORT || 5000}`);
+console.log(`🌐 API Base URL: http://localhost:${process.env.PORT || 5000}`);
+console.log(`🔧 CORS Origins: ${JSON.stringify(process.env.CORS_ORIGINS || ['*'])}`);
 
 // Check Auth0 configuration
 const isAuth0Configured = !!(process.env.AUTH0_DOMAIN && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET);

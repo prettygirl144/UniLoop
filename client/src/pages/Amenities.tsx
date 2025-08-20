@@ -221,19 +221,45 @@ export default function Amenities() {
   // Mutations
   const sickFoodMutation = useMutation({
     mutationFn: async (data: SickFoodForm) => {
-      await apiRequest('POST', '/api/amenities/sick-food', data);
+      const requestId = `sf_client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`🍽️ [CLIENT-SICK-FOOD] Starting booking submission - RequestID: ${requestId}`);
+      console.log(`📝 [CLIENT-SICK-FOOD] Form data:`, {
+        hasDate: !!data.date,
+        hasMealType: !!data.mealType,
+        hasRoomNumber: !!data.roomNumber,
+        hasSpecialRequirements: !!data.specialRequirements,
+        requestId
+      });
+      console.log(`🌐 [CLIENT-SICK-FOOD] API Base URL: ${window.location.origin}`);
+      console.log(`🔗 [CLIENT-SICK-FOOD] Full endpoint: ${window.location.origin}/api/amenities/sick-food`);
+      
+      try {
+        const response = await apiRequest('POST', '/api/amenities/sick-food', {
+          ...data,
+          _clientRequestId: requestId // Add client request ID for correlation
+        });
+        
+        console.log(`✅ [CLIENT-SICK-FOOD] Booking successful - RequestID: ${requestId}`, response);
+        return response;
+      } catch (error) {
+        console.error(`❌ [CLIENT-SICK-FOOD] Booking failed - RequestID: ${requestId}:`, error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log(`🎉 [CLIENT-SICK-FOOD] Success handler triggered:`, response);
       setShowSickFoodDialog(false);
       sickFoodForm.reset();
       toast({
         title: 'Success',
-        description: 'Sick food booking submitted successfully!',
+        description: `Sick food booking submitted successfully! ${(response as any)?._diagnostics?.requestId ? `(ID: ${(response as any)._diagnostics.requestId})` : ''}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/amenities/sick-food'] });
     },
     onError: (error) => {
+      console.error(`🚨 [CLIENT-SICK-FOOD] Error handler triggered:`, error);
       if (isUnauthorizedError(error)) {
+        console.log(`🔐 [CLIENT-SICK-FOOD] Unauthorized error - redirecting to login`);
         toast({
           title: "Unauthorized",
           description: "You are logged out. Logging in again...",
@@ -246,7 +272,7 @@ export default function Amenities() {
       }
       toast({
         title: 'Error',
-        description: 'Failed to submit booking. Please try again.',
+        description: `Failed to submit booking. Please try again. ${error instanceof Error ? `(${error.message})` : ''}`,
         variant: 'destructive',
       });
     },
