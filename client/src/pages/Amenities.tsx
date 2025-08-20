@@ -199,7 +199,7 @@ export default function Amenities() {
     return menus;
   };
 
-  const { data: sickFoodBookings = [] } = useQuery({
+  const { data: sickFoodBookings = [], isLoading: sickFoodLoading, error: sickFoodError } = useQuery({
     queryKey: ['/api/amenities/sick-food', sickFoodDateFilter],
     queryFn: async () => {
       const requestId = `sf_fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -232,7 +232,22 @@ export default function Amenities() {
       }
     },
     enabled: isAdmin,
+    staleTime: 0, // TRIAGE: Force fresh data every time
+    gcTime: 0, // TRIAGE: No cache retention
   });
+  
+  // TRIAGE: Log query state changes
+  useEffect(() => {
+    console.log(`🧪 [CLIENT-TRIAGE] QUERY STATE CHANGE:`, {
+      data: sickFoodBookings,
+      isLoading: sickFoodLoading, 
+      error: sickFoodError,
+      enabled: isAdmin,
+      length: Array.isArray(sickFoodBookings) ? sickFoodBookings.length : 'Not Array',
+      type: typeof sickFoodBookings,
+      filter: sickFoodDateFilter
+    });
+  }, [sickFoodBookings, sickFoodLoading, sickFoodError, isAdmin, sickFoodDateFilter]);
 
   const { data: leaveApplications = [] } = useQuery({
     queryKey: ['/api/hostel/leave'],
@@ -290,9 +305,16 @@ export default function Amenities() {
       queryClient.invalidateQueries({ queryKey: invalidationKey1 });
       queryClient.invalidateQueries({ queryKey: invalidationKey2 });
       
-      // TRIAGE: Force refetch to see immediate results
+      // TRIAGE: Force refetch to see immediate results  
       console.log(`🔄 [CLIENT-TRIAGE] Forcing immediate refetch...`);
+      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food'] });
+      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
+      queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', ''] });
+      
+      // TRIAGE: Additional aggressive cache clearing
       setTimeout(() => {
+        console.log(`🔄 [CLIENT-TRIAGE] Secondary refetch starting...`);
+        queryClient.invalidateQueries();
         queryClient.refetchQueries({ queryKey: ['/api/amenities/sick-food', sickFoodDateFilter] });
       }, 100);
     },
