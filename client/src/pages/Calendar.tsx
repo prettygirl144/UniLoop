@@ -1827,10 +1827,14 @@ export default function Calendar() {
                   targetBatchSections: selectedEvent.targetBatchSections,
                   hasTargetSections,
                   eventId: selectedEvent.id,
-                  shouldShow: hasAdminAccess && hasTargetSections
+                  shouldShow: hasAdminAccess && hasTargetSections,
+                  fullEvent: selectedEvent
                 });
                 
-                return hasAdminAccess && hasTargetSections && (
+                // Show button for admin users if event has target sections or is mandatory
+                const shouldShowButton = hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory);
+                
+                return shouldShowButton && (
                   <div className="pt-2">
                     <Button 
                       variant="outline" 
