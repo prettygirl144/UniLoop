@@ -46,12 +46,28 @@ const createEventSchema = z.object({
     source: z.enum(['batch-section', 'roll-number']),
   })).default([]), // Store individual attendees from roll number upload
 }).refine((data) => {
+  // Skip validation if either time is empty (let required field validation handle it)
+  if (!data.startTime || !data.endTime) {
+    return true;
+  }
+  
   // Validate end time is after start time
-  const [startHour, startMin] = data.startTime.split(':').map(Number);
-  const [endHour, endMin] = data.endTime.split(':').map(Number);
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  return endMinutes > startMinutes;
+  try {
+    const [startHour, startMin] = data.startTime.split(':').map(Number);
+    const [endHour, endMin] = data.endTime.split(':').map(Number);
+    
+    // Check for invalid time formats
+    if (isNaN(startHour) || isNaN(startMin) || isNaN(endHour) || isNaN(endMin)) {
+      return true; // Let the field validation handle invalid formats
+    }
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    return endMinutes > startMinutes;
+  } catch (error) {
+    // If there's any error in parsing, skip this validation
+    return true;
+  }
 }, {
   message: "End time must be after start time",
   path: ["endTime"],
