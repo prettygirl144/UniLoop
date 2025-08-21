@@ -32,6 +32,11 @@ function Router() {
     currentPath: window.location.pathname,
     currentUrl: window.location.href
   });
+  
+  // Additional debug for authenticated routes
+  if (isAuthenticated && !isLoading) {
+    console.log('✅ Should render authenticated routes for path:', window.location.pathname);
+  }
 
   if (isLoading) {
     return (
@@ -50,7 +55,6 @@ function Router() {
         </>
       ) : (
         <Layout>
-          <Route path="~" component={Home} />
           <Route path="/" component={Home} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/gallery" component={Gallery} />
@@ -61,7 +65,7 @@ function Router() {
           <Route path="/admin" component={Admin} />
           <Route path="/attendance" component={Attendance} />
           <Route path="/attendance/:eventId" component={Attendance} />
-          <Route component={NotFound} />
+          <Route path="/:rest*" component={NotFound} />
         </Layout>
       )}
     </Switch>
