@@ -43,55 +43,51 @@ function Router() {
           <Route path="*" component={Landing} />
         </>
       ) : (
-        <>
-          {/* Define all concrete authenticated routes first */}
-          <Layout>
-            <Route path="/" component={Home} />
-            <Route path="/calendar" component={Calendar} />
-            <Route path="/events" component={Calendar} />
-            <Route path="/gallery" component={Gallery} />
-            <Route path="/gallery/:id" component={Gallery} />
-            <Route path="/forum" component={Forum} />
-            <Route path="/forum/posts" component={Forum} />
-            <Route path="/forum/announcements" component={Forum} />
-            <Route path="/forum/:topicId" component={Forum} />
-            <Route path="/amenities" component={Amenities} />
-            <Route path="/amenities/menu" component={Amenities} />
-            <Route path="/amenities/services" component={Amenities} />
-            <Route path="/amenities/records" component={Amenities} />
-            <Route path="/amenities/weekly" component={Amenities} />
-            <Route path="/triathlon" component={Triathlon} />
-            <Route path="/triathlon/leaderboard" component={Triathlon} />
-            <Route path="/directory" component={Directory} />
-            <Route path="/attendance" component={Attendance} />
-            <Route path="/attendance/:eventId" component={Attendance} />
-            <Route path="/hostel/leave" component={Amenities} />
-            <Route path="/hostel/leave/records" component={Amenities} />
-            <Route path="/community" component={Forum} />
-            
-            {/* Admin routes */}
-            <Route path="/admin" component={Admin} />
-            <Route path="/admin/users" component={Admin} />
-            <Route path="/admin/students" component={Admin} />
-            <Route path="/admin/logs" component={Admin} />
-            <Route path="/admin/amenities" component={Admin} />
-            <Route path="/admin/amenities/records" component={Admin} />
-            <Route path="/admin/forum" component={Admin} />
-            <Route path="/admin/triathlon" component={Admin} />
-            <Route path="/admin/events" component={Admin} />
-            <Route path="/admin/announcements" component={Admin} />
-            <Route path="/admin/leave" component={Admin} />
-            
-            {/* Auth routes */}
-            <Route path="/auth/login" component={Auth0Login} />
-            <Route path="/auth/logout" component={Auth0Logout} />
-          </Layout>
+        <Layout>
+          {/* All authenticated routes wrapped in a single Layout */}
+          <Route path="/" component={Home} />
+          <Route path="/calendar" component={Calendar} />
+          <Route path="/events" component={Calendar} />
+          <Route path="/gallery" component={Gallery} />
+          <Route path="/gallery/:id" component={Gallery} />
+          <Route path="/forum" component={Forum} />
+          <Route path="/forum/posts" component={Forum} />
+          <Route path="/forum/announcements" component={Forum} />
+          <Route path="/forum/:topicId" component={Forum} />
+          <Route path="/amenities" component={Amenities} />
+          <Route path="/amenities/menu" component={Amenities} />
+          <Route path="/amenities/services" component={Amenities} />
+          <Route path="/amenities/records" component={Amenities} />
+          <Route path="/amenities/weekly" component={Amenities} />
+          <Route path="/triathlon" component={Triathlon} />
+          <Route path="/triathlon/leaderboard" component={Triathlon} />
+          <Route path="/directory" component={Directory} />
+          <Route path="/attendance" component={Attendance} />
+          <Route path="/attendance/:eventId" component={Attendance} />
+          <Route path="/hostel/leave" component={Amenities} />
+          <Route path="/hostel/leave/records" component={Amenities} />
+          <Route path="/community" component={Forum} />
           
-          {/* Single catch-all route as the very last route - also wrapped in Layout */}
-          <Layout>
-            <Route path="*" component={NotFound} />
-          </Layout>
-        </>
+          {/* Admin routes */}
+          <Route path="/admin" component={Admin} />
+          <Route path="/admin/users" component={Admin} />
+          <Route path="/admin/students" component={Admin} />
+          <Route path="/admin/logs" component={Admin} />
+          <Route path="/admin/amenities" component={Admin} />
+          <Route path="/admin/amenities/records" component={Admin} />
+          <Route path="/admin/forum" component={Admin} />
+          <Route path="/admin/triathlon" component={Admin} />
+          <Route path="/admin/events" component={Admin} />
+          <Route path="/admin/announcements" component={Admin} />
+          <Route path="/admin/leave" component={Admin} />
+          
+          {/* Auth routes */}
+          <Route path="/auth/login" component={Auth0Login} />
+          <Route path="/auth/logout" component={Auth0Logout} />
+          
+          {/* Single catch-all route as the very last route */}
+          <Route path="*" component={NotFound} />
+        </Layout>
       )}
     </Switch>
   );
@@ -99,7 +95,10 @@ function Router() {
 
 function App() {
   // Temporary detection to prove single mount (remove after)
-  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
+  if ((window as any).__APP_MOUNTED__) {
+    console.error('APP_MOUNTED_TWICE - Component is rendering multiple times!');
+    console.trace('App component render trace');
+  }
   (window as any).__APP_MOUNTED__ = true;
 
   return (
