@@ -1,0 +1,26 @@
+{
+  "_comment": "Google Form field mapping for Hostel Leave Application Form ID: 1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ",
+  "_instructions": "To update these mappings: 1) Open the Google Form, 2) Inspect element on each field, 3) Find the 'entry.XXXXXXXXX' value in the name attribute, 4) Update the corresponding mapping below",
+  "_form_url": "https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/formResponse",
+  "mappings": {
+    "email": "entry.1234567890",
+    "reason": "entry.2345678901", 
+    "leaveFrom": "entry.3456789012",
+    "leaveTo": "entry.4567890123",
+    "leaveCity": "entry.5678901234",
+    "correlationId": "entry.6789012345"
+  },
+  "_notes": {
+    "email": "Required field with email validation and 'Record as email included with response' helper text",
+    "reason": "Required textarea field for reason for leave",
+    "leaveFrom": "Required date picker field for leave start date",
+    "leaveTo": "Required date picker field for leave end date", 
+    "leaveCity": "Required text field for destination city",
+    "correlationId": "Short answer field for tracking submissions between PWA and Google Form",
+    "dateFormat": "If Google Form splits dates into separate year/month/day fields, additional mappings will be needed"
+  },
+  "_maintenance": {
+    "lastUpdated": "2025-08-21",
+    "howToRefresh": "When Google Form is edited: 1) View form source, 2) Copy new entry.* IDs, 3) Update mappings above, 4) Test with sample submission"
+  }
+}

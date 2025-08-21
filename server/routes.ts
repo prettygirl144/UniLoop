@@ -26,6 +26,7 @@ import {
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
 import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
+import { submitToGoogleForm, generateCorrelationId, type LeaveFormData } from "./services/googleFormSubmit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -1312,23 +1313,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Apply for hostel leave
+  // Apply for hostel leave with Google Form integration
   app.post('/api/hostel/leave', checkAuth, async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `leave_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    console.log(`🏠 [LEAVE-APPLICATION] Request entry - RequestID: ${requestId}`);
+    console.log(`👤 [LEAVE-APPLICATION] User session:`, {
+      userId: req.session?.user?.id,
+      userEmail: req.session?.user?.email,
+      requestId
+    });
+    
     try {
       const userId = req.session.user.id;
+      const correlationId = generateCorrelationId();
       
+      console.log(`📝 [LEAVE-APPLICATION] Processing submission - Correlation ID: ${correlationId}, RequestID: ${requestId}`);
+      
+      // Validate and prepare data for local storage
       const leaveData = insertHostelLeaveSchema.parse({
         ...req.body,
         userId,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
+        correlationId,
       });
       
-      const leave = await storage.applyForLeave(leaveData);
-      res.json(leave);
-    } catch (error) {
-      console.error("Error applying for leave:", error);
-      res.status(500).json({ message: "Failed to apply for leave" });
+      console.log(`📊 [LEAVE-APPLICATION] Validated payload:`, {
+        userId: leaveData.userId,
+        email: `***${leaveData.email.slice(-4)}`,
+        startDate: leaveData.startDate.toISOString(),
+        endDate: leaveData.endDate.toISOString(),
+        leaveCity: leaveData.leaveCity,
+        correlationId,
+        requestId
+      });
+      
+      // Prepare data for Google Form submission
+      const googleFormData: LeaveFormData = {
+        email: leaveData.email,
+        reason: leaveData.reason,
+        leaveFrom: leaveData.startDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        leaveTo: leaveData.endDate.toISOString().split('T')[0],
+        leaveCity: leaveData.leaveCity,
+        correlationId,
+      };
+      
+      // Attempt Google Form submission
+      console.log(`🔗 [LEAVE-APPLICATION] Attempting Google Form submission - RequestID: ${requestId}`);
+      const googleStatus = await submitToGoogleForm(googleFormData, 1);
+      
+      console.log(`${googleStatus.ok ? '✅' : '❌'} [LEAVE-APPLICATION] Google Form ${googleStatus.ok ? 'succeeded' : 'failed'} - Status: ${googleStatus.statusCode}, Latency: ${googleStatus.latencyMs}ms, RequestID: ${requestId}`);
+      
+      // Save to local database with Google status
+      const leaveWithGoogleStatus = {
+        ...leaveData,
+        googleStatus,
+      };
+      
+      console.log(`💾 [LEAVE-APPLICATION] Saving to database - RequestID: ${requestId}`);
+      const leave = await storage.applyForLeave(leaveWithGoogleStatus);
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`✅ [LEAVE-APPLICATION] Application saved - ID: ${leave.id}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      
+      // Return comprehensive response
+      const response = {
+        ...leave,
+        _diagnostics: {
+          requestId,
+          correlationId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          google: googleStatus,
+          success: true
+        }
+      };
+      
+      res.json(response);
+      
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ [LEAVE-APPLICATION] ERROR - RequestID: ${requestId}, Response time: ${responseTime}ms:`, error);
+      console.error(`🚨 [LEAVE-APPLICATION] Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        requestId,
+        userId: req.session?.user?.id
+      });
+      
+      res.status(500).json({ 
+        message: "Failed to apply for leave",
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          success: false,
+          error: error.message
+        }
+      });
     }
   });
 
@@ -1393,6 +1477,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error denying leave:", error);
       res.status(500).json({ message: "Failed to deny leave" });
+    }
+  });
+
+  // Retry Google Form submission for leave application
+  app.post('/api/hostel/leave/:id/google-sync', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `retry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    console.log(`🔄 [LEAVE-RETRY] Google sync retry - ID: ${req.params.id}, RequestID: ${requestId}`);
+    
+    try {
+      const id = parseInt(req.params.id);
+      const leave = await storage.getLeaveById(id);
+      
+      if (!leave) {
+        return res.status(404).json({ message: "Leave application not found" });
+      }
+      
+      if (!leave.correlationId) {
+        return res.status(400).json({ message: "Leave application missing correlation ID" });
+      }
+      
+      // Check if Google submission was already successful
+      if (leave.googleStatus?.ok) {
+        console.log(`✅ [LEAVE-RETRY] Already successful - ID: ${id}, RequestID: ${requestId}`);
+        return res.json({ 
+          message: "Google Form submission was already successful", 
+          google: leave.googleStatus 
+        });
+      }
+      
+      // Prepare data for retry
+      const googleFormData: LeaveFormData = {
+        email: leave.email,
+        reason: leave.reason,
+        leaveFrom: leave.startDate.toISOString().split('T')[0],
+        leaveTo: leave.endDate.toISOString().split('T')[0],
+        leaveCity: leave.leaveCity,
+        correlationId: leave.correlationId,
+      };
+      
+      const currentAttempts = leave.googleStatus?.attempts || 0;
+      console.log(`🔗 [LEAVE-RETRY] Retrying Google Form submission - Attempt: ${currentAttempts + 1}, RequestID: ${requestId}`);
+      
+      // Attempt Google Form submission
+      const googleStatus = await submitToGoogleForm(googleFormData, currentAttempts + 1);
+      
+      console.log(`${googleStatus.ok ? '✅' : '❌'} [LEAVE-RETRY] Retry ${googleStatus.ok ? 'succeeded' : 'failed'} - Status: ${googleStatus.statusCode}, RequestID: ${requestId}`);
+      
+      // Update database with new Google status
+      const updatedLeave = await storage.updateLeaveGoogleStatus(id, googleStatus);
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`💾 [LEAVE-RETRY] Database updated - ID: ${id}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      
+      res.json({
+        message: googleStatus.ok ? "Google Form submission successful" : "Google Form submission failed",
+        leave: updatedLeave,
+        google: googleStatus,
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          retryAttempt: googleStatus.attempts
+        }
+      });
+      
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ [LEAVE-RETRY] ERROR - RequestID: ${requestId}, Response time: ${responseTime}ms:`, error);
+      res.status(500).json({ 
+        message: "Failed to retry Google Form submission",
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          error: error.message
+        }
+      });
+    }
+  });
+
+  // Get individual leave application with Google status
+  app.get('/api/hostel/leave/:id', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const leave = await storage.getLeaveById(id);
+      
+      if (!leave) {
+        return res.status(404).json({ message: "Leave application not found" });
+      }
+      
+      // Mask sensitive information in response
+      const sanitizedLeave = {
+        ...leave,
+        email: `***${leave.email.slice(-4)}`,
+        googleStatus: leave.googleStatus ? {
+          ...leave.googleStatus,
+          error: leave.googleStatus.error ? leave.googleStatus.error.substring(0, 100) : undefined
+        } : undefined
+      };
+      
+      res.json(sanitizedLeave);
+    } catch (error) {
+      console.error("Error fetching leave application:", error);
+      res.status(500).json({ message: "Failed to fetch leave application" });
     }
   });
 

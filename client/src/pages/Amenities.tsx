@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { 
   Utensils, 
   UserX, 
@@ -52,11 +52,22 @@ const sickFoodSchema = z.object({
 });
 
 const leaveApplicationSchema = z.object({
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
-  reason: z.string().min(1, 'Reason is required'),
+  // Google Form required fields
+  email: z.string().email('Please enter a valid email address'),
+  reason: z.string().min(1, 'Reason for leave is required'),
+  startDate: z.string().min(1, 'Leave From date is required'),
+  endDate: z.string().min(1, 'Leave To date is required'),
+  leaveCity: z.string().min(1, 'Leave city is required'),
+  // App-specific fields (kept for internal use)
   emergencyContact: z.string().min(1, 'Emergency contact is required'),
   roomNumber: z.string().min(1, 'Room number is required'),
+}).refine((data) => {
+  const startDate = new Date(data.startDate);
+  const endDate = new Date(data.endDate);
+  return endDate >= startDate;
+}, {
+  message: 'Leave To date must be on or after Leave From date',
+  path: ['endDate'],
 });
 
 const grievanceSchema = z.object({
@@ -111,9 +122,11 @@ export default function Amenities() {
   const leaveForm = useForm<LeaveApplicationForm>({
     resolver: zodResolver(leaveApplicationSchema),
     defaultValues: {
+      email: '',
+      reason: '',
       startDate: '',
       endDate: '',
-      reason: '',
+      leaveCity: '',
       emergencyContact: '',
       roomNumber: '',
     },
@@ -424,6 +437,30 @@ export default function Amenities() {
     },
   });
 
+  const retryGoogleSync = useMutation({
+    mutationFn: async (applicationId: string) => {
+      const result = await apiRequest(`/api/amenities/leave-applications/${applicationId}/retry-google-sync`, {
+        method: 'POST',
+      });
+      return result;
+    },
+    onSuccess: () => {
+      toast({ title: 'Google sync retry initiated' });
+      queryClient.invalidateQueries({ queryKey: ['/api/amenities/leave-applications'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        return;
+      }
+      console.error('Error retrying Google sync:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to retry Google sync',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const menuUploadMutation = useMutation({
     mutationFn: async (data: MenuUploadForm) => {
       if (!uploadedFile) {
@@ -629,7 +666,22 @@ export default function Amenities() {
           filename = 'sick-food-bookings.xlsx';
           break;
         case 'leave-applications':
-          data = leaveApplications as any[];
+          // Enhanced data with Google Form fields
+          data = (leaveApplications as any[]).map((app: any) => ({
+            'ID': app.id,
+            'Email': app.email || '',
+            'Leave From': new Date(app.startDate).toLocaleDateString(),
+            'Leave To': new Date(app.endDate).toLocaleDateString(),
+            'Leave City': app.leaveCity || '',
+            'Reason': app.reason,
+            'Room Number': app.roomNumber,
+            'Emergency Contact': app.emergencyContact,
+            'Status': app.status,
+            'Correlation ID': app.correlationId || '',
+            'Google Sync Status': app.googleStatus?.ok ? 'Synced' : `Failed (${app.googleStatus?.attempts || 0} attempts)`,
+            'Google Last Attempt': app.googleStatus?.lastAttempt ? new Date(app.googleStatus.lastAttempt).toLocaleString() : '',
+            'Created At': new Date(app.createdAt).toLocaleString()
+          }));
           filename = 'leave-applications.xlsx';
           break;
         case 'grievances':
@@ -1095,28 +1147,23 @@ export default function Amenities() {
                     </DialogHeader>
                     <Form {...leaveForm}>
                       <form onSubmit={leaveForm.handleSubmit((data) => leaveMutation.mutate(data))} className="space-y-4">
+                        {/* Google Form Required Fields */}
                         <FormField
                           control={leaveForm.control}
-                          name="startDate"
+                          name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Start Date</FormLabel>
+                              <FormLabel>Email *</FormLabel>
                               <FormControl>
-                                <Input type="date" {...field} />
+                                <Input 
+                                  type="email" 
+                                  placeholder="your.email@example.com"
+                                  {...field} 
+                                />
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={leaveForm.control}
-                          name="endDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>End Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
+                              <FormDescription className="text-xs text-muted-foreground">
+                                Record your email as the email included with your response
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -1126,46 +1173,108 @@ export default function Amenities() {
                           name="reason"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Reason for Leave</FormLabel>
+                              <FormLabel>Reason for leave *</FormLabel>
                               <FormControl>
-                                <Textarea placeholder="Explain the reason for your leave..." {...field} />
+                                <Textarea 
+                                  placeholder="Please provide the reason for your leave application..."
+                                  {...field} 
+                                  rows={3} 
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={leaveForm.control}
+                            name="startDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Leave From *</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={leaveForm.control}
+                            name="endDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Leave To *</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         <FormField
                           control={leaveForm.control}
-                          name="emergencyContact"
+                          name="leaveCity"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Emergency Contact</FormLabel>
+                              <FormLabel>Leave City *</FormLabel>
                               <FormControl>
-                                <Input placeholder="Phone number for emergency contact" {...field} />
+                                <Input 
+                                  placeholder="Enter destination city"
+                                  {...field} 
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={leaveForm.control}
-                          name="roomNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Room Number</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g., A-101" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        
+                        {/* App-Specific Fields */}
+                        <div className="border-t pt-4 mt-6">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Additional Information</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={leaveForm.control}
+                              name="emergencyContact"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Emergency Contact</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="Phone number"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={leaveForm.control}
+                              name="roomNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Room Number</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="e.g., A101, B205"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
                         <Button 
                           type="submit" 
                           disabled={leaveMutation.isPending}
-                          className="w-full"
+                          className="w-full mt-6"
                         >
-                          {leaveMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                          {leaveMutation.isPending ? 'Submitting Application...' : 'Submit Leave Application'}
                         </Button>
                       </form>
                     </Form>
@@ -1397,9 +1506,24 @@ export default function Amenities() {
                                 <p className="text-small font-medium truncate">
                                   {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
                                 </p>
-                                <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber}</p>
-                                <p className="text-small text-muted-foreground truncate">Contact: {application.emergencyContact}</p>
+                                <p className="text-small text-muted-foreground truncate">
+                                  Email: {application.email || '—'} | City: {application.leaveCity || '—'}
+                                </p>
+                                <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber} | Contact: {application.emergencyContact}</p>
                                 <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
+                                {application.correlationId && (
+                                  <p className="text-xs text-blue-600 truncate">Correlation ID: {application.correlationId}</p>
+                                )}
+                                {application.googleStatus && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge 
+                                      variant={application.googleStatus.ok ? 'default' : 'destructive'} 
+                                      className="text-xs px-1 py-0 h-5"
+                                    >
+                                      Google: {application.googleStatus.ok ? '✓ Synced' : `✗ Failed (${application.googleStatus.attempts} attempts)`}
+                                    </Badge>
+                                  </div>
+                                )}
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit">

@@ -858,6 +858,20 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async getLeaveById(id: number): Promise<HostelLeave | undefined> {
+    const [leave] = await db.select().from(hostelLeave).where(eq(hostelLeave.id, id));
+    return leave;
+  }
+
+  async updateLeaveGoogleStatus(id: number, googleStatus: any): Promise<HostelLeave> {
+    const [updated] = await db
+      .update(hostelLeave)
+      .set({ googleStatus })
+      .where(eq(hostelLeave.id, id))
+      .returning();
+    return updated;
+  }
+
   async submitGrievance(grievance: InsertGrievance): Promise<Grievance> {
     const [created] = await db
       .insert(grievances)

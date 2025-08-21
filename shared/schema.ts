@@ -254,6 +254,18 @@ export const hostelLeave = pgTable("hostel_leave", {
   approvalToken: varchar("approval_token"), // for email approval links
   tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Google Form integration fields
+  email: varchar("email").notNull(),
+  leaveCity: varchar("leave_city").notNull(),
+  correlationId: varchar("correlation_id"),
+  googleStatus: jsonb("google_status").$type<{
+    ok: boolean;
+    statusCode?: number;
+    attempts: number;
+    lastTriedAt?: string;
+    latencyMs?: number;
+    error?: string;
+  }>().default({ ok: false, attempts: 0 }),
 });
 
 // Grievances table
@@ -453,6 +465,8 @@ export const insertHostelLeaveSchema = createInsertSchema(hostelLeave).omit({
   createdAt: true,
   approvalToken: true,
   tokenExpiry: true,
+  correlationId: true, // Generated server-side
+  googleStatus: true, // Managed server-side
 });
 
 export const insertGrievanceSchema = createInsertSchema(grievances).omit({

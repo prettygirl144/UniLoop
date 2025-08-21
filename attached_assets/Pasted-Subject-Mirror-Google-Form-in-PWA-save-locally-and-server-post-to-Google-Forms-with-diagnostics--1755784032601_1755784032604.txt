@@ -1,0 +1,111 @@
+Subject: Mirror Google Form in PWA, save locally, and server-post to Google Forms (with diagnostics)
+
+Context
+- Keep the existing Google Form workflow intact (ID: 1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ).
+- Update the PWA “Hostel Leave Application” to match the Google Form fields exactly.
+- On submit: 1) persist in our app (Replit DB), 2) post server-side to Google Forms, 3) display success/failure logs in-app with a correlation ID and retry if needed.
+
+Deliverables (acceptance criteria)
+- PWA form fields, labels, required flags, and help text mirror the Google Form 1:1 (Email, Reason for leave, Leave From, Leave To, Leave City, plus any others discovered).
+- Server saves each submission locally and posts mapped values to Google Forms /formResponse.
+- A correlationId is generated and saved; included in a designated short-answer field in the Google Form.
+- In-app log panel shows per-submission status: local save, Google post status (200/302), latency, attempts, and correlationId.
+- If Google post fails, local record remains, is queued for retry, and can be manually re-sent.
+- Records and CSV include the mirrored fields (backward compatible: show “—” for missing historical fields).
+
+Implementation plan
+
+1) Build a stable field mapping from Google Form
+- Create server/config/googleFormMap.json with canonical names → entry.* IDs:
+  {
+    "email": "entry.XXXXXXXXXX",
+    "reason": "entry.XXXXXXXXXX",
+    "leaveFrom": "entry.XXXXXXXXXX",
+    "leaveTo": "entry.XXXXXXXXXX",
+    "leaveCity": "entry.XXXXXXXXXX",
+    "correlationId": "entry.XXXXXXXXXX"
+  }
+- Note: Some Google date items can be split (year/month/day). If this form splits dates, include separate mapped keys and format accordingly.
+- Document how to refresh this map if the form is edited.
+
+2) Update PWA form (UI + validation)
+- Fields (required unless specified otherwise):
+  - Email (required; email pattern; include the “Record … as the email included with my response” helper text).
+  - Reason For leave (required; textarea).
+  - Leave From (required; date picker).
+  - Leave To (required; date picker).
+  - Leave City (required; text).
+- Validation:
+  - Email must be valid format.
+  - Dates: Leave To ≥ Leave From; normalize to the format the form expects when posting.
+- Keep existing app-specific fields if needed by our system; they should not block the Google post.
+
+3) API: create submission flow
+- Endpoint: POST /api/leave
+- Steps:
+  a) Validate payload against the above fields.
+  b) Generate id and correlationId (e.g., leave--).
+  c) Persist to Replit DB:
+     - set("leaves:{id}", JSON.stringify(record))
+     - append id to an index array "leaves:index"
+  d) Post to Google Forms:
+     - URL: https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/formResponse
+     - Content-Type: application/x-www-form-urlencoded
+     - Body: map our fields to entry.* IDs via googleFormMap.json; include correlationId.
+     - Treat HTTP 200 or 302 as success.
+  e) Save googleStatus on the local record: { ok, statusCode, attempts, lastTriedAt, latencyMs }.
+  f) Response to client: { ok: true, id, correlationId, google: googleStatus }.
+- Error handling:
+  - If Google post fails, return ok:true for local save with google.ok=false and enqueue for retry.
+
+4) Retry queue and admin actions
+- Background job to retry failed Google posts with exponential backoff (e.g., 1m, 5m, 30m, 3h, 24h; max 5 attempts).
+- Admin endpoint:
+  - POST /api/leave/:id/google-sync → reattempt submission now.
+  - GET /api/leave/:id → returns record with googleStatus and last error (masked PII).
+
+5) In-app logging/diagnostics
+- Add a Submission Log panel (developer-only or admin-only) that shows:
+  - id, correlationId
+  - local save status/timestamp
+  - Google status (ok/failed), statusCode, attempts, lastTriedAt, latencyMs
+  - Copy-to-clipboard for correlationId
+- On client submit, surface a non-blocking banner:
+  - “Saved. Sync to Google: Success” or
+  - “Saved. Sync to Google will retry (tap for details).”
+
+6) Records view and CSV
+- Ensure Records table displays Email, Reason, Leave From, Leave To, Leave City.
+- CSV export includes the same fields.
+- Backward compatibility: render “—” if a historical record lacks a field.
+
+7) Service worker and caching
+- For /api/leave (POST) and any retry endpoints:
+  - Network-only; do not cache/intercept in the service worker.
+- For records list GET during testing:
+  - Prefer network-first to reflect immediately after invalidation.
+
+8) Testing checklist
+- Submit a test leave from the PWA; verify:
+  - Local record saved in Replit DB with all fields and correlationId.
+  - Submission log displays success with latency and status.
+  - A new row appears in the Google Form responses (linked Sheet), with correlationId present in the designated field.
+  - Force a simulated failure (e.g., temporary wrong form ID) to verify retry and admin re-sync.
+  - Records and CSV show the mirrored fields as expected.
+
+Artifacts to produce
+- server/config/googleFormMap.json
+- server/services/googleFormSubmit.ts
+- server/routes/leave.create.ts, leave.get.ts, leave.resync.ts
+- server/db/helpers for get/set and index updates
+- client/components/LeaveForm.tsx (updated fields and validation)
+- client/components/SubmissionLog.tsx (admin view)
+- client/api/leave.ts (create + re-sync)
+- client/components/RecordsTable.tsx and utils/exportCsv.ts (added columns)
+
+Security/PII
+- Store email/phone as strings; mask in logs (show last 4 only).
+- Do not expose googleFormMap.json to the client.
+- Do not post to Google from the browser; only server-side.
+
+Please proceed with the above. If the Google Form’s date fields are split into subfields, implement the required decomposition in googleFormSubmit.ts and update the map accordingly.
