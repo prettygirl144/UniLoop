@@ -1475,26 +1475,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Application already synced successfully' });
       }
       
-      if (application.googleStatus?.attempts >= 5) {
+      if ((application.googleStatus?.attempts || 0) >= 5) {
         return res.status(400).json({ error: 'Maximum retry attempts reached' });
       }
       
       // Prepare data for Google Form retry
       const googleFormData: LeaveFormData = {
-        email: application.email,
+        email: application.email || '',
         reason: application.reason,
-        leaveFrom: application.startDate,
-        leaveTo: application.endDate,
-        leaveCity: application.leaveCity,
-        correlationId: application.correlationId
+        leaveFrom: typeof application.startDate === 'string' ? application.startDate : application.startDate.toISOString().split('T')[0],
+        leaveTo: typeof application.endDate === 'string' ? application.endDate : application.endDate.toISOString().split('T')[0],
+        leaveCity: application.leaveCity || '',
+        correlationId: application.correlationId || ''
       };
       
       // Attempt retry
       const nextAttempt = (application.googleStatus?.attempts || 0) + 1;
       const googleStatus = await submitToGoogleForm(googleFormData, nextAttempt);
       
-      // Update the application with Google Form result - need to implement this method
-      // await storage.updateHostelLeaveGoogleStatus(application.id, googleStatus);
+      // Update the application with Google Form result
+      // TODO: Implement updateHostelLeaveGoogleStatus method in storage
+      console.log(`📤 [LEAVE-APP] Google Form retry result:`, googleStatus);
       
       res.json({ 
         success: true, 
