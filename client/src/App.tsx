@@ -45,6 +45,7 @@ function Router() {
         <Layout>
           <Route path="/" component={Home} />
           <Route path="/calendar" component={Calendar} />
+          <Route path="/events" component={Calendar} />
           <Route path="/gallery" component={Gallery} />
           <Route path="/forum" component={Forum} />
           <Route path="/amenities" component={Amenities} />
