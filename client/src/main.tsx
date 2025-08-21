@@ -13,11 +13,9 @@ console.log(`📦 Service Worker: ${navigator.serviceWorker ? 'Supported' : 'Not
 console.log(`🔍 API_BASE_URL Resolution: ${window.location.origin} (same origin)`);
 console.log(`🔄 Query Key Debugging: Active`);
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+const root = createRoot(document.getElementById('root')!);
+const app = <App />;
+root.render(import.meta.env.DEV ? <StrictMode>{app}</StrictMode> : app);
 
 // Register service worker for PWA functionality with better update handling
 register({

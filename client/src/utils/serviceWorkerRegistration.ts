@@ -15,6 +15,10 @@ type Config = {
 };
 
 export function register(config?: Config) {
+  // Guard against multiple registrations
+  if ((window as any).__SW_REGISTERED__) return;
+  (window as any).__SW_REGISTERED__ = true;
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       const swUrl = '/sw.js';

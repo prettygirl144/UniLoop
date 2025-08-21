@@ -98,6 +98,10 @@ function Router() {
 }
 
 function App() {
+  // Temporary detection to prove single mount (remove after)
+  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
+  (window as any).__APP_MOUNTED__ = true;
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
