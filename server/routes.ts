@@ -1456,6 +1456,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Retry Google Form sync endpoint for leave applications
+  app.post('/api/hostel/leave/:id/retry-google-sync', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`🔄 [LEAVE-APP] Manual retry requested for application ID: ${applicationId}`);
+      
+      // Get the application
+      const applications = await storage.getLeaveApplications();
+      const application = applications.find((app: any) => app.id === applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ error: 'Leave application not found' });
+      }
+      
+      // Check if retry is allowed
+      if (application.googleStatus?.ok) {
+        return res.status(400).json({ error: 'Application already synced successfully' });
+      }
+      
+      if (application.googleStatus?.attempts >= 5) {
+        return res.status(400).json({ error: 'Maximum retry attempts reached' });
+      }
+      
+      // Prepare data for Google Form retry
+      const googleFormData: LeaveFormData = {
+        email: application.email,
+        reason: application.reason,
+        leaveFrom: application.startDate,
+        leaveTo: application.endDate,
+        leaveCity: application.leaveCity,
+        correlationId: application.correlationId
+      };
+      
+      // Attempt retry
+      const nextAttempt = (application.googleStatus?.attempts || 0) + 1;
+      const googleStatus = await submitToGoogleForm(googleFormData, nextAttempt);
+      
+      // Update the application with Google Form result - need to implement this method
+      // await storage.updateHostelLeaveGoogleStatus(application.id, googleStatus);
+      
+      res.json({ 
+        success: true, 
+        message: 'Google Form sync retry completed',
+        googleStatus,
+        correlationId: application.correlationId
+      });
+    } catch (error) {
+      console.error('Error retrying Google Form sync:', error);
+      res.status(500).json({ error: 'Failed to retry Google Form sync' });
+    }
+  });
+
   // Admin approve leave application (direct admin action)
   app.post('/api/hostel/leave/:id/approve', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
     try {

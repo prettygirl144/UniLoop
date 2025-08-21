@@ -439,14 +439,14 @@ export default function Amenities() {
 
   const retryGoogleSync = useMutation({
     mutationFn: async (applicationId: string) => {
-      const result = await apiRequest(`/api/amenities/leave-applications/${applicationId}/retry-google-sync`, {
+      const result = await apiRequest(`/api/hostel/leave/${applicationId}/retry-google-sync`, {
         method: 'POST',
       });
       return result;
     },
     onSuccess: () => {
       toast({ title: 'Google sync retry initiated' });
-      queryClient.invalidateQueries({ queryKey: ['/api/amenities/leave-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/hostel/leave'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {

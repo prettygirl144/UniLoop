@@ -1,0 +1,76 @@
+Thanks for the screenshots. Here’s a focused plan to give Replit so both issues are fixed quickly.
+
+Subject: Fix Google Form sync failures and 404 route error in Leave Applications
+
+Issue A: “Google: × Failed (1 attempts)” on each submission
+Likely causes
+- Wrong Google Form endpoint or entry ID mapping.
+- Missing/invalid required fields (Google rejects silently).
+- Date fields not formatted or split as Google expects.
+- Posting from client instead of server, or blocked by CORS.
+- 302 without following redirect not treated as success.
+
+Actions
+1) Verify endpoint and method
+- Use: POST https://docs.google.com/forms/d/e/<FORM_ID>/formResponse
+- Headers: Content-Type: application/x-www-form-urlencoded
+- Allow 200 or 302 as success; treat 400/403/405 as failure.
+
+2) Validate entry mappings
+- Confirm each required question has the correct entry.NNN… in googleFormMap.json.
+- Log the final encoded body (with PII masked) and the exact keys sent for each attempt.
+
+3) Date handling
+- Match the form’s expected format:
+  - If single field date: send exactly dd-mm-yyyy (not ISO).
+  - If Google split date item is used: send year/month/day to their specific entry IDs.
+- Add a formatter: toGoogleDate(dd-mm-yyyy) -> dd-mm-yyyy; and a splitter when needed.
+
+4) Required fields check before post
+- Ensure email, reason, leaveFrom, leaveTo, leaveCity are non-empty and trimmed.
+- If any required field is missing, do not post; mark googleStatus as “skipped:validation” and surface the error.
+
+5) Network and retries
+- Ensure submission runs server-side only.
+- Follow redirects; capture status, latency, and response URL.
+- Retry with exponential backoff (log attempt count). Expose a “Retry Google Sync” button that calls POST /api/leave/:id/google-sync.
+
+6) Diagnostics to add now
+- For a failing record, log:
+  - correlationId, statusCode, attempts, error message.
+  - First 200 chars of response body (often contains an inline error).
+- Add an admin endpoint GET /api/leave/:id/google-preview that returns the mapped payload and target URL for inspection.
+
+Issue B: 404 Page Not Found (“Did you forget to add the page to the router?”)
+Likely causes
+- Missing route entry in SPA router (e.g., React Router) after new page/form was added.
+- Deployed build serving stale assets or service worker caching an old route table.
+- Server missing catch-all to index.html for client-side routing.
+
+Actions
+1) SPA router
+- Add the path to the router config (exact path used by the link/navigation).
+- If using dynamic segments, ensure the pattern matches.
+- Rebuild and verify the route renders in dev.
+
+2) Static hosting fallback
+- If serving via Express: app.get('*', (_,res)=>res.sendFile('dist/index.html')) so deep links are handled by the SPA.
+- If using a static server, ensure it supports SPA fallback or configure it.
+
+3) Service worker/cache
+- Bump SW version; in DevTools, Unregister and Clear site data; hard reload.
+- Confirm the new bundle with the updated route table is loaded.
+
+4) Links/navigation
+- Replace bare <a href> pointing to non-existent server paths with SPA <Link to> or programmatic navigate() so the client router handles it.
+
+Acceptance criteria
+- Submitting a leave shows “Google: ✓ Success (status 200/302, attempt 1)” and appears in the Google Form responses (Sheet).
+- The failing record can be re-synced via the Retry button and succeeds.
+- The 404 route loads correctly via direct URL and internal navigation after rebuild.
+- SW no longer serves stale assets; version string updated.
+
+If you can share one failed googleStatus log line (status code + first 2–3 entry keys sent) and the route path that 404s, I can pinpoint the exact mapping or router line to change.
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/82741753/400548d8-b2c7-4c62-913a-634acaa75864/image.jpg?AWSAccessKeyId=ASIA2F3EMEYE5KQL5YJZ&Signature=lSKG9wwfzxrJSe%2FcRtAfhN%2B7ZJA%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEKb%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIDlqqGs9fzDKMhlsZ9M6sV02E35%2FA6Dzqsvx55KwmxNGAiEA42vwc%2FuldwJfAADhq%2FGcvHaRpMgZzjcGKWpaRUS%2F%2BqYq%2BgQI7%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARABGgw2OTk3NTMzMDk3MDUiDFbAI%2BmS1qvf3xLanCrOBEpl8fx43aWv1bBBuLcVWUc4mT%2B8ph91r2JYghyUPUU7uxcaWhgVMdVqB8vyeP2Tv7x0U5zPnBPTtG7TKJSlBEqZUUvwS1i5ry%2FabyWoWP%2FAGE8AZM3B0lu5%2FiyEj16NN%2FeiGVkgZp%2B4iQXy6o7toQoIx11k6KpB9zgGCju6y6pXQ6U5Vqwb1PoY03IqNYgNxh89Wy0wHJVaDaFzTHHiesNp%2BHTWIAlE9rfFlbExsp2zbvZyjM8uwWRNIRFjcmWZsHwQaNqhh105dphsbWrkxpIQm1%2BIzKhoxVyG7GsWvCKtqsv9aYs3YI%2F8b2UvJAWHzjiGdt4DUhvRRLC6mAOI5w49R69Ckw4p5n8brdyMO0IjRmEQ6UWZq1rIQf7AUJ8PfNNf%2Bm%2B4cuYoYqv1ksunrYZmFoMzgc6gNZQ2vZUCYZiKDsvBxWFpG3kTtmEZ7BL8Sh3FCS9H4Kbv1AvSGtrK0P6tkiS3ZUwy619dl9bPTS05xzt%2BuRodlVu1zGrzsWUUXRYLV3SoM%2FODDpDcI76CLcUErgjDZLQGcQLCx68EWia%2BosyNifrkOAdx839vIvGKLk5%2BvW6A4SsH1vZkl%2BxK3wc%2BvGyBZtdx6rpz4PP4lWz%2BiR4dVcMmi9qM5JED2vctdOrWAVI3HbF49tbbaEZ5%2BmD5mmeFxbwf4n%2FmxKn7MSYodWQZWMIhLtAvCcZ%2FVB%2BLbpkt8y%2FyUtj55GC81M%2F8UgSe8Jg4cAWLksA6HPemym4Fb44QvZWFuuJLF%2FSWaPECAjNtyFF3jkNPbGJRkdWOMPvHnMUGOpoBuEfHkvlyGnL60peLO9SnKjxrpQRuFW4mwYKRLjaREKaPAAd0a5Oq0YBmOWmO5gG5CXw1KFG7NaLf5XZnMaKTBLNwZ1dCukZIjM8wzwwoTAi0jZx%2FylJUZ0Qoinpt%2BeeOsrmElSWWx%2FtdvveeJLXCQOyrDYxQv%2FGIZzQ4KbQ5K9SOsOLqrVo%2F7mC67IeJZtkRw%2FoikU0Hq%2FHvMw%3D%3D&Expires=1755785856)
+[2](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/82741753/eabb630a-24e7-475f-a304-3f4ed7741322/404.jpg?AWSAccessKeyId=ASIA2F3EMEYE5KQL5YJZ&Signature=jrYmzLXJwryl7hWMXONH8J29FjQ%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEKb%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIDlqqGs9fzDKMhlsZ9M6sV02E35%2FA6Dzqsvx55KwmxNGAiEA42vwc%2FuldwJfAADhq%2FGcvHaRpMgZzjcGKWpaRUS%2F%2BqYq%2BgQI7%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARABGgw2OTk3NTMzMDk3MDUiDFbAI%2BmS1qvf3xLanCrOBEpl8fx43aWv1bBBuLcVWUc4mT%2B8ph91r2JYghyUPUU7uxcaWhgVMdVqB8vyeP2Tv7x0U5zPnBPTtG7TKJSlBEqZUUvwS1i5ry%2FabyWoWP%2FAGE8AZM3B0lu5%2FiyEj16NN%2FeiGVkgZp%2B4iQXy6o7toQoIx11k6KpB9zgGCju6y6pXQ6U5Vqwb1PoY03IqNYgNxh89Wy0wHJVaDaFzTHHiesNp%2BHTWIAlE9rfFlbExsp2zbvZyjM8uwWRNIRFjcmWZsHwQaNqhh105dphsbWrkxpIQm1%2BIzKhoxVyG7GsWvCKtqsv9aYs3YI%2F8b2UvJAWHzjiGdt4DUhvRRLC6mAOI5w49R69Ckw4p5n8brdyMO0IjRmEQ6UWZq1rIQf7AUJ8PfNNf%2Bm%2B4cuYoYqv1ksunrYZmFoMzgc6gNZQ2vZUCYZiKDsvBxWFpG3kTtmEZ7BL8Sh3FCS9H4Kbv1AvSGtrK0P6tkiS3ZUwy619dl9bPTS05xzt%2BuRodlVu1zGrzsWUUXRYLV3SoM%2FODDpDcI76CLcUErgjDZLQGcQLCx68EWia%2BosyNifrkOAdx839vIvGKLk5%2BvW6A4SsH1vZkl%2BxK3wc%2BvGyBZtdx6rpz4PP4lWz%2BiR4dVcMmi9qM5JED2vctdOrWAVI3HbF49tbbaEZ5%2BmD5mmeFxbwf4n%2FmxKn7MSYodWQZWMIhLtAvCcZ%2FVB%2BLbpkt8y%2FyUtj55GC81M%2F8UgSe8Jg4cAWLksA6HPemym4Fb44QvZWFuuJLF%2FSWaPECAjNtyFF3jkNPbGJRkdWOMPvHnMUGOpoBuEfHkvlyGnL60peLO9SnKjxrpQRuFW4mwYKRLjaREKaPAAd0a5Oq0YBmOWmO5gG5CXw1KFG7NaLf5XZnMaKTBLNwZ1dCukZIjM8wzwwoTAi0jZx%2FylJUZ0Qoinpt%2BeeOsrmElSWWx%2FtdvveeJLXCQOyrDYxQv%2FGIZzQ4KbQ5K9SOsOLqrVo%2F7mC67IeJZtkRw%2FoikU0Hq%2FHvMw%3D%3D&Expires=1755785856)

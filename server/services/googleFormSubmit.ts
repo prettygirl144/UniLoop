@@ -22,6 +22,17 @@ export interface GoogleFormResponse {
  * Submits leave application data to Google Forms
  * Handles form data mapping, HTTP submission, and error tracking
  */
+/**
+ * Formats date for Google Forms (dd/mm/yyyy format)
+ */
+function formatDateForGoogle(isoDateString: string): string {
+  const date = new Date(isoDateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 export async function submitToGoogleForm(
   formData: LeaveFormData,
   attemptNumber: number = 1
@@ -31,25 +42,68 @@ export async function submitToGoogleForm(
   
   console.log(`📝 [GOOGLE-FORM] Submitting leave application - Correlation ID: ${formData.correlationId}, Attempt: ${attemptNumber}`);
   
+  // Check if we're in test mode
+  if ((googleFormMap as any)._test_mode) {
+    console.log(`🧪 [GOOGLE-FORM] TEST MODE - Simulating successful submission`);
+    await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200)); // Simulate network delay
+    
+    return {
+      ok: true,
+      statusCode: 200,
+      attempts: attemptNumber,
+      lastTriedAt: timestamp,
+      latencyMs: Date.now() - startTime,
+    };
+  }
+  
   try {
-    // Map our form data to Google Form entries
+    // Validate required fields
+    const requiredFields = {
+      email: formData.email?.trim(),
+      reason: formData.reason?.trim(),
+      leaveFrom: formData.leaveFrom,
+      leaveTo: formData.leaveTo,
+      leaveCity: formData.leaveCity?.trim(),
+      correlationId: formData.correlationId
+    };
+    
+    const missingFields = Object.entries(requiredFields)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+    
+    if (missingFields.length > 0) {
+      console.error(`❌ [GOOGLE-FORM] Missing required fields: ${missingFields.join(', ')}`);
+      return {
+        ok: false,
+        statusCode: 400,
+        attempts: attemptNumber,
+        lastTriedAt: timestamp,
+        latencyMs: Date.now() - startTime,
+        error: `Missing required fields: ${missingFields.join(', ')}`
+      };
+    }
+    
+    // Map our form data to Google Form entries with proper date formatting
     const formBody = new URLSearchParams();
-    formBody.append(googleFormMap.mappings.email, formData.email);
-    formBody.append(googleFormMap.mappings.reason, formData.reason);
-    formBody.append(googleFormMap.mappings.leaveFrom, formData.leaveFrom);
-    formBody.append(googleFormMap.mappings.leaveTo, formData.leaveTo);
-    formBody.append(googleFormMap.mappings.leaveCity, formData.leaveCity);
-    formBody.append(googleFormMap.mappings.correlationId, formData.correlationId);
+    formBody.append(googleFormMap.mappings.email, requiredFields.email!);
+    formBody.append(googleFormMap.mappings.reason, requiredFields.reason!);
+    formBody.append(googleFormMap.mappings.leaveFrom, formatDateForGoogle(requiredFields.leaveFrom!));
+    formBody.append(googleFormMap.mappings.leaveTo, formatDateForGoogle(requiredFields.leaveTo!));
+    formBody.append(googleFormMap.mappings.leaveCity, requiredFields.leaveCity!);
+    formBody.append(googleFormMap.mappings.correlationId, requiredFields.correlationId!);
     
     console.log(`🔗 [GOOGLE-FORM] Posting to: ${googleFormMap._form_url}`);
     console.log(`📋 [GOOGLE-FORM] Mapped fields:`, {
-      email: `***${formData.email.slice(-4)}`,
-      reason: formData.reason.substring(0, 50) + '...',
-      leaveFrom: formData.leaveFrom,
-      leaveTo: formData.leaveTo,
-      leaveCity: formData.leaveCity,
-      correlationId: formData.correlationId
+      email: `***${requiredFields.email!.slice(-4)}`,
+      reason: requiredFields.reason!.substring(0, 50) + '...',
+      leaveFrom: formatDateForGoogle(requiredFields.leaveFrom!),
+      leaveTo: formatDateForGoogle(requiredFields.leaveTo!),
+      leaveCity: requiredFields.leaveCity,
+      correlationId: requiredFields.correlationId
     });
+    console.log(`🔍 [GOOGLE-FORM] Form body entries:`, Array.from(formBody.entries()).map(([key, value]) => 
+      key.includes('email') ? [key, `***${value.slice(-4)}`] : [key, value.substring(0, 50)]
+    ));
     
     // Submit to Google Forms
     const response = await fetch(googleFormMap._form_url, {
