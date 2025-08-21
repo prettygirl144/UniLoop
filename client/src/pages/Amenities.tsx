@@ -43,6 +43,12 @@ const sickFoodSchema = z.object({
   mealType: z.string().min(1, 'Meal type is required'),
   roomNumber: z.string().min(1, 'Room number is required'),
   specialRequirements: z.string().optional(),
+  phoneNumber: z.string()
+    .min(1, 'Phone number is required')
+    .regex(/^[+0-9]{10,15}$/, 'Enter a valid phone number (10-15 digits; + allowed)'),
+  parcelMode: z.enum(['dine_in', 'takeaway'], {
+    required_error: 'Please select how you want to receive your food',
+  }),
 });
 
 const leaveApplicationSchema = z.object({
@@ -97,6 +103,8 @@ export default function Amenities() {
       mealType: '',
       roomNumber: '',
       specialRequirements: '',
+      phoneNumber: '',
+      parcelMode: 'dine_in',
     },
   });
 
@@ -606,7 +614,18 @@ export default function Amenities() {
       
       switch (reportType) {
         case 'sick-food':
-          data = sickFoodBookings as any[];
+          // Transform sick food data for better CSV/Excel format
+          data = (sickFoodBookings as any[]).map(booking => ({
+            'ID': booking.id,
+            'Date': new Date(booking.date).toLocaleDateString(),
+            'Meal Type': booking.mealType,
+            'Room Number': booking.roomNumber,
+            'Phone Number': booking.phoneNumber || '—',
+            'Parcel Mode': booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess',
+            'Special Requirements': booking.specialRequirements || '',
+            'User ID': booking.userId,
+            'Created At': new Date(booking.createdAt).toLocaleString()
+          }));
           filename = 'sick-food-bookings.xlsx';
           break;
         case 'leave-applications':
@@ -972,6 +991,63 @@ export default function Amenities() {
                         />
                         <FormField
                           control={sickFoodForm.control}
+                          name="phoneNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Phone Number *</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  inputMode="tel"
+                                  pattern="^[+0-9]{10,15}$"
+                                  placeholder="+91XXXXXXXXXX or 10-digit number"
+                                  data-testid="input-phone-number"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={sickFoodForm.control}
+                          name="parcelMode"
+                          render={({ field }) => (
+                            <FormItem className="space-y-3">
+                              <FormLabel>Food Collection *</FormLabel>
+                              <FormControl>
+                                <div className="space-y-2">
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="radio"
+                                      id="dine_in"
+                                      value="dine_in"
+                                      checked={field.value === 'dine_in'}
+                                      onChange={() => field.onChange('dine_in')}
+                                      className="h-4 w-4"
+                                      data-testid="radio-dine-in"
+                                    />
+                                    <label htmlFor="dine_in" className="text-sm">Have food in the mess itself</label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="radio"
+                                      id="takeaway"
+                                      value="takeaway"
+                                      checked={field.value === 'takeaway'}
+                                      onChange={() => field.onChange('takeaway')}
+                                      className="h-4 w-4"
+                                      data-testid="radio-takeaway"
+                                    />
+                                    <label htmlFor="takeaway" className="text-sm">Takeaway through friends</label>
+                                  </div>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={sickFoodForm.control}
                           name="specialRequirements"
                           render={({ field }) => (
                             <FormItem>
@@ -1252,6 +1328,10 @@ export default function Amenities() {
                                     <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
                                     <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
                                     <p className="text-xs text-blue-600">ID: {booking.id} | User: {booking.userId?.substring(0, 10)}...</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      Phone: {booking.phoneNumber || '—'} | 
+                                      Mode: {booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess'}
+                                    </p>
                                     {booking.specialRequirements && (
                                       <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
                                     )}

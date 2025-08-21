@@ -1,0 +1,118 @@
+Subject: Add two fields to “Sick Food Bookings” using Replit Database (end-to-end: form → API → Replit DB → Records/CSV)
+
+Context
+- Stack: PWA frontend + backend on Replit
+- Database: Replit Database (key–value store)
+- Goal: Add and persist two new fields across the full flow and surface them in Records and CSV export.
+
+New fields
+- phoneNumber: string (required), 10–15 digits or E.164 (+…).
+- parcelMode: enum('dine_in','takeaway') (required)
+  - UI labels:
+    - “Have food in the mess itself” → dine_in
+    - “Takeaway through friends” → takeaway
+
+Acceptance criteria
+- Form displays the two fields with validation and helpful error messages.
+- POST payload includes phoneNumber and parcelMode.
+- Backend persists them in Replit DB and returns them in responses.
+- GET lists and details include both fields.
+- Records table and CSV export show both fields.
+- Existing bookings remain compatible; missing fields render with sensible defaults.
+
+Implementation instructions
+
+1) Data model in Replit Database
+- Each booking is stored under a unique key, e.g., bookings:{id}
+- Also maintain an index list key: bookings:index = JSON array of booking ids (append-only)
+- Booking object must include the new fields:
+  {
+    id, createdAt, userId, ...,
+    phoneNumber: string,
+    parcelMode: 'dine_in' | 'takeaway'
+  }
+
+2) Backend: create and list handlers
+- Create (POST /api/sick-food/bookings)
+  - Validate:
+    - phoneNumber: required; /^[+0-9]{10,15}$/; trim; store as string
+    - parcelMode: required; one of ['dine_in','takeaway'] (default: 'dine_in')
+  - Generate id: e.g., bk--
+  - Write flow:
+    - set(`bookings:${id}`, JSON.stringify(booking))
+    - get('bookings:index') → append id → set back
+  - Response: 201 with the full booking object, including phoneNumber and parcelMode
+- List (GET /api/sick-food/bookings)
+  - Read ids from bookings:index ([] if missing)
+  - Fetch each bookings:{id}; parse JSON
+  - Apply filters if present (date, user scope); do not drop fields
+  - Return consistent shape:
+    { data: Booking[], total: number }
+- Detail (GET /api/sick-food/bookings/:id)
+  - Return the single booking object with the two fields
+
+3) Frontend form (React)
+- Add inputs:
+  - Phone Number (required)
+    - inputMode="tel", pattern="^[+0-9]{10,15}$"
+    - Inline error: “Enter a valid phone number (10–15 digits; + allowed).”
+  - Food parcel (required)
+    - Radio group:
+      - “Have food in the mess itself” value="dine_in"
+      - “Takeaway through friends” value="takeaway"
+    - Default selection: dine_in
+- Submit payload must include { phoneNumber, parcelMode }
+- Block submission until both validations pass
+
+4) React Query integration
+- Mutation (create):
+  - Sends the two fields
+  - On success, invalidate the exact list query key used by Records to refetch
+- List query (Records):
+  - Accept and render shape { data, total }
+  - Defensive parsing if existing code expects an array:
+    const rows = Array.isArray(json) ? json : json?.data ?? [];
+- Stale time: keep 0 during testing
+
+5) Records table and CSV export
+- Add columns:
+  - Phone Number: text; display “—” if missing
+  - Parcel Mode: map dine_in → “Mess”, takeaway → “Takeaway”
+- CSV headers: Phone Number, Parcel Mode with same mappings
+
+6) Backwards compatibility and migrations
+- Existing stored bookings (without fields) must continue to render:
+  - phoneNumber: treat as null → render “—”
+  - parcelMode: null/undefined → treat as 'dine_in' for display
+- Do not mutate existing records in place; only apply defaults at read/render
+
+7) Diagnostics
+- Log on create: requestId, masked phone (last 4 digits), parcelMode, saved key
+- Log on list: total ids in bookings:index, total after filters, sample record keys
+- Return requestId in responses for UI correlation
+
+8) QA steps to confirm completion
+- Create a booking:
+  - phoneNumber: +911234567890
+  - parcelMode: takeaway
+- Verify:
+  - API response includes the two fields
+  - Replit DB contains bookings:{id} with those fields and the id is appended to bookings:index
+  - Records table shows both columns populated
+  - CSV export includes both fields
+  - Creating a booking triggers list invalidation and the new row appears without manual refresh
+
+Files to update (adjust names to repo)
+- server/routes/sickFood.create
+- server/routes/sickFood.list
+- server/db/replitDb.ts (helpers: getJson, setJson, pushIndex)
+- shared/types/booking.ts
+- client/components/SickFoodForm.tsx
+- client/api/sickFood.ts
+- client/components/RecordsTable.tsx
+- client/utils/exportCsv.ts
+
+Notes
+- Replit DB is eventually consistent per write; perform writes sequentially for create: set(record) then update index; await both.
+- Store phone numbers as strings; never as numbers.
+- Ensure the service worker does not cache POST requests to /api/sick-food/bookings; network-first for GET during testing.

@@ -1153,6 +1153,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasMealType: !!req.body.mealType,
         hasRoomNumber: !!req.body.roomNumber,
         hasSpecialRequirements: !!req.body.specialRequirements,
+        hasPhoneNumber: !!req.body.phoneNumber,
+        hasParcelMode: !!req.body.parcelMode,
         bodyKeys: Object.keys(req.body || {}),
         requestId
       };
@@ -1175,6 +1177,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mealType: bookingData.mealType,
         roomNumber: bookingData.roomNumber,
         hasSpecialRequirements: !!bookingData.specialRequirements,
+        phoneNumber: bookingData.phoneNumber ? `***${bookingData.phoneNumber.slice(-4)}` : 'None',
+        parcelMode: bookingData.parcelMode,
         requestId
       });
       

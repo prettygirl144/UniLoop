@@ -235,6 +235,8 @@ export const sickFoodBookings = pgTable("sick_food_bookings", {
   mealType: varchar("meal_type").notNull(),
   specialRequirements: text("special_requirements"),
   roomNumber: varchar("room_number").notNull(),
+  phoneNumber: varchar("phone_number").notNull(),
+  parcelMode: varchar("parcel_mode").notNull().default("dine_in"), // 'dine_in' | 'takeaway'
   // Removed status field - sick food bookings are always confirmed when created
   createdAt: timestamp("created_at").defaultNow(),
 });
