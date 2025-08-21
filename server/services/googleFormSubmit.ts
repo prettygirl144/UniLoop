@@ -12,10 +12,13 @@ export interface LeaveFormData {
 export interface GoogleFormResponse {
   ok: boolean;
   statusCode?: number;
+  finalUrl?: string;
   attempts: number;
   lastTriedAt: string;
   latencyMs?: number;
   error?: string;
+  bodySnippet?: string;
+  validationErrors?: string[];
 }
 
 /**
@@ -23,14 +26,57 @@ export interface GoogleFormResponse {
  * Handles form data mapping, HTTP submission, and error tracking
  */
 /**
- * Formats date for Google Forms (dd/mm/yyyy format)
+ * Formats date for Google Forms (dd-mm-yyyy format)
  */
 function formatDateForGoogle(isoDateString: string): string {
   const date = new Date(isoDateString);
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * Converts date string to Google Form date parts
+ */
+function toGoogleDateParts(dateStrDdMmYyyy: string): { day: string; month: string; year: string } {
+  const parts = dateStrDdMmYyyy.split('-');
+  if (parts.length !== 3) {
+    throw new Error(`Invalid date format. Expected dd-mm-yyyy, got: ${dateStrDdMmYyyy}`);
+  }
+  return {
+    day: parts[0],
+    month: parts[1], 
+    year: parts[2]
+  };
+}
+
+/**
+ * Validates email format using basic RFC5322 validation
+ */
+function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Generates random User-Agent to avoid bot detection
+ */
+function generateUserAgent(): string {
+  const agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0'
+  ];
+  return agents[Math.floor(Math.random() * agents.length)];
+}
+
+/**
+ * Adds jitter delay to avoid rate spikes
+ */
+function addJitter(): Promise<void> {
+  const delay = 300 + Math.random() * 500; // 300-800ms
+  return new Promise(resolve => setTimeout(resolve, delay));
 }
 
 export async function submitToGoogleForm(
@@ -45,7 +91,7 @@ export async function submitToGoogleForm(
   // Check if we're in test mode
   if ((googleFormMap as any)._test_mode) {
     console.log(`🧪 [GOOGLE-FORM] TEST MODE - Simulating successful submission`);
-    await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200)); // Simulate network delay
+    await addJitter();
     
     return {
       ok: true,
@@ -57,91 +103,163 @@ export async function submitToGoogleForm(
   }
   
   try {
-    // Validate required fields
-    const requiredFields = {
-      email: formData.email?.trim(),
-      reason: formData.reason?.trim(),
-      leaveFrom: formData.leaveFrom,
-      leaveTo: formData.leaveTo,
-      leaveCity: formData.leaveCity?.trim(),
-      correlationId: formData.correlationId
-    };
+    // Validate required fields with enhanced validation
+    const validationErrors: string[] = [];
     
-    const missingFields = Object.entries(requiredFields)
-      .filter(([key, value]) => !value)
-      .map(([key]) => key);
+    const email = formData.email?.trim().toLowerCase();
+    const reason = formData.reason?.trim();
+    const leaveFrom = formData.leaveFrom;
+    const leaveTo = formData.leaveTo;
+    const leaveCity = formData.leaveCity?.trim();
+    const correlationId = formData.correlationId;
     
-    if (missingFields.length > 0) {
-      console.error(`❌ [GOOGLE-FORM] Missing required fields: ${missingFields.join(', ')}`);
+    // Check required fields
+    if (!email) validationErrors.push('Email is required');
+    else if (!validateEmail(email)) validationErrors.push('Invalid email format');
+    
+    if (!reason) validationErrors.push('Reason is required');
+    if (!leaveFrom) validationErrors.push('Leave from date is required');
+    if (!leaveTo) validationErrors.push('Leave to date is required');
+    if (!leaveCity) validationErrors.push('Leave city is required');
+    if (!correlationId) validationErrors.push('Correlation ID is required');
+    
+    if (validationErrors.length > 0) {
+      console.error(`❌ [GOOGLE-FORM] Validation failed:`, validationErrors);
       return {
         ok: false,
         statusCode: 400,
         attempts: attemptNumber,
         lastTriedAt: timestamp,
         latencyMs: Date.now() - startTime,
-        error: `Missing required fields: ${missingFields.join(', ')}`
+        error: `Validation failed: skipped:validation`,
+        validationErrors
       };
     }
     
+    // Add anti-bot jitter delay
+    await addJitter();
+    
     // Map our form data to Google Form entries with proper date formatting
     const formBody = new URLSearchParams();
-    formBody.append(googleFormMap.mappings.email, requiredFields.email!);
-    formBody.append(googleFormMap.mappings.reason, requiredFields.reason!);
-    formBody.append(googleFormMap.mappings.leaveFrom, formatDateForGoogle(requiredFields.leaveFrom!));
-    formBody.append(googleFormMap.mappings.leaveTo, formatDateForGoogle(requiredFields.leaveTo!));
-    formBody.append(googleFormMap.mappings.leaveCity, requiredFields.leaveCity!);
-    formBody.append(googleFormMap.mappings.correlationId, requiredFields.correlationId!);
+    
+    // Add basic fields
+    formBody.append(googleFormMap.mappings.email, email!);
+    formBody.append(googleFormMap.mappings.reason, reason!);
+    formBody.append(googleFormMap.mappings.leaveCity, leaveCity!);
+    formBody.append(googleFormMap.mappings.correlationId, correlationId!);
+    
+    // Handle date fields (can be single or split)
+    const leaveFromFormatted = formatDateForGoogle(leaveFrom!);
+    const leaveToFormatted = formatDateForGoogle(leaveTo!);
+    
+    if (typeof googleFormMap.mappings.leaveFrom === 'object' && googleFormMap.mappings.leaveFrom.type === 'split_date') {
+      // Split date format
+      const fromParts = toGoogleDateParts(leaveFromFormatted);
+      formBody.append(googleFormMap.mappings.leaveFrom.year, fromParts.year);
+      formBody.append(googleFormMap.mappings.leaveFrom.month, fromParts.month);
+      formBody.append(googleFormMap.mappings.leaveFrom.day, fromParts.day);
+    } else {
+      // Single date field
+      formBody.append(googleFormMap.mappings.leaveFrom as string, leaveFromFormatted);
+    }
+    
+    if (typeof googleFormMap.mappings.leaveTo === 'object' && googleFormMap.mappings.leaveTo.type === 'split_date') {
+      // Split date format
+      const toParts = toGoogleDateParts(leaveToFormatted);
+      formBody.append(googleFormMap.mappings.leaveTo.year, toParts.year);
+      formBody.append(googleFormMap.mappings.leaveTo.month, toParts.month);
+      formBody.append(googleFormMap.mappings.leaveTo.day, toParts.day);
+    } else {
+      // Single date field
+      formBody.append(googleFormMap.mappings.leaveTo as string, leaveToFormatted);
+    }
+    
+    const entryKeys = Array.from(formBody.keys());
     
     console.log(`🔗 [GOOGLE-FORM] Posting to: ${googleFormMap._form_url}`);
     console.log(`📋 [GOOGLE-FORM] Mapped fields:`, {
-      email: `***${requiredFields.email!.slice(-4)}`,
-      reason: requiredFields.reason!.substring(0, 50) + '...',
-      leaveFrom: formatDateForGoogle(requiredFields.leaveFrom!),
-      leaveTo: formatDateForGoogle(requiredFields.leaveTo!),
-      leaveCity: requiredFields.leaveCity,
-      correlationId: requiredFields.correlationId
+      email: `***${email!.slice(-4)}`,
+      reason: reason!.substring(0, 50) + '...',
+      leaveFrom: leaveFromFormatted,
+      leaveTo: leaveToFormatted,
+      leaveCity,
+      correlationId,
+      entryKeys: entryKeys.sort()
     });
-    console.log(`🔍 [GOOGLE-FORM] Form body entries:`, Array.from(formBody.entries()).map(([key, value]) => 
-      key.includes('email') ? [key, `***${value.slice(-4)}`] : [key, value.substring(0, 50)]
-    ));
     
-    // Submit to Google Forms
+    // Submit to Google Forms with enhanced headers
+    const userAgent = generateUserAgent();
     const response = await fetch(googleFormMap._form_url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'UniLoop-PWA/1.0',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': userAgent,
+        'Referer': 'https://docs.google.com/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'Origin': 'https://docs.google.com'
       },
       body: formBody.toString(),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     });
     
     const latencyMs = Date.now() - startTime;
     const statusCode = response.status;
+    const finalUrl = response.url;
     
-    // Google Forms typically returns 200 or 302 on success
-    const isSuccess = statusCode === 200 || statusCode === 302;
+    let responseText = '';
+    let bodySnippet = '';
     
-    console.log(`${isSuccess ? '✅' : '❌'} [GOOGLE-FORM] Response - Status: ${statusCode}, Latency: ${latencyMs}ms, Success: ${isSuccess}`);
+    try {
+      responseText = await response.text();
+      bodySnippet = responseText.substring(0, 200);
+    } catch (err) {
+      bodySnippet = 'Failed to read response body';
+    }
     
-    if (isSuccess) {
+    // Enhanced success detection
+    const urlContainsFormResponse = finalUrl.includes('formResponse') || finalUrl.includes('/formResponse?');
+    const bodyHasSuccess = responseText.includes('Your response has been recorded') || 
+                          !responseText.includes('This is a required question');
+    const isValidResponse = (statusCode === 200 || statusCode === 302) && urlContainsFormResponse && bodyHasSuccess;
+    
+    console.log(`${isValidResponse ? '✅' : '❌'} [GOOGLE-FORM] Response - Status: ${statusCode}, Final URL: ${finalUrl}, Latency: ${latencyMs}ms, Success: ${isValidResponse}`);
+    
+    if (isValidResponse) {
       return {
         ok: true,
         statusCode,
+        finalUrl,
         attempts: attemptNumber,
         lastTriedAt: timestamp,
-        latencyMs,
+        latencyMs
       };
     } else {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      console.error(`❌ [GOOGLE-FORM] Submission failed - Status: ${statusCode}, Error: ${errorText.substring(0, 200)}`);
+      // Enhanced error logging for debugging
+      const errorReason = !urlContainsFormResponse ? 'Invalid final URL' : 
+                         !bodyHasSuccess ? 'Response contains validation errors' : 
+                         `HTTP ${statusCode}`;
+      
+      console.error(`❌ [GOOGLE-FORM] Submission failed:`, {
+        reason: errorReason,
+        statusCode,
+        finalUrl,
+        bodySnippet: bodySnippet,
+        correlationId,
+        entryKeys: entryKeys.sort()
+      });
       
       return {
         ok: false,
         statusCode,
+        finalUrl,
         attempts: attemptNumber,
         lastTriedAt: timestamp,
         latencyMs,
-        error: `HTTP ${statusCode}: ${errorText.substring(0, 100)}`,
+        error: `${errorReason}: ${bodySnippet.substring(0, 100)}`,
+        bodySnippet
       };
     }
     
@@ -204,4 +322,103 @@ export function generateCorrelationId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
   return `leave-${timestamp}-${random}`;
+}
+
+/**
+ * Generates a prefilled URL for mapping validation
+ */
+export function generatePrefillProbeUrl(): string {
+  const baseUrl = (googleFormMap as any)._prefill_probe_url;
+  const testData = {
+    email: 'test@mail.com',
+    reason: 'Test Reason',
+    leaveFromYear: '2025',
+    leaveFromMonth: '08', 
+    leaveFromDay: '25',
+    leaveToYear: '2025',
+    leaveToMonth: '08',
+    leaveToDay: '28',
+    leaveCity: 'Kolkata',
+    correlationId: 'test-mapping'
+  };
+  
+  const params = new URLSearchParams();
+  
+  // Add email and basic fields
+  params.append(`${googleFormMap.mappings.email}`, testData.email);
+  params.append(`${googleFormMap.mappings.reason}`, testData.reason);
+  params.append(`${googleFormMap.mappings.leaveCity}`, testData.leaveCity);
+  params.append(`${googleFormMap.mappings.correlationId}`, testData.correlationId);
+  
+  // Add date fields based on mapping type
+  if (typeof googleFormMap.mappings.leaveFrom === 'object') {
+    params.append(googleFormMap.mappings.leaveFrom.year, testData.leaveFromYear);
+    params.append(googleFormMap.mappings.leaveFrom.month, testData.leaveFromMonth);
+    params.append(googleFormMap.mappings.leaveFrom.day, testData.leaveFromDay);
+  } else {
+    params.append(googleFormMap.mappings.leaveFrom as string, '25-08-2025');
+  }
+  
+  if (typeof googleFormMap.mappings.leaveTo === 'object') {
+    params.append(googleFormMap.mappings.leaveTo.year, testData.leaveToYear);
+    params.append(googleFormMap.mappings.leaveTo.month, testData.leaveToMonth);
+    params.append(googleFormMap.mappings.leaveTo.day, testData.leaveToDay);
+  } else {
+    params.append(googleFormMap.mappings.leaveTo as string, '28-08-2025');
+  }
+  
+  return `${baseUrl}&${params.toString()}`;
+}
+
+/**
+ * Builds the exact URL-encoded body for preview
+ */
+export function buildGoogleFormPreview(formData: LeaveFormData): {
+  endpoint: string;
+  body: string;
+  entryKeys: string[];
+  maskedEmail: string;
+} {
+  const formBody = new URLSearchParams();
+  
+  // Normalize data
+  const email = formData.email?.trim().toLowerCase();
+  const reason = formData.reason?.trim();
+  const leaveCity = formData.leaveCity?.trim();
+  const correlationId = formData.correlationId;
+  
+  // Add basic fields
+  formBody.append(googleFormMap.mappings.email, email!);
+  formBody.append(googleFormMap.mappings.reason, reason!);
+  formBody.append(googleFormMap.mappings.leaveCity, leaveCity!);
+  formBody.append(googleFormMap.mappings.correlationId, correlationId!);
+  
+  // Handle date fields
+  const leaveFromFormatted = formatDateForGoogle(formData.leaveFrom!);
+  const leaveToFormatted = formatDateForGoogle(formData.leaveTo!);
+  
+  if (typeof googleFormMap.mappings.leaveFrom === 'object' && googleFormMap.mappings.leaveFrom.type === 'split_date') {
+    const fromParts = toGoogleDateParts(leaveFromFormatted);
+    formBody.append(googleFormMap.mappings.leaveFrom.year, fromParts.year);
+    formBody.append(googleFormMap.mappings.leaveFrom.month, fromParts.month);
+    formBody.append(googleFormMap.mappings.leaveFrom.day, fromParts.day);
+  } else {
+    formBody.append(googleFormMap.mappings.leaveFrom as string, leaveFromFormatted);
+  }
+  
+  if (typeof googleFormMap.mappings.leaveTo === 'object' && googleFormMap.mappings.leaveTo.type === 'split_date') {
+    const toParts = toGoogleDateParts(leaveToFormatted);
+    formBody.append(googleFormMap.mappings.leaveTo.year, toParts.year);
+    formBody.append(googleFormMap.mappings.leaveTo.month, toParts.month);
+    formBody.append(googleFormMap.mappings.leaveTo.day, toParts.day);
+  } else {
+    formBody.append(googleFormMap.mappings.leaveTo as string, leaveToFormatted);
+  }
+  
+  return {
+    endpoint: googleFormMap._form_url,
+    body: formBody.toString(),
+    entryKeys: Array.from(formBody.keys()).sort(),
+    maskedEmail: email!.length > 4 ? `${email!.substring(0, 2)}***${email!.slice(-2)}` : '***'
+  };
 }

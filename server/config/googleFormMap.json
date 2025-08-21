@@ -2,14 +2,25 @@
   "_comment": "Google Form field mapping for Hostel Leave Application Form ID: 1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ",
   "_instructions": "To update these mappings: 1) Open the Google Form, 2) Inspect element on each field, 3) Find the 'entry.XXXXXXXXX' value in the name attribute, 4) Update the corresponding mapping below",
   "_form_url": "https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/formResponse",
-  "_test_mode": true,
+  "_test_mode": false,
+  "_prefill_probe_url": "https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?usp=pp_url",
   "mappings": {
-    "email": "entry.123456789",
-    "reason": "entry.234567890", 
-    "leaveFrom": "entry.345678901",
-    "leaveTo": "entry.456789012",
-    "leaveCity": "entry.567890123",
-    "correlationId": "entry.678901234"
+    "email": "entry.1240775897",
+    "reason": "entry.1297348808", 
+    "leaveFrom": {
+      "type": "split_date",
+      "year": "entry.1768223950_year",
+      "month": "entry.1768223950_month",
+      "day": "entry.1768223950_day"
+    },
+    "leaveTo": {
+      "type": "split_date",
+      "year": "entry.2081879686_year",
+      "month": "entry.2081879686_month",
+      "day": "entry.2081879686_day"
+    },
+    "leaveCity": "entry.963464051",
+    "correlationId": "entry.1956275049"
   },
   "_notes": {
     "email": "Required field with email validation and 'Record as email included with response' helper text",

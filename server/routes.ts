@@ -26,7 +26,7 @@ import {
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
 import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
-import { submitToGoogleForm, generateCorrelationId, type LeaveFormData } from "./services/googleFormSubmit";
+import { submitToGoogleForm, generateCorrelationId, generatePrefillProbeUrl, buildGoogleFormPreview, type LeaveFormData } from "./services/googleFormSubmit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -1636,6 +1636,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching leave application:", error);
       res.status(500).json({ message: "Failed to fetch leave application" });
+    }
+  });
+
+  // Dry-run preview endpoint for Google Form debugging
+  app.get('/api/leave/google-preview/:id', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `preview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`🔍 [GOOGLE-PREVIEW] Generating preview for application ID: ${applicationId} - RequestID: ${requestId}`);
+      
+      const applications = await storage.getLeaveApplications();
+      const application = applications.find((app: any) => app.id === applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ error: 'Leave application not found' });
+      }
+      
+      // Build preview data
+      const googleFormData: LeaveFormData = {
+        email: application.email,
+        reason: application.reason,
+        leaveFrom: application.startDate,
+        leaveTo: application.endDate,
+        leaveCity: application.city,
+        correlationId: application.correlationId || `preview-${applicationId}-${Date.now()}`
+      };
+      
+      const preview = buildGoogleFormPreview(googleFormData);
+      const prefillUrl = generatePrefillProbeUrl();
+      
+      const responseTime = Date.now() - startTime;
+      
+      console.log(`✅ [GOOGLE-PREVIEW] Preview generated - RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      
+      res.json({
+        applicationId,
+        preview: {
+          endpoint: preview.endpoint,
+          bodyLength: preview.body.length,
+          entryKeys: preview.entryKeys,
+          maskedEmail: preview.maskedEmail,
+          exactBody: preview.body
+        },
+        prefillUrl,
+        mapping: {
+          testInstructions: 'Open the prefillUrl in a new tab to validate field mappings. If fields appear prefilled, the IDs are correct.',
+          currentMappings: preview.entryKeys
+        },
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ [GOOGLE-PREVIEW] Error generating preview - RequestID: ${requestId}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to generate Google Form preview',
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          error: error.message
+        }
+      });
+    }
+  });
+
+  // Generate prefill probe URL for mapping validation
+  app.get('/api/leave/prefill-probe', authorizeAmenities('leaveApplicationAccess'), async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `probe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      console.log(`🔗 [PREFILL-PROBE] Generating prefill URL for mapping validation - RequestID: ${requestId}`);
+      
+      const prefillUrl = generatePrefillProbeUrl();
+      
+      res.json({
+        prefillUrl,
+        instructions: [
+          "1. Open the prefillUrl in a new browser tab",
+          "2. Check if all fields appear prefilled with test data",
+          "3. If fields are empty, the entry IDs in googleFormMap.json need updating",
+          "4. Inspect the form fields to find correct entry.XXXXXXXX values"
+        ],
+        testData: {
+          email: "test@mail.com",
+          reason: "Test Reason",
+          leaveFrom: "25-08-2025",
+          leaveTo: "28-08-2025",
+          leaveCity: "Kolkata",
+          correlationId: "test-mapping"
+        },
+        _diagnostics: {
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`❌ [PREFILL-PROBE] Error generating prefill URL - RequestID: ${requestId}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to generate prefill probe URL',
+        _diagnostics: {
+          requestId,
+          timestamp: new Date().toISOString(),
+          error: error.message
+        }
+      });
     }
   });
 
