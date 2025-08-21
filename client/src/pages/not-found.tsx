@@ -5,8 +5,11 @@ import { useLocation } from "wouter";
 export default function NotFound() {
   const [location] = useLocation();
   
+  // Temporary verification signature (remove after fixing phantom 404s)
+  console.warn('NOTFOUND_RENDER', window.location.pathname);
+  
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+    <div id="__nf__" data-path={window.location.pathname} className="min-h-screen w-full flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md mx-4">
         <CardContent className="pt-6">
           <div className="flex mb-4 gap-2">
