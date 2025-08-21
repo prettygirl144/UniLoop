@@ -1,5 +1,5 @@
 // Dynamic cache name that changes with each deployment to prevent stale cache issues
-const CACHE_VERSION = `1.0.2-${Date.now()}`; // Bumped version for sick food diagnostics
+const CACHE_VERSION = `1.0.4-no-double-render-${Date.now()}`; // Step 10: Bumped version for double render fix
 const CACHE_NAME = `uniloop-v${CACHE_VERSION}`;
 console.log(`🔄 Service Worker Version: ${CACHE_VERSION} - ${new Date().toISOString()}`);
 const urlsToCache = [

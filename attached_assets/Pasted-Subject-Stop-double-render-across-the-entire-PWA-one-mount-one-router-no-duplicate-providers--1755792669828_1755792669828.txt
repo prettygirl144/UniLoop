@@ -1,0 +1,80 @@
+Subject: Stop double-render across the entire PWA (one mount, one router, no duplicate providers)
+
+Symptoms
+- Every page renders twice (all sections duplicated). 404 card sometimes appears under valid pages.
+- Must ensure a single React mount, a single router tree, and no duplicate global providers or SW registration.
+
+Do all steps below.
+
+1) Enforce a single mount and render
+- index.html: keep exactly one root container:
+  <div id="root"></div>
+  Remove any other root-like containers used to mount App.
+- index.tsx (or main.tsx):
+  - Create and render once:
+    const root = createRoot(document.getElementById('root')!);
+    const app = <App />;
+    root.render(import.meta.env.DEV ? <React.StrictMode>{app}</React.StrictMode> : app);
+  - Search the repository for createRoot( or ReactDOM.render( and delete any additional mounts.
+
+2) Keep exactly one router provider
+- There must be only one BrowserRouter/RouterProvider in the whole app (top-level only).
+- Search for BrowserRouter, HashRouter, RouterProvider across src. Remove any instances inside pages/layouts/tab components/admin shells.
+
+3) Ensure only one instance of each global provider
+- QueryClientProvider, Redux Provider, ThemeProvider, Toast/Modal providers should wrap App once at the top shell only.
+- Remove duplicated providers from layouts or pages.
+
+4) Remove nested route trees from layouts/tabs
+- Layouts (AppLayout, AmenitiesLayout, ForumLayout, GalleryLayout, TriathlonLayout, AdminLayout, any TabbedLayout) must render only:
+  <Header /><Outlet /><Footer />
+- Delete any <Routes> declared inside layouts/tab containers. Define all routes at the top router file using nested routes with <Outlet/>.
+
+5) Keep a single catch-all 404 route
+- In the main route file, list all concrete routes (user + admin + subpages), then one last route:
+  <Route path="*" element={<NotFound />} />
+- Remove all other wildcard (“*”) routes from nested trees.
+- Guards must not render NotFound; when blocked, render Unauthorized or redirect.
+
+6) Guard dev re-invocations and side effects
+- StrictMode only in dev (already in step 1). Production should never double-invoke.
+- Fix effects that append DOM without cleanup (toasts/modals/banners/portals):
+  useEffect(() => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    return () => document.body.removeChild(el);
+  }, []);
+- Ensure any portal/toast root is created once globally, not per page.
+
+7) Prevent double service-worker registration
+- Register SW from a single place and guard:
+  if ((window as any).__SW_REGISTERED__) return;
+  (window as any).__SW_REGISTERED__ = true;
+
+8) Ensure only one server instance serves the app
+- .replit run: start either your Express server serving dist or a single static server, not multiple processes that embed iframes.
+- Stop any secondary preview/iframe that mounts the app a second time.
+
+9) Temporary detection to prove the fix (remove after)
+- In App.tsx:
+  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
+  (window as any).__APP_MOUNTED__ = true;
+- In NotFound.tsx:
+  console.warn('NOTFOUND_RENDER', window.location.pathname);
+- After applying fixes, reload:
+  - Expect no APP_MOUNTED_TWICE logs anywhere.
+  - NOTFOUND_RENDER should appear only on truly invalid URLs.
+
+10) Cache/SW reset once
+- Bump SW version.
+- DevTools → Application → Unregister Service Worker + Clear site data → Reload.
+
+Acceptance criteria
+- Every page (home, gallery, forum, amenities and all tabs, triathlon leaderboard, admin and all admin subpages) renders exactly once.
+- No APP_MOUNTED_TWICE logs.
+- 404 page appears only for invalid URLs; never appended under valid pages.
+- Network shows no unexpected 404s during normal navigation.
+
+Please implement and reply with:
+- Files changed (index.html, index.tsx/main.tsx, App.tsx route/providers, any removed nested Routers/Routes).
+- Confirmation screenshots of console with no APP_MOUNTED_TWICE and correct single render.

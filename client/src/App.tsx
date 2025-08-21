@@ -90,16 +90,9 @@ function Router() {
 }
 
 function App() {
-  // Enhanced debugging - count renders
-  if (!(window as any).__APP_RENDER_COUNT__) (window as any).__APP_RENDER_COUNT__ = 0;
-  (window as any).__APP_RENDER_COUNT__++;
-  
-  console.log(`🔄 App component render #${(window as any).__APP_RENDER_COUNT__}`);
-  
-  if ((window as any).__APP_RENDER_COUNT__ > 1) {
-    console.error('🚨 APP RENDERING MULTIPLE TIMES!');
-    console.trace('App component render trace');
-  }
+  // Step 9: Temporary detection to prove the fix (remove after)
+  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
+  (window as any).__APP_MOUNTED__ = true;
 
   return (
     <QueryClientProvider client={queryClient}>

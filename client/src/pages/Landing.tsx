@@ -5,12 +5,6 @@ import iimRanchiImage from '@assets/Landing-IIM-Ranchi_1753542981148.webp';
 import uniloopLogomark from '@assets/uniloop logomark_1753618204077.png';
 
 export default function Landing() {
-  // Debug Landing component renders
-  if (!(window as any).__LANDING_RENDER_COUNT__) (window as any).__LANDING_RENDER_COUNT__ = 0;
-  (window as any).__LANDING_RENDER_COUNT__++;
-  
-  console.log(`🏠 Landing component render #${(window as any).__LANDING_RENDER_COUNT__}`);
-  
   const { toast } = useToast();
 
   useEffect(() => {
