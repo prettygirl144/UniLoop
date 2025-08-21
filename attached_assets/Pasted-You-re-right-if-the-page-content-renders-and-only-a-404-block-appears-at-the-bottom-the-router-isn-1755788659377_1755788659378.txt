@@ -1,0 +1,61 @@
+You’re right: if the page content renders and only a 404 block appears at the bottom, the router isn’t the root cause. That pattern almost always comes from one of these two bugs:
+
+1) A NotFound component is rendered unconditionally in the layout
+- Example: Layout.jsx returns <Outlet /> followed by <NotFound /> (or a fallback) instead of rendering NotFound only on the wildcard route.
+- Or a secondary nested route tree has its own “*” route that’s always mounted under the page.
+
+2) A global error boundary/Route fallback is mounted alongside content
+- An ErrorBoundary, Suspense fallback, or nested <Routes> tree renders a NotFound fragment in parallel to the main content due to a mis-placed wildcard.
+
+Give Replit these exact fixes to replicate what worked on “/” across all sections.
+
+Subject: Remove stray NotFound rendering appended under valid pages
+
+Actions
+
+1) Inspect shared layout components
+- Open the layouts used by non-home pages (e.g., AppLayout, AmenitiesLayout, ForumLayout).
+- Ensure they render only:
+  return (
+    <>
+      <Header />
+      <Outlet />
+      <Footer />
+    </>
+  );
+- Confirm there is no <NotFound />, <Route path="*">, or “404” JSX inside any layout. Those must live only in the top-level router config.
+
+2) Consolidate to a single top-level wildcard
+- In App.tsx (top-level <Routes>):
+  - Make the last route the only catch-all:
+    <Route path="*" element={<NotFound />} />
+- Remove any nested “*” routes in child <Routes> (e.g., inside AmenitiesLayout or Forum routes). Nested wildcards often render in addition to matched children, causing the extra 404 block.
+
+3) Fix nested route trees that duplicate the router
+- If a child page creates its own <Routes> under content, convert it to nested <Route> definitions in the parent tree, not a new router instance.
+- Never nest BrowserRouter inside pages; there should be exactly one router provider.
+
+4) Guard/ProtectedRoute must return only children when allowed
+- For protected sections, ensure:
+  return isLoading ? <Spinner/> : isAuthenticated ? children : <Unauthorized/>;
+- Do not return <NotFound/> for unauthorized; that wrongly appends a 404 under valid pages.
+
+5) Remove conditional NotFound fragments
+- Search the codebase for “NotFound” and “404”. Delete any usage that is not the single top-level wildcard route.
+- Also check any generic PageContainer that might have a fallback like {children || <NotFound/>} — replace with explicit checks at call sites.
+
+6) Verify with a quick test component
+- Temporarily add in each layout:
+  console.debug('Layout render', location.pathname);
+  Ensure the NotFound component logs only when visiting an invalid path.
+
+7) Service worker: ensure it isn’t injecting an old shell
+- Bump SW version; DevTools → Application → Unregister SW and Clear site data; reload once.
+- This prevents an old HTML shell (containing a NotFound block) from being appended.
+
+Acceptance criteria
+- On /gallery, /forum, /amenities, etc., NotFound never renders in the console.
+- The extra 404 block at the bottom disappears on all pages.
+- Visiting a truly invalid path (e.g., /amenities/xyz) shows the 404 page by itself (not appended under content).
+
+If you share App.tsx routes plus one layout (e.g., AmenitiesLayout) and the NotFound component, I can mark the exact lines to delete/move.
