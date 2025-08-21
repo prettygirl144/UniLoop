@@ -25,18 +25,6 @@ import Layout from "@/components/Layout";
 function Router() {
   const { isAuthenticated, isLoading } = useAuthContext();
   
-  // Debug: Log routing state
-  console.log('🔍 Router Debug:', {
-    isAuthenticated,
-    isLoading,
-    currentPath: window.location.pathname,
-    currentUrl: window.location.href
-  });
-  
-  // Additional debug for authenticated routes
-  if (isAuthenticated && !isLoading) {
-    console.log('✅ Should render authenticated routes for path:', window.location.pathname);
-  }
 
   if (isLoading) {
     return (

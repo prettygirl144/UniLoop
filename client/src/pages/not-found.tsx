@@ -2,8 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 
 export default function NotFound() {
-  // Debug: Log when NotFound renders
-  console.log('❌ NotFound component rendering at:', window.location.pathname);
   
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
