@@ -152,26 +152,28 @@ export async function submitToGoogleForm(
     const leaveFromFormatted = formatDateForGoogle(leaveFrom!);
     const leaveToFormatted = formatDateForGoogle(leaveTo!);
     
-    if (typeof googleFormMap.mappings.leaveFrom === 'object' && googleFormMap.mappings.leaveFrom.type === 'split_date') {
+    const leaveFromMapping = googleFormMap.mappings.leaveFrom as any;
+    if (typeof leaveFromMapping === 'object' && leaveFromMapping.type === 'split_date') {
       // Split date format
       const fromParts = toGoogleDateParts(leaveFromFormatted);
-      formBody.append(googleFormMap.mappings.leaveFrom.year, fromParts.year);
-      formBody.append(googleFormMap.mappings.leaveFrom.month, fromParts.month);
-      formBody.append(googleFormMap.mappings.leaveFrom.day, fromParts.day);
+      formBody.append(leaveFromMapping.year, fromParts.year);
+      formBody.append(leaveFromMapping.month, fromParts.month);
+      formBody.append(leaveFromMapping.day, fromParts.day);
     } else {
       // Single date field
-      formBody.append(googleFormMap.mappings.leaveFrom as string, leaveFromFormatted);
+      formBody.append(leaveFromMapping as string, leaveFromFormatted);
     }
     
-    if (typeof googleFormMap.mappings.leaveTo === 'object' && googleFormMap.mappings.leaveTo.type === 'split_date') {
+    const leaveToMapping = googleFormMap.mappings.leaveTo as any;
+    if (typeof leaveToMapping === 'object' && leaveToMapping.type === 'split_date') {
       // Split date format
       const toParts = toGoogleDateParts(leaveToFormatted);
-      formBody.append(googleFormMap.mappings.leaveTo.year, toParts.year);
-      formBody.append(googleFormMap.mappings.leaveTo.month, toParts.month);
-      formBody.append(googleFormMap.mappings.leaveTo.day, toParts.day);
+      formBody.append(leaveToMapping.year, toParts.year);
+      formBody.append(leaveToMapping.month, toParts.month);
+      formBody.append(leaveToMapping.day, toParts.day);
     } else {
       // Single date field
-      formBody.append(googleFormMap.mappings.leaveTo as string, leaveToFormatted);
+      formBody.append(leaveToMapping as string, leaveToFormatted);
     }
     
     const entryKeys = Array.from(formBody.keys());
@@ -219,10 +221,13 @@ export async function submitToGoogleForm(
       bodySnippet = 'Failed to read response body';
     }
     
-    // Enhanced success detection
+    // Enhanced success detection with 401 handling
     const urlContainsFormResponse = finalUrl.includes('formResponse') || finalUrl.includes('/formResponse?');
     const bodyHasSuccess = responseText.includes('Your response has been recorded') || 
-                          !responseText.includes('This is a required question');
+                          (!responseText.includes('This is a required question') && !responseText.includes('Sign in'));
+    
+    // Handle 401 specifically - form may not be public
+    const isAuthError = statusCode === 401;
     const isValidResponse = (statusCode === 200 || statusCode === 302) && urlContainsFormResponse && bodyHasSuccess;
     
     console.log(`${isValidResponse ? '✅' : '❌'} [GOOGLE-FORM] Response - Status: ${statusCode}, Final URL: ${finalUrl}, Latency: ${latencyMs}ms, Success: ${isValidResponse}`);
@@ -238,9 +243,16 @@ export async function submitToGoogleForm(
       };
     } else {
       // Enhanced error logging for debugging
-      const errorReason = !urlContainsFormResponse ? 'Invalid final URL' : 
-                         !bodyHasSuccess ? 'Response contains validation errors' : 
-                         `HTTP ${statusCode}`;
+      let errorReason;
+      if (isAuthError) {
+        errorReason = 'Form requires authentication or is not public';
+      } else if (!urlContainsFormResponse) {
+        errorReason = 'Invalid final URL';
+      } else if (!bodyHasSuccess) {
+        errorReason = 'Response contains validation errors';
+      } else {
+        errorReason = `HTTP ${statusCode}`;
+      }
       
       console.error(`❌ [GOOGLE-FORM] Submission failed:`, {
         reason: errorReason,
@@ -248,7 +260,9 @@ export async function submitToGoogleForm(
         finalUrl,
         bodySnippet: bodySnippet,
         correlationId,
-        entryKeys: entryKeys.sort()
+        entryKeys: entryKeys.sort(),
+        isAuthError,
+        recommendation: isAuthError ? 'Check if Google Form is public and accepts anonymous responses' : 'Check field mappings and form configuration'
       });
       
       return {
@@ -259,7 +273,8 @@ export async function submitToGoogleForm(
         lastTriedAt: timestamp,
         latencyMs,
         error: `${errorReason}: ${bodySnippet.substring(0, 100)}`,
-        bodySnippet
+        bodySnippet,
+        validationErrors: isAuthError ? ['Form not accessible - check if form accepts public responses'] : undefined
       };
     }
     
@@ -351,20 +366,22 @@ export function generatePrefillProbeUrl(): string {
   params.append(`${googleFormMap.mappings.correlationId}`, testData.correlationId);
   
   // Add date fields based on mapping type
-  if (typeof googleFormMap.mappings.leaveFrom === 'object') {
-    params.append(googleFormMap.mappings.leaveFrom.year, testData.leaveFromYear);
-    params.append(googleFormMap.mappings.leaveFrom.month, testData.leaveFromMonth);
-    params.append(googleFormMap.mappings.leaveFrom.day, testData.leaveFromDay);
+  const leaveFromMapping = googleFormMap.mappings.leaveFrom as any;
+  if (typeof leaveFromMapping === 'object') {
+    params.append(leaveFromMapping.year, testData.leaveFromYear);
+    params.append(leaveFromMapping.month, testData.leaveFromMonth);
+    params.append(leaveFromMapping.day, testData.leaveFromDay);
   } else {
-    params.append(googleFormMap.mappings.leaveFrom as string, '25-08-2025');
+    params.append(leaveFromMapping as string, '25-08-2025');
   }
   
-  if (typeof googleFormMap.mappings.leaveTo === 'object') {
-    params.append(googleFormMap.mappings.leaveTo.year, testData.leaveToYear);
-    params.append(googleFormMap.mappings.leaveTo.month, testData.leaveToMonth);
-    params.append(googleFormMap.mappings.leaveTo.day, testData.leaveToDay);
+  const leaveToMapping = googleFormMap.mappings.leaveTo as any;
+  if (typeof leaveToMapping === 'object') {
+    params.append(leaveToMapping.year, testData.leaveToYear);
+    params.append(leaveToMapping.month, testData.leaveToMonth);
+    params.append(leaveToMapping.day, testData.leaveToDay);
   } else {
-    params.append(googleFormMap.mappings.leaveTo as string, '28-08-2025');
+    params.append(leaveToMapping as string, '28-08-2025');
   }
   
   return `${baseUrl}&${params.toString()}`;
@@ -397,22 +414,24 @@ export function buildGoogleFormPreview(formData: LeaveFormData): {
   const leaveFromFormatted = formatDateForGoogle(formData.leaveFrom!);
   const leaveToFormatted = formatDateForGoogle(formData.leaveTo!);
   
-  if (typeof googleFormMap.mappings.leaveFrom === 'object' && googleFormMap.mappings.leaveFrom.type === 'split_date') {
+  const leaveFromMapping = googleFormMap.mappings.leaveFrom as any;
+  if (typeof leaveFromMapping === 'object' && leaveFromMapping.type === 'split_date') {
     const fromParts = toGoogleDateParts(leaveFromFormatted);
-    formBody.append(googleFormMap.mappings.leaveFrom.year, fromParts.year);
-    formBody.append(googleFormMap.mappings.leaveFrom.month, fromParts.month);
-    formBody.append(googleFormMap.mappings.leaveFrom.day, fromParts.day);
+    formBody.append(leaveFromMapping.year, fromParts.year);
+    formBody.append(leaveFromMapping.month, fromParts.month);
+    formBody.append(leaveFromMapping.day, fromParts.day);
   } else {
-    formBody.append(googleFormMap.mappings.leaveFrom as string, leaveFromFormatted);
+    formBody.append(leaveFromMapping as string, leaveFromFormatted);
   }
   
-  if (typeof googleFormMap.mappings.leaveTo === 'object' && googleFormMap.mappings.leaveTo.type === 'split_date') {
+  const leaveToMapping = googleFormMap.mappings.leaveTo as any;
+  if (typeof leaveToMapping === 'object' && leaveToMapping.type === 'split_date') {
     const toParts = toGoogleDateParts(leaveToFormatted);
-    formBody.append(googleFormMap.mappings.leaveTo.year, toParts.year);
-    formBody.append(googleFormMap.mappings.leaveTo.month, toParts.month);
-    formBody.append(googleFormMap.mappings.leaveTo.day, toParts.day);
+    formBody.append(leaveToMapping.year, toParts.year);
+    formBody.append(leaveToMapping.month, toParts.month);
+    formBody.append(leaveToMapping.day, toParts.day);
   } else {
-    formBody.append(googleFormMap.mappings.leaveTo as string, leaveToFormatted);
+    formBody.append(leaveToMapping as string, leaveToFormatted);
   }
   
   return {

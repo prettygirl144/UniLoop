@@ -1659,9 +1659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const googleFormData: LeaveFormData = {
         email: application.email,
         reason: application.reason,
-        leaveFrom: application.startDate,
-        leaveTo: application.endDate,
-        leaveCity: application.city,
+        leaveFrom: application.startDate.toISOString().split('T')[0],
+        leaveTo: application.endDate.toISOString().split('T')[0],
+        leaveCity: application.leaveCity,
         correlationId: application.correlationId || `preview-${applicationId}-${Date.now()}`
       };
       
@@ -1723,7 +1723,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "1. Open the prefillUrl in a new browser tab",
           "2. Check if all fields appear prefilled with test data",
           "3. If fields are empty, the entry IDs in googleFormMap.json need updating",
-          "4. Inspect the form fields to find correct entry.XXXXXXXX values"
+          "4. If you get authorization errors, ensure the form accepts public responses",
+          "5. Go to Form Settings > Responses > uncheck 'Restrict to users in your domain'"
         ],
         testData: {
           email: "test@mail.com",
