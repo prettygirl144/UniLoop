@@ -1,0 +1,63 @@
+Subject: Remove stray 404 block rendering under valid pages (e.g., /gallery, /forum, /amenities)
+
+Symptoms
+- Page content renders correctly, but a 404 card appears appended below it.
+- Console previously logged: “❌ NotFound component rendering at: /”.
+- Network shows no 404s. This is a client render issue, not server.
+
+Goal
+- Ensure 404 renders only on truly invalid URLs. No 404 block should appear under valid routes.
+
+Actions (prescriptive)
+
+1) Eliminate embedded NotFound from layouts/components
+- Search the codebase for NotFound and “Page Not Found”.
+- In all layout components (AppLayout, Section layouts), ensure they return only:
+  <Header/><Outlet/><Footer/>
+- Remove any <NotFound/> usage inside layouts or generic containers. The only NotFound allowed is the top-level wildcard route.
+
+2) Ensure a single, top-level wildcard route at the end
+- React Router v6:
+  <Routes>
+    {/* concrete routes first */}
+    <Route path="/" element={<Home/>}/>
+    <Route path="/gallery" element={<Gallery/>}/>
+    <Route path="/forum" element={<Forum/>}/>
+    <Route path="/amenities" element={<AmenitiesLayout/>}>
+      <Route index element={<WeeklyMenu/>}/>
+      <Route path="records" element={<Records/>}/>
+      <Route path="services" element={<Services/>}/>
+    </Route>
+    {/* LAST: the only catch‑all */}
+    <Route path="*" element={<NotFound/>}/>
+  </Routes>
+- Remove any other “*” routes nested in children.
+
+3) Fix guarded routes so they don’t fall through to 404
+- For protected pages, return Unauthorized (or redirect) when blocked, not NotFound:
+  return isLoading ? <Spinner/> : isAuthenticated ? children : <Unauthorized/>;
+- Do not render NotFound from guards; that causes the extra block.
+
+4) Replace accidental second router or nested Routes
+- Ensure there is exactly one <BrowserRouter> in the app.
+- Remove any <Routes> trees declared inside page components; define routes only in App.tsx.
+
+5) Verify with a DOM signature (debug, then remove)
+- Temporarily in NotFound.tsx:
+  <div id="__nf__" data-path={location.pathname}>…</div>
+- Load /gallery and query in console: document.querySelectorAll('#__nf__') — should be 0 on valid routes after the fix.
+
+6) Normalize links and prevent double-render
+- Replace internal <a href> with <Link to> or navigate.
+- Ensure BottomNav tabs link to exact paths: “/gallery”, “/forum”, “/amenities”.
+
+7) Service worker hygiene
+- Bump SW version; Application → Unregister SW; Clear site data; reload once to drop any cached shell that included a 404 fragment.
+
+Acceptance criteria
+- Visiting /gallery, /forum, /amenities shows no 404 card.
+- Only unknown URLs (e.g., /nope) display the 404 page.
+- Console shows no “NotFound rendering at: …” for valid paths.
+- Network has zero 404s during navigation.
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/82741753/de04c500-4602-4aa4-8a9a-513d840bdc9d/image.jpg?AWSAccessKeyId=ASIA2F3EMEYE3A67SADS&Signature=4tJovzCnV4voa0JuEg3GjwsfH9I%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEKf%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJIMEYCIQDhsI07DnoPTxcrlouSqCYeouFsILoWHdWJoyBMo%2Bq2wgIhAP9n3AJGEg%2FzeEgRzTiuexzVgA14Z6ORxmiK0JTxBXt1KvoECPD%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEQARoMNjk5NzUzMzA5NzA1IgwO7c8Mv47Vk1%2BfRQUqzgTWEVY0O81oTLWZZfe11GVEeYp3a%2Bql4CGOHZ86i7yyW5zHfIIRM2QCdp%2BIXDQdmC8Y2U5wHFP1jsC94qfRW%2Bdrbpww1cnIIvM9sJQSO%2Fz6lMjiQ%2FOvx6Gv%2BVwNjaGwXNSQQolftQZRu1afgr3NDy9l0ui2PBRp1Ke8HTyFz5%2Fi8cvMZ6AIU96J4rG2sxjkz6FXBGLrWAdCHRmmTLe%2B685rcW2hXiaed2AT3cjf7rmiwgL3JmcMYcPmm3b01t%2BuFI1FFcJDl2cgxnAFYJHcEI%2Bw5X81E%2F%2FglpySXriJgwu7a6tT2sxai%2B%2Bnxdvs0GLSsKBhA8VM7YFIc1hiTwweKX2WNEePJ12VwiaGwh5czKkaa0XnZNfMnPFFLYOTo1Yvbn4feP8aZPPG2h7i1F2I72FyFGRk%2B1B8ctfkQPL4EcqniEJnq0Mb9New9SAV8fRNOI%2FtElbJJ%2FD67cg9eyRq7DrNkPzKZknv1npm5P%2B5XrVDqY0hFwY4%2BUOzaW7RZzf6cGeNGa4FH0XjJOj2WsXYeFJWz4urEincOY10nvrS93H1FkPBvsUwRJeYJTc4dP6l%2BElsKKb5%2FEgnUnaHOlXat8jiey60HsbaeVmyIDQ2GnVipoPA8C7Lzckmi1FMCPJT0BnfE06EG8%2BzcVbpSTuGoZAt9HbbqqPPJpN%2BRR9oMesIQXeYtCoeS%2B27gU3c1EgT4zT%2FSIu%2BwfmM%2FRJRUlmrjPVuOgRVzQne8VSd8IzESAIXf2ZQmEYOsasspM746HSPrXOW7SgCbvMLHHmYC%2B2VLjDL25zFBjqZASdM4AWBe1chgu7zBIRWSXHqakfTZTMrUs5anPQsRVVMKP%2BHOLKkq8QGHhX%2BH9w8%2Bmo6k8QOJRY49RaWrFyfvW0jrgg9GQPKSYhcXwVPVbCflx8ZfuRmbiHAfjt2YBbcLfLWpgJIi%2F7LhvI10udR6ZVuo4Mwe0fusGNkvxyFn6f4%2BEQJEQqOctoKMzTrHdh5oat83ibrhg19FQ%3D%3D&Expires=1755789519)
