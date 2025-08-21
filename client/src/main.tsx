@@ -13,9 +13,16 @@ console.log(`📦 Service Worker: ${navigator.serviceWorker ? 'Supported' : 'Not
 console.log(`🔍 API_BASE_URL Resolution: ${window.location.origin} (same origin)`);
 console.log(`🔄 Query Key Debugging: Active`);
 
-const root = createRoot(document.getElementById('root')!);
-const app = <App />;
-root.render(import.meta.env.DEV ? <StrictMode>{app}</StrictMode> : app);
+// Ensure single mount - check if already mounted
+if ((window as any).__ROOT_MOUNTED__) {
+  console.error('DUPLICATE_MOUNT_PREVENTED');
+} else {
+  (window as any).__ROOT_MOUNTED__ = true;
+  const root = createRoot(document.getElementById('root')!);
+  const app = <App />;
+  // Temporarily disable StrictMode to prevent double rendering
+  root.render(app);
+}
 
 // Register service worker for PWA functionality with better update handling
 register({
