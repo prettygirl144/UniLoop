@@ -2,7 +2,31 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-import type { User } from "@shared/schema";
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  role: string;
+  permissions: {
+    calendar?: boolean;
+    attendance?: boolean;
+    gallery?: boolean;
+    forumMod?: boolean;
+    diningHostel?: boolean;
+    postCreation?: boolean;
+    triathlon?: boolean;
+    sickFoodAccess?: boolean;
+    leaveApplicationAccess?: boolean;
+    grievanceAccess?: boolean;
+    menuUpload?: boolean;
+  };
+  batch?: string;
+  section?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
