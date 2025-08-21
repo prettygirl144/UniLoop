@@ -3,7 +3,26 @@ import { AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function NotFound() {
-  console.warn('NOTFOUND_RENDER', window.location.pathname);
-  // Render a tiny marker so we can detect accidental mounts
-  return <div id="__nf__" data-path={window.location.pathname} style={{display:'none'}} />;
+  const [location] = useLocation();
+  
+  // console.warn('NOTFOUND_RENDER', window.location.pathname); // Keep for future debugging if needed
+  
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardContent className="pt-6">
+          <div className="flex mb-4 gap-2">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <h1 className="text-large text-gray-900">404 Page Not Found</h1>
+          </div>
+          <p className="mt-4 text-small text-gray-600">
+            Path: <code>{location}</code>
+          </p>
+          <p className="mt-2 text-small text-gray-600">
+            Did you forget to add the page to the router?
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
