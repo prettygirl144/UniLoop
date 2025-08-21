@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 export default function NotFound() {
   const [location] = useLocation();
   
-  // console.warn('NOTFOUND_RENDER', window.location.pathname); // Debug logging disabled
+  // console.warn('NOTFOUND_RENDER', window.location.pathname); // Keep for future debugging if needed
   
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
