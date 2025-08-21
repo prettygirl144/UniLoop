@@ -40,7 +40,7 @@ function Router() {
         <>
           {/* All unauthenticated routes redirect to landing */}
           <Route path="/" component={Landing} />
-          <Route path="*" component={Landing} />
+          <Route component={Landing} />
         </>
       ) : (
         <Layout>
