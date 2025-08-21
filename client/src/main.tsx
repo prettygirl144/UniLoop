@@ -13,14 +13,26 @@ console.log(`📦 Service Worker: ${navigator.serviceWorker ? 'Supported' : 'Not
 console.log(`🔍 API_BASE_URL Resolution: ${window.location.origin} (same origin)`);
 console.log(`🔄 Query Key Debugging: Active`);
 
+// Enhanced mount debugging
+if (!(window as any).__ROOT_MOUNT_COUNT__) (window as any).__ROOT_MOUNT_COUNT__ = 0;
+(window as any).__ROOT_MOUNT_COUNT__++;
+
+console.log(`📱 Main.tsx execution #${(window as any).__ROOT_MOUNT_COUNT__}`);
+
+if ((window as any).__ROOT_MOUNT_COUNT__ > 1) {
+  console.error('🚨 MAIN.TSX EXECUTING MULTIPLE TIMES!');
+  console.trace('main.tsx execution trace');
+}
+
 // Ensure single mount - check if already mounted
 if ((window as any).__ROOT_MOUNTED__) {
-  console.error('DUPLICATE_MOUNT_PREVENTED');
+  console.error('DUPLICATE_MOUNT_PREVENTED - Root already mounted!');
 } else {
   (window as any).__ROOT_MOUNTED__ = true;
   const root = createRoot(document.getElementById('root')!);
   const app = <App />;
   // Temporarily disable StrictMode to prevent double rendering
+  console.log('🚀 Mounting App component...');
   root.render(app);
 }
 
