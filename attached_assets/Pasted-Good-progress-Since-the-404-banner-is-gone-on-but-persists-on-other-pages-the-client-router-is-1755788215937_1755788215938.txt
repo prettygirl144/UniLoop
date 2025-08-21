@@ -1,0 +1,73 @@
+Good progress. Since the 404 banner is gone on “/” but persists on other pages, the client router is still falling through to NotFound on some routes. Provide Replit with this exact checklist to eliminate it across the app.
+
+Subject: Remove lingering 404 banner on non-home routes (client routing, basename, and SW)
+
+Targets
+- Ensure every valid route is matched by the client router.
+- Ensure deep links render via SPA fallback.
+- Ensure SW doesn’t inject the NotFound shell.
+
+Actions
+
+1) Audit route table and ordering
+- Print all configured paths at startup:
+  console.debug('Routes', [
+    '/', '/amenities', '/amenities/records', '/amenities/services',
+    '/hostel/leave', '/hostel/leave/records', '/community', '/events', …
+  ]);
+- Ensure the wildcard is last.
+  - React Router v6:
+    <Routes>
+      …all concrete routes…
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  - v5:
+    <Switch>
+      …exact routes…
+      <Route component={NotFound} />
+    </Switch>
+- Add exact where required (v5) and avoid overlapping patterns that capture subpaths before real routes.
+
+2) Verify basename and links
+- If using <BrowserRouter basename="/app">:
+  - Confirm navigate() and <Link to> include the basename implicitly, and that initial URLs also include “/app”.
+  - Log the resolved basename and current location on mount.
+- Replace any <a href="/path"> with <Link to="/path"> to prevent hard navigations that hit the server.
+- For menu tabs (Weekly Menu | Services | Records), ensure the active tab uses to="amenities/records" not href, and paths match the router exactly (no trailing slashes mismatch).
+
+3) Add SPA fallback for deep links on the server
+- Express (order matters):
+  app.use('/api', apiRouter); // API first
+  app.use(express.static('dist'));
+  app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+- This guarantees /amenities/records, /hostel/leave, etc. resolve to the SPA.
+
+4) Normalize trailing slashes and case
+- Pick a canonical form (no trailing slash).
+- Add a small normalize step on navigation:
+  if (location.pathname !== '/' && location.pathname.endsWith('/')) navigate(location.pathname.replace(/\/+$/,''));
+- Ensure links use consistent casing (/amenities/records vs /Amenities/Records).
+
+5) Check guarded routes
+- If using ProtectedRoute:
+  - Ensure it returns children when isAuthenticated=true and isLoading=false for all paths, not only “/”.
+  - Add logs inside guard with the path and outcome.
+- If some pages require roles, verify the guard does not render NotFound for authorized users. Prefer rendering an “Unauthorized” component when role is missing.
+
+6) Service worker refresh
+- Bump SW version and hard reload:
+  - Application → Service Workers → Unregister
+  - Clear storage → Clear site data
+  - Reload
+- Ensure SW navigation fallback isn’t serving an old index.html that still routes incorrectly.
+
+7) Detect the offenders quickly
+- In NotFound component, log location.pathname. Click each tab/page; collect the exact paths that wrongly hit NotFound.
+- Cross-check those paths exist in the route table and match pattern. Fix the first mismatch; repeat.
+
+Acceptance criteria
+- Navigating to each first-level and nested route renders its page, not NotFound.
+- Opening deep links directly (copy URL into a new tab) also renders the correct page.
+- Network panel shows no 404s; console shows no “NotFound rendering at: …” except on genuinely invalid paths.
+
+If you paste the routes snippet (App.tsx) and one example path that still triggers NotFound, I can mark the exact line to change.

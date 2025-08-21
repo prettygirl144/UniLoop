@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation, useRouter } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthContext } from "@/context/AuthContext";
@@ -63,6 +64,7 @@ interface StudentUploadLog {
 }
 
 export default function Admin() {
+  const [location, navigate] = useLocation();
   const { user: currentUser, isAuthenticated, isLoading } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,6 +75,30 @@ export default function Admin() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Determine current tab from URL
+  const getCurrentTab = () => {
+    if (location === '/admin/students') return 'students';
+    if (location === '/admin/logs') return 'logs';
+    if (location === '/admin/users') return 'users';
+    return 'users'; // default
+  };
+  
+  const currentTab = getCurrentTab();
+  
+  // Handle tab navigation
+  const handleTabChange = (tab: string) => {
+    switch (tab) {
+      case 'students':
+        navigate('/admin/students');
+        break;
+      case 'logs':
+        navigate('/admin/logs');
+        break;
+      default:
+        navigate('/admin/users');
+    }
+  };
   const [batchName, setBatchName] = useState("");
   const [editForm, setEditForm] = useState({
     role: "",
@@ -503,7 +529,7 @@ export default function Admin() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="users" className="space-y-6">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 h-16">
             <TabsTrigger value="users" className="flex flex-col items-center justify-center gap-1 p-2 text-center h-full">
               <Users className="h-3 w-3" />

@@ -48,10 +48,18 @@ function Router() {
           <Route path="/events" component={Calendar} />
           <Route path="/gallery" component={Gallery} />
           <Route path="/forum" component={Forum} />
+          <Route path="/forum/posts" component={Forum} />
+          <Route path="/forum/announcements" component={Forum} />
           <Route path="/amenities" component={Amenities} />
+          <Route path="/amenities/menu" component={Amenities} />
+          <Route path="/amenities/services" component={Amenities} />
+          <Route path="/amenities/records" component={Amenities} />
           <Route path="/triathlon" component={Triathlon} />
           <Route path="/directory" component={Directory} />
           <Route path="/admin" component={Admin} />
+          <Route path="/admin/users" component={Admin} />
+          <Route path="/admin/students" component={Admin} />
+          <Route path="/admin/logs" component={Admin} />
           <Route path="/attendance" component={Attendance} />
           <Route path="/attendance/:eventId" component={Attendance} />
           <Route path="/:rest*" component={NotFound} />

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useLocation, useRouter } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image, Filter, Calendar, User, Heart, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -131,11 +132,29 @@ const getCategoryColor = (category: string) => {
 };
 
 export default function Forum() {
-  // Check URL parameters for default tab
-  const urlParams = new URLSearchParams(window.location.search);
-  const defaultTab = urlParams.get('tab') === 'announcements' ? 'announcements' : 'posts';
+  const [location, navigate] = useLocation();
   
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  // Determine current tab from URL
+  const getCurrentTab = () => {
+    if (location === '/forum/announcements') return 'announcements';
+    if (location === '/forum/posts') return 'posts';
+    return 'posts'; // default
+  };
+  
+  const currentTab = getCurrentTab();
+  
+  // Handle tab navigation
+  const handleTabChange = (tab: string) => {
+    switch (tab) {
+      case 'announcements':
+        navigate('/forum/announcements');
+        break;
+      default:
+        navigate('/forum/posts');
+    }
+  };
+  
+  const [activeTab, setActiveTab] = useState(currentTab);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
@@ -808,7 +827,7 @@ export default function Forum() {
         )}
       </div>
       {/* Mobile-optimized tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 
                              /* Mobile: larger height for easier tapping */
                              h-12 lg:h-10

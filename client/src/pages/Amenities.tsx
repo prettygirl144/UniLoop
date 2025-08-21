@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation, useRouter } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ type GrievanceForm = z.infer<typeof grievanceSchema>;
 type MenuUploadForm = z.infer<typeof menuUploadSchema>;
 
 export default function Amenities() {
+  const [location, navigate] = useLocation();
   const [showSickFoodDialog, setShowSickFoodDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [sickFoodDateFilter, setSickFoodDateFilter] = useState('');
@@ -105,6 +107,30 @@ export default function Amenities() {
 
   // Check if user is admin
   const isAdmin = (user as any)?.role === 'admin';
+  
+  // Determine current tab from URL
+  const getCurrentTab = () => {
+    if (location === '/amenities/services') return 'services';
+    if (location === '/amenities/records') return 'records';
+    if (location === '/amenities/menu') return 'menu';
+    return 'menu'; // default
+  };
+  
+  const currentTab = getCurrentTab();
+  
+  // Handle tab navigation
+  const handleTabChange = (tab: string) => {
+    switch (tab) {
+      case 'services':
+        navigate('/amenities/services');
+        break;
+      case 'records':
+        navigate('/amenities/records');
+        break;
+      default:
+        navigate('/amenities/menu');
+    }
+  };
 
   // Form instances
   const sickFoodForm = useForm<SickFoodForm>({
@@ -887,7 +913,7 @@ export default function Amenities() {
         )}
       </div>
 
-      <Tabs defaultValue="menu" className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
