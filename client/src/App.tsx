@@ -87,8 +87,10 @@ function Router() {
             <Route path="/auth/logout" component={Auth0Logout} />
           </Layout>
           
-          {/* Single catch-all route as the very last route */}
-          <Route path="*" component={NotFound} />
+          {/* Single catch-all route as the very last route - also wrapped in Layout */}
+          <Layout>
+            <Route path="*" component={NotFound} />
+          </Layout>
         </>
       )}
     </Switch>

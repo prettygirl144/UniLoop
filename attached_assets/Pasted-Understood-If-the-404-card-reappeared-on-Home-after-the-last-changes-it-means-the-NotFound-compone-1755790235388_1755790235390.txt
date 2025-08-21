@@ -1,0 +1,68 @@
+Understood. If the 404 card reappeared on Home after the last changes, it means the NotFound component is still being mounted globally (not just via the wildcard route). The fastest way to fix this without breaking real 404s is to make one controlled change and one verification pass.
+
+Give Replit this exact instruction set:
+
+Subject: Stop global NotFound mounting; keep a single valid 404
+
+Immediate rollback/safe state
+1) Top-level router
+- Ensure there is exactly one catch-all and it is the last route.
+- Example (v6):
+  <Routes>
+    {/* all concrete routes first */}
+    <Route path="/" element={<Home/>}/>
+    …other user/admin routes…
+    <Route path="*" element={<NotFound/>}/>
+  </Routes>
+
+2) Temporarily neuter NotFound to verify callers
+- Replace the NotFound component body with:
+  export default function NotFound() {
+    console.warn('NOTFOUND_RENDER', window.location.pathname);
+    // Render a tiny marker so we can detect accidental mounts
+    return <div id="__nf__" data-path={window.location.pathname} style={{display:'none'}} />;
+  }
+- This prevents the big 404 card from showing while we hunt its trigger, and still logs when it mounts.
+
+Find and remove the accidental mounts
+3) Search and delete all extra NotFound usages
+- Code search for:
+  - “NotFound”
+  - path="*"
+- Actions:
+  - Remove any <NotFound/> inside layouts (AppLayout, AmenitiesLayout, ForumLayout, GalleryLayout, TriathlonLayout, AdminLayout, any TabbedLayout).
+  - Remove any nested <Routes> that include a wildcard inside those layouts. Layouts must only render <Outlet/>.
+
+4) Fix guards to never return NotFound
+- In all Guard/ProtectedRoute components:
+  - Allowed: return children.
+  - Loading: return a loader.
+  - Blocked: return Unauthorized (or redirect), NOT NotFound.
+- Ensure guards don’t render both children and a fallback simultaneously.
+
+5) Normalize tab routers (Forum, Amenities, Triathlon, Admin)
+- Tabs should be plain links that change the URL (Link to="…") with nested routes declared at the top-level router.
+- Do not create a second <Routes> inside a tab container.
+
+6) Verify there’s only one Router provider
+- Ensure there is only one BrowserRouter (or equivalent) in the entire app. Remove any Router instances inside pages/layouts.
+
+7) Confirm the fix live
+- Reload each page (Home, Gallery, Forum, every Amenities tab, Triathlon Leaderboard, all Admin sections).
+- Console must show zero NOTFOUND_RENDER logs on valid pages.
+- For a fake URL like /nope or /admin/nope, you should see exactly one NOTFOUND_RENDER log.
+
+Re-enable the visible 404
+8) Restore the NotFound UI
+- Put back the normal 404 component content.
+- Keep the console.warn line commented out for future debugging if needed.
+
+Service worker hygiene (once)
+9) Bump service worker version and hard-reload once
+- Unregister the service worker and clear site data, then reload to ensure no cached HTML shell is re-inserting an old 404 fragment.
+
+Why this works
+- It stops the symptom (big 404 card) immediately while keeping a valid 404 for bad URLs later.
+- The invisible marker and console log tell exactly where NotFound mounts. If it appears on Home again, there is still a direct NotFound render in a layout/guard; remove it.
+
+If Replit returns with a specific file where NotFound was mounted (e.g., AdminLayout includes a local wildcard or a fallback), ask them to paste that snippet and delete the NotFound from it. This resolves Home and every subpage uniformly without silencing real 404s.
