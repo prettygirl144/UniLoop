@@ -50,6 +50,7 @@ function Router() {
         </>
       ) : (
         <Layout>
+          <Route path="~" component={Home} />
           <Route path="/" component={Home} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/gallery" component={Gallery} />
