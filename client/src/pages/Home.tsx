@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy, Activity, GraduationCap } from 'lucide-react';
 import { Link } from 'wouter';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Announcement } from '@shared/schema';
 
 interface DirectoryInfo {
@@ -38,6 +38,11 @@ export default function Home() {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  
+  // Touch/swipe handling
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const isDragging = useRef<boolean>(false);
   
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
     queryKey: ['/api/community/announcements'],
@@ -112,6 +117,36 @@ export default function Home() {
     if (thisWeeksEvents.length > 0) {
       setCurrentEventIndex((prev) => (prev - 1 + thisWeeksEvents.length) % thisWeeksEvents.length);
     }
+  };
+
+  // Touch event handlers for swipe functionality
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    isDragging.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+    isDragging.current = true;
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging.current) return;
+    
+    const swipeThreshold = 50; // Minimum distance for swipe
+    const swipeDistance = touchStartX.current - touchEndX.current;
+    
+    if (Math.abs(swipeDistance) > swipeThreshold) {
+      if (swipeDistance > 0) {
+        // Swiped left - show next event
+        nextEvent();
+      } else {
+        // Swiped right - show previous event
+        prevEvent();
+      }
+    }
+    
+    isDragging.current = false;
   };
 
   const getCategoryGradient = (category: string) => {
@@ -351,6 +386,9 @@ export default function Home() {
             <div 
               className="flex transition-transform duration-300 ease-in-out"
               style={{ transform: `translateX(-${currentEventIndex * 100}%)` }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {thisWeeksEvents.map((event, index) => (
                 <div key={event.id} className="w-full flex-shrink-0">
