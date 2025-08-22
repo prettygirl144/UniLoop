@@ -138,18 +138,14 @@ export default function Directory() {
       return fetch(`/api/directory/list?${params}`).then(res => res.json());
     },
     enabled: !myInfoLoading, // Wait for user info to load first
-    keepPreviousData: true as any, // Prevent flicker during pagination
   });
 
-  // Get unique batches for filter dropdown
-  const availableBatches = useMemo(() => {
-    const batches = ['All'];
-    if (myDirectoryInfo?.batch) {
-      batches.push(myDirectoryInfo.batch);
-    }
-    // Add other common batches if needed
-    return Array.from(new Set(batches));
-  }, [myDirectoryInfo]);
+  // Fetch all available batches
+  const { data: availableBatches = ['All'] } = useQuery<string[]>({
+    queryKey: ['directory', 'batches'],
+    queryFn: () => fetch('/api/directory/batches').then(res => res.json()),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   const messageMutation = useMutation({
     mutationFn: async (data: MessageForm & { recipientEmail: string }) => {

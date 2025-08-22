@@ -2078,6 +2078,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all available batches from student directory
+  app.get('/api/directory/batches', checkAuth, async (req: any, res) => {
+    try {
+      const batches = await storage.getStudentDirectoryBatches();
+      res.json(['All', ...batches]);
+    } catch (error) {
+      console.error('❌ [DIRECTORY-BATCHES] Error fetching batches:', error);
+      res.status(500).json({ message: 'Failed to fetch batches' });
+    }
+  });
+
   // Get paginated student directory list for Directory page
   app.get('/api/directory/list', checkAuth, async (req: any, res) => {
     try {

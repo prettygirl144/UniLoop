@@ -1022,6 +1022,18 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(studentDirectory).orderBy(desc(studentDirectory.createdAt));
   }
 
+  async getStudentDirectoryBatches(): Promise<string[]> {
+    const batches = await db.select({
+      batch: studentDirectory.batch
+    })
+    .from(studentDirectory)
+    .where(sql`${studentDirectory.batch} IS NOT NULL AND ${studentDirectory.batch} != ''`)
+    .groupBy(studentDirectory.batch)
+    .orderBy(studentDirectory.batch);
+
+    return batches.map(b => b.batch).filter(Boolean);
+  }
+
   async getStudentDirectoryList(params: {
     batch?: string;
     query?: string;
@@ -1078,13 +1090,13 @@ export class DatabaseStorage implements IStorage {
 
     // Apply conditions if any
     if (conditions.length > 0) {
-      baseQuery = baseQuery.where(and(...conditions));
+      baseQuery = baseQuery.where(and(...conditions)) as any;
     }
 
     // Get total count
     let countQuery = db.select({ count: sql<number>`count(*)` }).from(studentDirectory);
     if (conditions.length > 0) {
-      countQuery = countQuery.where(and(...conditions));
+      countQuery = countQuery.where(and(...conditions)) as any;
     }
     
     const [{ count: total }] = await countQuery;
