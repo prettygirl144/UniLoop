@@ -1149,7 +1149,7 @@ export default function Amenities() {
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
-                  Request food delivery to your room when you're unwell
+                  Request sick food when you're unwell
                 </p>
                 <Dialog open={showSickFoodDialog} onOpenChange={setShowSickFoodDialog}>
                   <DialogTrigger asChild>
