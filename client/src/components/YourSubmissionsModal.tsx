@@ -118,6 +118,29 @@ const SubmissionsList: React.FC<{
 
   const { data, isLoading, error } = useQuery<PaginatedResponse>({
     queryKey: ['userSubmissions', type, { page, limit }],
+    queryFn: async () => {
+      const endpoint = type === 'sickFood' 
+        ? `/api/amenities/sick-food?scope=mine&page=${page}&limit=${limit}`
+        : `/api/grievances?scope=mine&page=${page}&limit=${limit}`;
+      
+      console.log(`🔍 [USER-SUBMISSIONS] Fetching ${type} submissions from: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        credentials: 'include',
+      });
+      
+      console.log(`📊 [USER-SUBMISSIONS] Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ [USER-SUBMISSIONS] Error response:`, errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log(`✅ [USER-SUBMISSIONS] Data received:`, data);
+      return data;
+    },
     enabled: true,
   });
 
