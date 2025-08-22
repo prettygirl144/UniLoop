@@ -416,7 +416,6 @@ export default function Attendance() {
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                size="sm"
                 className="w-full"
               />
             </div>
@@ -503,7 +502,6 @@ export default function Attendance() {
                         value={editNote}
                         onChange={(e) => setEditNote(e.target.value)}
                         className="w-full sm:w-28 text-xs"
-                        size="sm"
                       />
                       <div className="flex gap-1">
                         <Button 
