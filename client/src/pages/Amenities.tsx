@@ -41,6 +41,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 // Enhanced schemas with all required fields
 const sickFoodSchema = z.object({
@@ -97,6 +98,10 @@ type MenuUploadForm = z.infer<typeof menuUploadSchema>;
 
 export default function Amenities() {
   const [location, navigate] = useLocation();
+  
+  // Initialize WebSocket connection for real-time updates
+  useWebSocket();
+  
   const [showSickFoodDialog, setShowSickFoodDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showGoogleFormDialog, setShowGoogleFormDialog] = useState(false);

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { WebSocketServer, WebSocket } from 'ws';
 // Replit auth removed - using Auth0 only
 import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
@@ -187,6 +188,22 @@ function manageStudentsOnly() {
     req.currentUser = user;
     next();
   };
+}
+
+// Global WebSocket connections store
+let wss: WebSocketServer;
+const connectedClients = new Set<WebSocket>();
+
+// Broadcast function for real-time updates
+function broadcastToClients(message: any) {
+  const messageString = JSON.stringify(message);
+  connectedClients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(messageString);
+    } else {
+      connectedClients.delete(client);
+    }
+  });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1285,6 +1302,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ message: "Menu not found" });
       }
+
+      // Broadcast the menu update to all connected clients
+      broadcastToClients({
+        type: 'MENU_UPDATED',
+        data: {
+          menuId,
+          mealType,
+          date: updated.date,
+          updatedMenu: updated
+        }
+      });
 
       res.json({
         message: `${mealType} updated successfully`,
@@ -3191,5 +3219,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Static file serving moved to top of function to fix PWA installability
 
   const httpServer = createServer(app);
+
+  // Set up WebSocket server for real-time updates
+  wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  wss.on('connection', (ws) => {
+    console.log('📡 [WEBSOCKET] New client connected');
+    connectedClients.add(ws);
+    
+    // Send welcome message
+    ws.send(JSON.stringify({ type: 'CONNECTED', message: 'Connected to UniLoop real-time updates' }));
+    
+    ws.on('close', () => {
+      console.log('📡 [WEBSOCKET] Client disconnected');
+      connectedClients.delete(ws);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('📡 [WEBSOCKET] Error:', error);
+      connectedClients.delete(ws);
+    });
+  });
+
   return httpServer;
 }
