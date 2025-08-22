@@ -30,7 +30,9 @@ import {
   Check,
   X,
   Filter,
-  History
+  History,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { YourSubmissionsModal } from '@/components/YourSubmissionsModal';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -105,6 +107,7 @@ export default function Amenities() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [editingMenu, setEditingMenu] = useState<{id: number, date: string, mealType: string, items: string[]} | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [hideLeaveApplications, setHideLeaveApplications] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1428,91 +1431,108 @@ export default function Amenities() {
               <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                    <CardTitle className="text-medium">Leave Applications</CardTitle>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => downloadReports('leave-applications')}
-                      className="flex items-center gap-1 h-8 px-2 justify-center"
-                    >
-                      <Download className="h-3 w-3" />
-                      <span className="hidden sm:inline">Download</span>
-                    </Button>
+                    <CardTitle className="text-medium flex items-center gap-2">
+                      Leave Applications
+                      <Badge variant="secondary" className="text-xs">Future Use</Badge>
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setHideLeaveApplications(!hideLeaveApplications)}
+                        className="flex items-center gap-1 h-8 px-2"
+                        title={hideLeaveApplications ? 'Show Leave Applications' : 'Hide Leave Applications'}
+                      >
+                        {hideLeaveApplications ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                        <span className="hidden sm:inline">{hideLeaveApplications ? 'Show' : 'Hide'}</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => downloadReports('leave-applications')}
+                        className="flex items-center gap-1 h-8 px-2 justify-center"
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="hidden sm:inline">Download</span>
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-48 flex flex-col">
-                    {(leaveApplications as any[]).length > 0 ? (
-                      <div className="space-y-2 overflow-y-auto flex-1 pr-2">
-                        {(leaveApplications as any[]).map((application: any) => (
-                          <div key={application.id} className="p-3 border rounded-lg space-y-3 flex-shrink-0">
-                            <div className="space-y-2">
-                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
-                                <div className="flex-1 min-w-0 space-y-1">
-                                  <p className="text-small font-medium break-words">
-                                    {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
-                                  </p>
-                                  <p className="text-small text-muted-foreground break-words">
-                                    Email: {application.email || '—'}
-                                  </p>
-                                  <p className="text-small text-muted-foreground break-words">
-                                    City: {application.leaveCity || '—'}
-                                  </p>
-                                  <p className="text-small text-muted-foreground break-words">Room: {application.roomNumber}</p>
-                                  <p className="text-small text-muted-foreground break-words">Contact: {application.emergencyContact}</p>
-                                  <p className="text-small text-muted-foreground break-words">Reason: {application.reason}</p>
-                                  {application.correlationId && (
-                                    <p className="text-xs text-blue-600 break-words">Correlation ID: {application.correlationId}</p>
-                                  )}
-                                  {application.googleStatus && (
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge 
-                                        variant={application.googleStatus.ok ? 'default' : 'destructive'} 
-                                        className="text-xs px-1 py-0 h-5"
-                                      >
-                                        Google: {application.googleStatus.ok ? '✓ Synced' : `✗ Failed (${application.googleStatus.attempts} attempts)`}
-                                      </Badge>
-                                    </div>
-                                  )}
+                {!hideLeaveApplications && (
+                  <CardContent className="pt-2">
+                    <div className="h-48 flex flex-col">
+                      {(leaveApplications as any[]).length > 0 ? (
+                        <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                          {(leaveApplications as any[]).map((application: any) => (
+                            <div key={application.id} className="p-3 border rounded-lg space-y-3 flex-shrink-0">
+                              <div className="space-y-2">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
+                                  <div className="flex-1 min-w-0 space-y-1">
+                                    <p className="text-small font-medium break-words">
+                                      {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                                    </p>
+                                    <p className="text-small text-muted-foreground break-words">
+                                      Email: {application.email || '—'}
+                                    </p>
+                                    <p className="text-small text-muted-foreground break-words">
+                                      City: {application.leaveCity || '—'}
+                                    </p>
+                                    <p className="text-small text-muted-foreground break-words">Room: {application.roomNumber}</p>
+                                    <p className="text-small text-muted-foreground break-words">Contact: {application.emergencyContact}</p>
+                                    <p className="text-small text-muted-foreground break-words">Reason: {application.reason}</p>
+                                    {application.correlationId && (
+                                      <p className="text-xs text-blue-600 break-words">Correlation ID: {application.correlationId}</p>
+                                    )}
+                                    {application.googleStatus && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Badge 
+                                          variant={application.googleStatus.ok ? 'default' : 'destructive'} 
+                                          className="text-xs px-1 py-0 h-5"
+                                        >
+                                          Google: {application.googleStatus.ok ? '✓ Synced' : `✗ Failed (${application.googleStatus.attempts} attempts)`}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit self-start">
+                                    {application.status}
+                                  </Badge>
                                 </div>
-                                <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit self-start">
-                                  {application.status}
-                                </Badge>
+                                {application.status === 'pending' && (
+                                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => approveLeaveApplication.mutate(application.id)}
+                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                      className="h-8 px-3 bg-green-600 hover:bg-green-700 flex items-center justify-center"
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => denyLeaveApplication.mutate(application.id)}
+                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                      className="h-8 px-3 flex items-center justify-center"
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Deny
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                              {application.status === 'pending' && (
-                                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => approveLeaveApplication.mutate(application.id)}
-                                    disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
-                                    className="h-8 px-3 bg-green-600 hover:bg-green-700 flex items-center justify-center"
-                                  >
-                                    <Check className="h-3 w-3 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => denyLeaveApplication.mutate(application.id)}
-                                    disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
-                                    className="h-8 px-3 flex items-center justify-center"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Deny
-                                  </Button>
-                                </div>
-                              )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <p className="text-center text-muted-foreground text-small">No applications found</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-center text-muted-foreground text-small">No applications found</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                )}
               </Card>
 
               {/* Grievance Management */}
