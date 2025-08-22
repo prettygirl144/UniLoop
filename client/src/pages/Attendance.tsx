@@ -246,10 +246,10 @@ export default function Attendance() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-muted-foreground mt-4">Loading attendance sheet...</p>
+      <div className="w-full max-w-7xl mx-auto p-4 lg:p-6">
+        <div className="text-center py-8 lg:py-12">
+          <div className="animate-spin rounded-full h-6 w-6 lg:h-8 lg:w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-sm lg:text-base text-muted-foreground mt-4">Loading attendance sheet...</p>
         </div>
       </div>
     );
@@ -257,15 +257,15 @@ export default function Attendance() {
 
   if (error || !attendanceData) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="w-full max-w-7xl mx-auto p-4 lg:p-6">
         <Card>
-          <CardContent className="text-center py-12">
-            <XCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Attendance Sheet Found</h3>
-            <p className="text-muted-foreground mb-4">
+          <CardContent className="text-center py-8 lg:py-12">
+            <XCircle className="w-8 h-8 lg:w-12 lg:h-12 mx-auto text-red-500 mb-4" />
+            <h3 className="text-base lg:text-lg font-medium mb-2">No Attendance Sheet Found</h3>
+            <p className="text-sm lg:text-base text-muted-foreground mb-4">
               This event doesn't have an attendance sheet or you don't have permission to view it.
             </p>
-            <Button onClick={() => setLocation('/calendar')} variant="outline">
+            <Button onClick={() => setLocation('/calendar')} variant="outline" size="sm" className="w-full sm:w-auto">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Calendar
             </Button>
@@ -278,76 +278,85 @@ export default function Attendance() {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-full max-w-7xl mx-auto p-4 lg:p-6 space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <Button 
             variant="outline" 
             onClick={() => setLocation('/calendar')}
-            className="shrink-0"
+            className="shrink-0 w-fit"
+            size="sm"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Calendar
+            <span className="hidden sm:inline">Back to Calendar</span>
+            <span className="sm:hidden">Back</span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Attendance Sheet</h1>
-            <p className="text-muted-foreground">
+          <div className="flex-1">
+            <h1 className="text-xl lg:text-2xl font-bold">Attendance Sheet</h1>
+            <p className="text-sm lg:text-base text-muted-foreground">
               {attendanceData.sheet.batch}::{attendanceData.sheet.section}
             </p>
           </div>
         </div>
         
-        <div className="flex gap-2">
-          {isAdmin && (
-            <>
-              <Button 
-                variant="outline" 
-                onClick={() => syncStudentsMutation.mutate()}
-                disabled={syncStudentsMutation.isPending}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncStudentsMutation.isPending ? 'animate-spin' : ''}`} />
-                Sync Students
-              </Button>
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
-            </>
-          )}
-        </div>
+        {isAdmin && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => syncStudentsMutation.mutate()}
+              disabled={syncStudentsMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncStudentsMutation.isPending ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sync Students</span>
+              <span className="sm:hidden">Sync</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleExport}
+              className="w-full sm:w-auto"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <div className="text-sm text-muted-foreground">Total Students</div>
+          <CardContent className="p-3 lg:p-4 text-center">
+            <div className="text-xl lg:text-2xl font-bold">{totalStudents}</div>
+            <div className="text-xs lg:text-sm text-muted-foreground">Total Students</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{presentCount}</div>
-            <div className="text-sm text-muted-foreground">Present</div>
+          <CardContent className="p-3 lg:p-4 text-center">
+            <div className="text-xl lg:text-2xl font-bold text-green-600">{presentCount}</div>
+            <div className="text-xs lg:text-sm text-muted-foreground">Present</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{absentCount}</div>
-            <div className="text-sm text-muted-foreground">Absent</div>
+          <CardContent className="p-3 lg:p-4 text-center">
+            <div className="text-xl lg:text-2xl font-bold text-red-600">{absentCount}</div>
+            <div className="text-xs lg:text-sm text-muted-foreground">Absent</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{lateCount}</div>
-            <div className="text-sm text-muted-foreground">Late</div>
+          <CardContent className="p-3 lg:p-4 text-center">
+            <div className="text-xl lg:text-2xl font-bold text-yellow-600">{lateCount}</div>
+            <div className="text-xs lg:text-sm text-muted-foreground">Late</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-gray-600">{unmarkedCount}</div>
-            <div className="text-sm text-muted-foreground">Unmarked</div>
+          <CardContent className="p-3 lg:p-4 text-center">
+            <div className="text-xl lg:text-2xl font-bold text-gray-600">{unmarkedCount}</div>
+            <div className="text-xs lg:text-sm text-muted-foreground">Unmarked</div>
           </CardContent>
         </Card>
       </div>
@@ -356,39 +365,42 @@ export default function Attendance() {
       {isAdmin && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Bulk Actions</CardTitle>
+            <CardTitle className="text-base lg:text-lg">Bulk Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2 flex-wrap">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => bulkUpdateMutation.mutate({ status: 'PRESENT' })}
                 disabled={bulkUpdateMutation.isPending}
-                className="text-green-700 border-green-300 hover:bg-green-50"
+                className="text-green-700 border-green-300 hover:bg-green-50 w-full"
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
-                Mark All Present
+                <span className="hidden sm:inline">Mark All Present</span>
+                <span className="sm:hidden">All Present</span>
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => bulkUpdateMutation.mutate({ status: 'ABSENT' })}
                 disabled={bulkUpdateMutation.isPending}
-                className="text-red-700 border-red-300 hover:bg-red-50"
+                className="text-red-700 border-red-300 hover:bg-red-50 w-full"
               >
                 <XCircle className="w-4 h-4 mr-2" />
-                Mark All Absent
+                <span className="hidden sm:inline">Mark All Absent</span>
+                <span className="sm:hidden">All Absent</span>
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => bulkUpdateMutation.mutate({ status: 'UNMARKED' })}
                 disabled={bulkUpdateMutation.isPending}
-                className="text-gray-700 border-gray-300 hover:bg-gray-50"
+                className="text-gray-700 border-gray-300 hover:bg-gray-50 w-full"
               >
                 <UserCheck className="w-4 h-4 mr-2" />
-                Clear All
+                <span className="hidden sm:inline">Clear All</span>
+                <span className="sm:hidden">Clear</span>
               </Button>
             </div>
           </CardContent>
@@ -397,18 +409,20 @@ export default function Attendance() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
+        <CardContent className="p-3 lg:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+            <div>
               <Input
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                size="sm"
+                className="w-full"
               />
             </div>
-            <div className="min-w-[150px]">
+            <div>
               <Select value={statusFilter} onValueChange={(value: AttendanceStatus | 'ALL') => setStatusFilter(value)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -427,30 +441,41 @@ export default function Attendance() {
       {/* Attendance Records */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
+          <CardTitle className="text-base lg:text-lg">
             Student Attendance ({filteredRecords.length} of {totalStudents})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredRecords.map((record) => (
               <div
                 key={record.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                className="border rounded-lg p-3 lg:p-4 hover:bg-gray-50 space-y-3"
               >
-                <div className="flex items-center gap-4 flex-1">
-                  {getStatusIcon(record.status)}
-                  <div className="flex-1">
-                    <div className="font-medium">{record.studentName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {record.rollNumber} • {record.studentEmail}
+                {/* Mobile-first student info */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    {getStatusIcon(record.status)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm lg:text-base truncate">{record.studentName}</div>
+                    <div className="text-xs lg:text-sm text-muted-foreground mt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                        <span className="font-mono">{record.rollNumber}</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="truncate">{record.studentEmail}</span>
+                      </div>
                     </div>
                     {record.note && (
-                      <div className="text-sm text-gray-600 mt-1 italic">
+                      <div className="text-xs lg:text-sm text-gray-600 mt-2 p-2 bg-gray-50 rounded italic">
                         Note: {record.note}
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Status and actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-2">
                     {getStatusBadge(record.status)}
                     {record.markedBy && (
@@ -459,55 +484,65 @@ export default function Attendance() {
                       </div>
                     )}
                   </div>
-                </div>
-                
-                {isAdmin && editingRecord === record.id ? (
-                  <div className="flex items-center gap-2 ml-4">
-                    <Select value={editStatus} onValueChange={(value: AttendanceStatus) => setEditStatus(value)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PRESENT">Present</SelectItem>
-                        <SelectItem value="ABSENT">Absent</SelectItem>
-                        <SelectItem value="LATE">Late</SelectItem>
-                        <SelectItem value="UNMARKED">Unmarked</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Note..."
-                      value={editNote}
-                      onChange={(e) => setEditNote(e.target.value)}
-                      className="w-32"
-                    />
-                    <Button 
-                      size="sm" 
-                      onClick={handleSaveRecord}
-                      disabled={updateRecordMutation.isPending}
+                  
+                  {isAdmin && editingRecord === record.id ? (
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      <Select value={editStatus} onValueChange={(value: AttendanceStatus) => setEditStatus(value)}>
+                        <SelectTrigger className="w-full sm:w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PRESENT">Present</SelectItem>
+                          <SelectItem value="ABSENT">Absent</SelectItem>
+                          <SelectItem value="LATE">Late</SelectItem>
+                          <SelectItem value="UNMARKED">Unmarked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Note..."
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        className="w-full sm:w-28 text-xs"
+                        size="sm"
+                      />
+                      <div className="flex gap-1">
+                        <Button 
+                          size="sm" 
+                          onClick={handleSaveRecord}
+                          disabled={updateRecordMutation.isPending}
+                          className="flex-1 sm:flex-none"
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleCancelEdit}
+                          className="flex-1 sm:flex-none"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isAdmin ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditRecord(record)}
+                      className="w-full sm:w-auto"
                     >
-                      <Save className="w-4 h-4" />
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : isAdmin ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditRecord(record)}
-                    className="ml-4"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </Button>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             ))}
             
             {filteredRecords.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No students match the current filters</p>
+              <div className="text-center py-8 lg:py-12 text-muted-foreground">
+                <Users className="w-8 h-8 lg:w-12 lg:h-12 mx-auto mb-4 opacity-50" />
+                <p className="text-sm lg:text-base">No students match the current filters</p>
               </div>
             )}
           </div>
