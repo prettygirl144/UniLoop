@@ -120,6 +120,9 @@ export default function Amenities() {
   // Check if user is admin
   const isAdmin = (user as any)?.role === 'admin';
   
+  // Check if user can edit menus (admin role OR diningHostel permission)
+  const canEditMenu = isAdmin || (user as any)?.permissions?.diningHostel;
+  
   // Determine current tab from URL
   const getCurrentTab = () => {
     if (location === '/amenities/services') return 'services';
@@ -826,7 +829,7 @@ export default function Amenities() {
           <h1 className="text-large">Amenities</h1>
           <p className="text-small text-muted-foreground">Campus dining, accommodation, and services</p>
         </div>
-        {isAdmin && (
+        {canEditMenu && (
           <div className="flex gap-2 flex-wrap">
             <Dialog open={showMenuUploadDialog} onOpenChange={setShowMenuUploadDialog}>
               <DialogTrigger asChild>
@@ -980,8 +983,8 @@ export default function Amenities() {
                         <CardTitle className="flex items-center gap-2">
                           <Utensils className="h-5 w-5" />
                           Today's Menu
-                          {isAdmin && (
-                            <Badge variant="secondary" className="text-xs ml-2">Admin: Click meal types to edit</Badge>
+                          {canEditMenu && (
+                            <Badge variant="secondary" className="text-xs ml-2">Click meal types to edit</Badge>
                           )}
                         </CardTitle>
                       </CardHeader>
@@ -991,7 +994,7 @@ export default function Amenities() {
                             <MealSection 
                               title="Breakfast" 
                               items={todayMenu.breakfast}
-                              isAdmin={isAdmin}
+                              isAdmin={canEditMenu}
                               onEdit={() => {
                                 if (todayMenuData) {
                                   setEditingMenu({
@@ -1008,7 +1011,7 @@ export default function Amenities() {
                             <MealSection 
                               title="Lunch" 
                               items={todayMenu.lunch}
-                              isAdmin={isAdmin}
+                              isAdmin={canEditMenu}
                               onEdit={() => {
                                 if (todayMenuData) {
                                   setEditingMenu({
@@ -1025,7 +1028,7 @@ export default function Amenities() {
                             <MealSection 
                               title="Evening Snacks" 
                               items={todayMenu.eveningSnacks}
-                              isAdmin={isAdmin}
+                              isAdmin={canEditMenu}
                               onEdit={() => {
                                 if (todayMenuData) {
                                   setEditingMenu({
@@ -1042,7 +1045,7 @@ export default function Amenities() {
                             <MealSection 
                               title="Dinner" 
                               items={todayMenu.dinner}
-                              isAdmin={isAdmin}
+                              isAdmin={canEditMenu}
                               onEdit={() => {
                                 if (todayMenuData) {
                                   setEditingMenu({
