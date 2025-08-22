@@ -330,25 +330,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Events routes
-  app.get('/api/events', async (req, res) => {
+  app.get('/api/events', checkAuth, async (req: any, res) => {
     try {
       const { tag, limit } = req.query;
       const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       console.log(`🔍 [EVENTS-GET] Fetching events - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, RequestID: ${requestId}`);
       
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
       const events = await storage.getEvents();
       
-      let filteredEvents = events;
+      // Filter events by user eligibility (if user exists)
+      let userEligibleEvents = events;
+      if (user) {
+        userEligibleEvents = events.filter(event => {
+          // Admin users can see all events
+          if (user.role === 'admin') {
+            return true;
+          }
+          
+          // Event creator can see their own events
+          if (event.authorId === user.id) {
+            return true;
+          }
+          
+          // Check if user's email is in roll number attendees
+          if (event.rollNumberAttendees?.includes(user.email || '')) {
+            return true;
+          }
+          
+          // If no targeting specified, event is for everyone
+          if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
+            return true;
+          }
+          
+          const userBatch = user.batch;
+          const userSection = user.section;
+          
+          // Check targetBatchSections (format: "batch::section")
+          if (event.targetBatchSections?.length) {
+            const isInTargetBatchSection = event.targetBatchSections.some(batchSection => {
+              const [targetBatch, targetSection] = batchSection.split('::');
+              return userBatch === targetBatch && userSection === targetSection;
+            });
+            if (isInTargetBatchSection) {
+              return true;
+            }
+          }
+          
+          // Check targetBatches (if user's batch is in the list)
+          if (event.targetBatches?.length && userBatch && event.targetBatches.includes(userBatch)) {
+            return true;
+          }
+          
+          // Check targetSections (if user's section is in the list)
+          if (event.targetSections?.length && userSection && event.targetSections.includes(userSection)) {
+            return true;
+          }
+          
+          // If targeting is specified but user doesn't match, they're not eligible
+          return false;
+        });
+        
+        console.log(`👤 [EVENTS-GET] Filtered ${events.length} -> ${userEligibleEvents.length} events for user eligibility, RequestID: ${requestId}`);
+      }
+      
+      let filteredEvents = userEligibleEvents;
       
       // Filter by tag (case-insensitive) - check both category and any future tags field
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = events.filter(event => 
+        filteredEvents = userEligibleEvents.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
-        console.log(`🏷️ [EVENTS-GET] Filtered ${events.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
+        console.log(`🏷️ [EVENTS-GET] Filtered ${userEligibleEvents.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
       }
       
       // Apply limit if specified

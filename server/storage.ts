@@ -445,6 +445,10 @@ export class DatabaseStorage implements IStorage {
     if (updateData.mediaUrls !== undefined) {
       updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
     }
+    // Ensure targetBatchSections is properly formatted for JSONB field
+    if (updateData.targetBatchSections !== undefined) {
+      updateData.targetBatchSections = Array.isArray(updateData.targetBatchSections) ? updateData.targetBatchSections : [];
+    }
     const [event] = await db.update(events)
       .set(updateData)
       .where(eq(events.id, id))
