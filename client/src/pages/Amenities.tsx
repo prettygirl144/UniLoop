@@ -97,6 +97,7 @@ export default function Amenities() {
   const [location, navigate] = useLocation();
   const [showSickFoodDialog, setShowSickFoodDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showGoogleFormDialog, setShowGoogleFormDialog] = useState(false);
   const [sickFoodDateFilter, setSickFoodDateFilter] = useState('');
   const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
   const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
@@ -1188,10 +1189,11 @@ export default function Amenities() {
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
-                <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">Apply for Leave</Button>
-                  </DialogTrigger>
+                <div className="flex flex-col gap-3">
+                  <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Apply for Leave</Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Hostel Leave Application</DialogTitle>
@@ -1331,6 +1333,36 @@ export default function Amenities() {
                     </Form>
                   </DialogContent>
                 </Dialog>
+                  
+                  <Dialog open={showGoogleFormDialog} onOpenChange={setShowGoogleFormDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">Fill Form</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0">
+                      <DialogHeader className="p-6 pb-2">
+                        <DialogTitle>Hostel Leave Application Form</DialogTitle>
+                        <p className="text-small text-muted-foreground">
+                          Complete the official leave application form. Your email may be automatically populated if you're signed in to Google.
+                        </p>
+                      </DialogHeader>
+                      <div className="flex-1 p-6 pt-2">
+                        <iframe
+                          src="https://docs.google.com/forms/u/0/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?pli=1&embedded=true"
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          marginHeight={0}
+                          marginWidth={0}
+                          title="Hostel Leave Application Form"
+                          className="rounded-lg"
+                          style={{ minHeight: '600px' }}
+                          allow="camera; microphone"
+                          loading="lazy"
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardContent>
             </Card>
 
