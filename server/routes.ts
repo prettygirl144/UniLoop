@@ -2050,12 +2050,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         directoryInfo = await storage.getStudentDirectoryById(user.directoryId);
       } else {
         // Try to find by email match (normalized to lowercase)
-        directoryInfo = await storage.getStudentDirectoryByEmail(user.email?.toLowerCase());
-        
-        // If found, link the user to the directory record
-        if (directoryInfo) {
-          await storage.updateUser(userId, { directoryId: directoryInfo.id });
-          console.log(`📋 [DIRECTORY-LINK] User ${user.email} auto-linked to directory ID ${directoryInfo.id} by email match`);
+        if (user.email) {
+          directoryInfo = await storage.getStudentDirectoryByEmail(user.email.toLowerCase());
+          
+          // If found, link the user to the directory record
+          if (directoryInfo) {
+            await storage.updateUser(userId, { directoryId: directoryInfo.id });
+            console.log(`📋 [DIRECTORY-LINK] User ${user.email} auto-linked to directory ID ${directoryInfo.id} by email match`);
+          }
         }
       }
 
@@ -2073,6 +2075,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user directory info:", error);
       res.status(500).json({ message: "Failed to fetch directory information" });
+    }
+  });
+
+  // Get paginated student directory list for Directory page
+  app.get('/api/directory/list', checkAuth, async (req: any, res) => {
+    try {
+      const {
+        batch = '',
+        page = '1',
+        limit = '20',
+        query = '',
+        section = '',
+        program = ''
+      } = req.query;
+
+      const pageNum = Math.max(1, parseInt(page));
+      const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+      const offset = (pageNum - 1) * limitNum;
+
+      console.log(`📋 [DIRECTORY-LIST] Query params:`, {
+        batch, page: pageNum, limit: limitNum, query, section, program
+      });
+
+      // Get the current user's batch for default filtering
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      const userBatch = user?.batch || '';
+
+      // Use user's batch as default if no batch specified
+      const filterBatch = batch || userBatch;
+
+      const result = await storage.getStudentDirectoryList({
+        batch: filterBatch,
+        query,
+        section,
+        program,
+        page: pageNum,
+        limit: limitNum,
+        offset
+      });
+
+      console.log(`📋 [DIRECTORY-LIST] Returning ${result.data.length} students (total: ${result.total})`);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching student directory list:", error);
+      res.status(500).json({ message: "Failed to fetch student directory list" });
     }
   });
 
@@ -2102,7 +2151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Try to find by email match (normalized to lowercase)
-        const directoryInfo = await storage.getStudentDirectoryByEmail(user.email?.toLowerCase());
+        const directoryInfo = user.email ? await storage.getStudentDirectoryByEmail(user.email.toLowerCase()) : null;
         
         if (directoryInfo) {
           await storage.updateUser(user.id, { 

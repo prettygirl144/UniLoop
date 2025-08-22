@@ -1022,6 +1022,94 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(studentDirectory).orderBy(desc(studentDirectory.createdAt));
   }
 
+  async getStudentDirectoryList(params: {
+    batch?: string;
+    query?: string;
+    section?: string;
+    program?: string;
+    page: number;
+    limit: number;
+    offset: number;
+  }): Promise<{
+    data: Array<{
+      id: number;
+      fullName: string;
+      email: string;
+      rollNumber: string | null;
+      batch: string | null;
+      section: string | null;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { batch, query, section, program, page, limit, offset } = params;
+
+    // Build the base query
+    let baseQuery = db.select({
+      id: studentDirectory.id,
+      fullName: sql<string>`${studentDirectory.email}`.as('fullName'), // Use email as name for now
+      email: studentDirectory.email,
+      rollNumber: studentDirectory.rollNumber,
+      batch: studentDirectory.batch,
+      section: studentDirectory.section,
+    }).from(studentDirectory);
+
+    // Apply filters
+    const conditions = [];
+
+    if (batch && batch !== 'All') {
+      conditions.push(eq(studentDirectory.batch, batch));
+    }
+
+    if (query) {
+      const searchQuery = `%${query.toLowerCase()}%`;
+      conditions.push(
+        or(
+          sql`LOWER(${studentDirectory.email}) LIKE ${searchQuery}`,
+          sql`LOWER(${studentDirectory.rollNumber}) LIKE ${searchQuery}`
+        )
+      );
+    }
+
+    if (section) {
+      conditions.push(eq(studentDirectory.section, section));
+    }
+
+    // Apply conditions if any
+    if (conditions.length > 0) {
+      baseQuery = baseQuery.where(and(...conditions));
+    }
+
+    // Get total count
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(studentDirectory);
+    if (conditions.length > 0) {
+      countQuery = countQuery.where(and(...conditions));
+    }
+    
+    const [{ count: total }] = await countQuery;
+
+    // Get paginated data
+    const data = await baseQuery
+      .orderBy(studentDirectory.batch, studentDirectory.section, studentDirectory.rollNumber)
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      data: data.map(row => ({
+        id: row.id,
+        fullName: row.fullName || row.email,
+        email: row.email,
+        rollNumber: row.rollNumber,
+        batch: row.batch,
+        section: row.section,
+      })),
+      total,
+      page,
+      limit
+    };
+  }
+
   async getStudentByEmail(email: string): Promise<StudentDirectory | undefined> {
     const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.email, email));
     return student;
