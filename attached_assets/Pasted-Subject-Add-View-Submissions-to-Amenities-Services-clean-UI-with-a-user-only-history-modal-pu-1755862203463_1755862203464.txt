@@ -1,0 +1,76 @@
+Subject: Add “View Submissions” to Amenities → Services (clean UI) with a user-only history modal pulling from existing Records data
+Goal
+Keep Services tab uncluttered.
+Add a single “View Submissions” button that opens a modal showing the current user’s past Sick Food and Grievance submissions with status. Reuse existing Records data, but filtered to the signed-in user.
+Implement exactly:
+UI/UX
+add a small, right-aligned tertiary button: “View Submissions”.
+On click, open a modal titled “Your Submissions” with two tabs:
+Sick Food
+Grievances
+Each tab shows a paginated list (5 per page). Row layout:
+Primary: item label (e.g., “Sick Food - 22 Aug 2025 - Dinner” or “Grievance - Mess cleanliness”)
+Secondary: createdAt (relative + absolute), optional hostel/room
+Right: status chip (pending/approved/denied/resolved/open)
+Row expands on click to show details/notes.
+Empty state: “No submissions yet” with CTA buttons to open the existing forms:
+“Book Sick Food”
+“Submit Grievance”
+Do not add extra cards to the Services page; only the button and modal.
+Frontend specifics
+Create component: YourSubmissionsModal.tsx
+Props: isOpen, onClose
+Internal tabs with React Query hooks:
+Sick food key: ['userSubmissions','sickFood',{page,limit}]
+Grievances key: ['userSubmissions','grievances',{page,limit}]
+Page size default 5, show total if returned.
+Status chip color map: pending=warning, approved=success, denied=error, resolved=info, open=neutral.
+Accessibility: focus trap, ESC to close, full-height on mobile; tabs with aria-controls.
+Add the button to the Services tab header and wire to open the modal. Keep existing three cards unchanged.
+After user creates a Sick Food booking or Grievance, invalidate:
+['userSubmissions','sickFood'] or ['userSubmissions','grievances'] so the modal refreshes immediately.
+API/backend
+Reuse Records list logic but add scope=mine support.
+Endpoints to support (read-only, auth required):
+GET /api/sick-food/bookings?scope=mine&page=1&limit=5
+GET /api/grievances?scope=mine&page=1&limit=5
+scope=mine means userId === session.user.id, with existing tenant/campus scoping.
+Response shape (standardize both endpoints):
+{
+data: Array<{
+id: string
+createdAt: string
+status: 'pending'|'approved'|'denied'|'resolved'|'open'
+type: 'sickFood'|'grievance'
+title?: string
+details?: string
+dateRange?: { from: string, to?: string }
+meal?: string
+hostel?: string
+}>,
+total: number,
+page: number,
+limit: number
+}
+Exclude admin-only fields/actions. Logging: include requestId, userId, count.
+Integration details
+Sick Food mapping example:
+title: “Sick Food”
+dateRange.from = bookingDate
+meal = mealType (if available)
+status from current workflow
+Grievance mapping example:
+title = category or short title
+details = short description
+status from grievance workflow
+Keep existing admin Records tab unchanged.
+Service worker/caching
+Ensure these two GETs are network-first during development so users see immediate updates.
+No offline write caching for this modal.
+change the backend routes to update for the repo.
+Acceptance criteria
+Services tab stays visually unchanged except for the new button.
+Clicking “View Submissions” opens the modal; Sick Food and Grievances tabs load only the signed-in user’s items with correct statuses and pagination.
+Creating a new Sick Food or Grievance makes it appear in the modal after submission (cache invalidation works).
+Admin Records remain as-is; no admin actions are exposed in the modal.
+Works on mobile and desktop; accessible and keyboard-friendly.
