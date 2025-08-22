@@ -237,35 +237,6 @@ export function NotificationCenter() {
 
             <TabsContent value="notifications" className="flex-1 overflow-hidden mt-0">
               <div className="p-6 pt-4 space-y-4">
-                {/* Search and Filter */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      placeholder="Search notifications..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                      data-testid="input-search-notifications"
-                    />
-                  </div>
-                  <Select value={filter} onValueChange={setFilter}>
-                    <SelectTrigger className="w-32" data-testid="select-filter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="unread">Unread</SelectItem>
-                      <SelectItem value="important">Important</SelectItem>
-                      <SelectItem value="announcement">Announcements</SelectItem>
-                      <SelectItem value="event">Events</SelectItem>
-                      <SelectItem value="calendar">Calendar</SelectItem>
-                      <SelectItem value="forum">Forum</SelectItem>
-                      <SelectItem value="amenities">Amenities</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* Notifications List */}
                 <ScrollArea className="h-[50vh]">
