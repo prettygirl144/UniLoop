@@ -331,44 +331,7 @@ export default function Calendar() {
     queryKey: ['/api/events'],
   });
 
-  // Debug effect to track dialog state and selected event
-  useEffect(() => {
-    console.log('=== DIALOG STATE CHANGE ===');
-    console.log('showEventDetails:', showEventDetails);
-    console.log('selectedEvent:', selectedEvent);
-    if (selectedEvent) {
-      console.log('selectedEvent.id:', selectedEvent.id);
-      console.log('selectedEvent.title:', selectedEvent.title);
-      console.log('selectedEvent.isMandatory:', selectedEvent.isMandatory);
-      console.log('selectedEvent.targetBatchSections:', selectedEvent.targetBatchSections);
-    }
-    if (user) {
-      console.log('user.role:', user.role);
-      console.log('user.permissions:', user.permissions);
-    }
-    console.log('=== END DIALOG STATE ===');
-  }, [showEventDetails, selectedEvent, user]);
 
-  // Debug effect to check what events are loaded
-  useEffect(() => {
-    console.log('=== EVENTS DATA UPDATED ===');
-    console.log('Number of events:', events?.length || 0);
-    console.log('isLoading:', isLoading);
-    if (events?.length) {
-      console.log('All events:', events.map(e => `${e.id}: ${e.title}`));
-      const finalEvent = events.find(e => e.id === 12);
-      console.log('Final event (ID 12):', finalEvent);
-      if (finalEvent) {
-        console.log('Final event details:', {
-          id: finalEvent.id,
-          title: finalEvent.title,
-          isMandatory: finalEvent.isMandatory,
-          targetBatchSections: finalEvent.targetBatchSections
-        });
-      }
-    }
-    console.log('=== END EVENTS DEBUG ===');
-  }, [events, isLoading]);
 
   // Helper function to calculate event duration
   const calculateDuration = (startTime: string, endTime: string) => {
@@ -1882,10 +1845,8 @@ export default function Calendar() {
                 const hasTargetSections = selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0;
                 
                 // Debug logging with detailed analysis
-                console.log('=== ATTENDANCE BUTTON DEBUG START ===');
                 console.log('selectedEvent FULL OBJECT:', JSON.stringify(selectedEvent, null, 2));
                 console.log('user FULL OBJECT:', JSON.stringify(user, null, 2));
-                console.log('user?.role === "admin":', user?.role === 'admin');
                 console.log('user?.permissions?.attendance:', user?.permissions?.attendance);
                 console.log('hasAdminAccess:', hasAdminAccess);
                 console.log('selectedEvent.targetBatchSections:', selectedEvent.targetBatchSections);
@@ -1901,14 +1862,12 @@ export default function Calendar() {
                 
                 console.log('(hasTargetSections || selectedEvent.isMandatory):', conditionA);
                 console.log('hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory):', finalCondition);
-                console.log('=== ATTENDANCE BUTTON DEBUG END ===');
                 
                 // Show button for admin users if event has target sections or is mandatory
                 const shouldShowButton = hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory);
                 
                 console.log('FINAL DECISION - shouldShowButton:', shouldShowButton);
                 
-                // Force render button for debugging - REMOVE THIS AFTER DEBUGGING
                 return (
                   <div className="pt-2 space-y-2">
                     {/* Debug Info Panel */}

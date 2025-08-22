@@ -5,13 +5,10 @@ import "./index.css";
 import { register } from "./utils/serviceWorkerRegistration";
 
 // Verification marker - unique timestamp to confirm code is running
-console.log(`🚀 Client App Started - Version 1.0.3-TRIAGE - ${new Date().toISOString()}`);
+console.log(`🚀 Client App Started - ${new Date().toISOString()}`);
 console.log(`📍 Environment: ${import.meta.env.MODE}`);
 console.log(`🌐 Base URL: ${window.location.origin}`);
-console.log(`🍽️ Sick Food Diagnostics: TRIAGE MODE - Full visibility active`);
 console.log(`📦 Service Worker: ${navigator.serviceWorker ? 'Supported' : 'Not Supported'}`);
-console.log(`🔍 API_BASE_URL Resolution: ${window.location.origin} (same origin)`);
-console.log(`🔄 Query Key Debugging: Active`);
 
 // Step 1: Enforce single mount and render
 const root = createRoot(document.getElementById('root')!);

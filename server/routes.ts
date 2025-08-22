@@ -658,18 +658,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sheetId = parseInt(req.params.id);
       
       // Get the attendance sheet to know which batch/section to sync
-      const sheet = await storage.getAttendanceSheetByEventId(0); // Need to get sheet by sheetId
-      // TODO: Add getAttendanceSheetById method to storage
+      const sheet = await storage.getAttendanceSheetById(sheetId);
+      if (!sheet) {
+        return res.status(404).json({ message: "Attendance sheet not found" });
+      }
       
-      // For now, require batch and section in request body
-      const { batch, section } = req.body;
-      if (!batch || !section) {
-        return res.status(400).json({ message: "Batch and section are required for sync" });
+      // Use sheet's batch and section for sync
+      const { batch, section } = sheet;
+      
+      // Allow override via request body if needed
+      // Optional: allow override from request body
+      const batchToSync = req.body.batch || batch;
+      const sectionToSync = req.body.section || section;
+      
+      if (!batchToSync || !sectionToSync) {
+        return res.status(400).json({ message: "Could not determine batch and section for sync" });
       }
 
-      const updatedRecords = await storage.syncStudentsToAttendanceSheet(sheetId, batch, section);
+      const updatedRecords = await storage.syncStudentsToAttendanceSheet(sheetId, batchToSync, sectionToSync);
       res.json({
-        message: `Synced students for ${batch}::${section}`,
+        message: `Synced students for ${batchToSync}::${sectionToSync}`,
         records: updatedRecords,
       });
     } catch (error) {
@@ -1494,7 +1502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const googleStatus = await submitToGoogleForm(googleFormData, nextAttempt);
       
       // Update the application with Google Form result
-      // TODO: Implement updateHostelLeaveGoogleStatus method in storage
+      await storage.updateLeaveGoogleStatus(applicationId, googleStatus);
       console.log(`📤 [LEAVE-APP] Google Form retry result:`, googleStatus);
       
       res.json({ 
