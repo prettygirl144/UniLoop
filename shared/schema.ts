@@ -25,6 +25,18 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Student directory table - stores approved students who can log in (moved before users table)
+export const studentDirectory = pgTable("student_directory", {
+  id: serial("id").primaryKey(),
+  email: varchar("email").notNull().unique(),
+  batch: varchar("batch").notNull(),
+  section: varchar("section").notNull(),
+  rollNumber: varchar("roll_number"), // Optional secondary identifier
+  uploadedBy: varchar("uploaded_by").notNull(), // Will be a user ID but not a foreign key due to circular refs
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // User storage table (mandatory for Replit Auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
@@ -490,17 +502,6 @@ export const insertAmenitiesPermissionsSchema = createInsertSchema(amenitiesPerm
   updatedAt: true,
 });
 
-// Student directory table - stores approved students who can log in
-export const studentDirectory = pgTable("student_directory", {
-  id: serial("id").primaryKey(),
-  email: varchar("email").notNull().unique(),
-  batch: varchar("batch").notNull(),
-  section: varchar("section").notNull(),
-  rollNumber: varchar("roll_number"), // Optional secondary identifier
-  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // Student upload audit log
 export const studentUploadLogs = pgTable("student_upload_logs", {
