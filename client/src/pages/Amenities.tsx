@@ -1191,7 +1191,7 @@ export default function Amenities() {
                 </p>
                 <Dialog open={showGoogleFormDialog} onOpenChange={setShowGoogleFormDialog}>
                   <DialogTrigger asChild>
-                    <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">Fill Form</Button>
+                    <Button className="w-full text-white hover:opacity-90" style={{ backgroundColor: '#2094F3' }}>Fill Form</Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0">
                     <DialogHeader className="p-6 pb-2">
