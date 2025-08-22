@@ -206,19 +206,21 @@ export default function Home() {
                 <h3 className="text-medium font-medium text-gray-900 mb-1">
                   {directoryInfo.name}
                 </h3>
-                <div className="flex items-center space-x-3 text-small text-gray-600">
-                  {directoryInfo.rollNumber && (
+                <div className="space-y-1 text-small text-gray-600">
+                  <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1">
-                      <span className="font-medium">Roll:</span> {directoryInfo.rollNumber}
+                      <span className="font-medium">Roll:</span> 
+                      <span>{directoryInfo.rollNumber || "—"}</span>
                     </span>
-                  )}
-                  {directoryInfo.batch && (
                     <span className="flex items-center gap-1">
-                      <span className="font-medium">Batch:</span> {directoryInfo.batch}
+                      <span className="font-medium">Batch:</span> 
+                      <span>{directoryInfo.batch || "—"}</span>
                     </span>
-                  )}
+                  </div>
                   {!directoryInfo.rollNumber && !directoryInfo.batch && (
-                    <span className="text-gray-500 italic">Directory info not available</span>
+                    <div className="text-amber-600 text-xs mt-1">
+                      Not found in directory. Contact Admin.
+                    </div>
                   )}
                 </div>
               </div>
