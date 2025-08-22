@@ -95,7 +95,7 @@ export function CacheStatusIndicator() {
   if (!isDevelopment || !isAdmin) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-40 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg border border-yellow-300 dark:border-yellow-700 text-xs flex items-center gap-2 shadow-lg">
+    <div className="fixed bottom-20 left-4 z-40 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg border border-yellow-300 dark:border-yellow-700 text-xs flex items-center gap-2 shadow-lg">
       <AlertCircle size={14} />
       <span>Development Mode</span>
       <CacheRefreshButton variant="ghost" size="sm" showText={false} className="h-6 w-6 p-0 ml-2" />
