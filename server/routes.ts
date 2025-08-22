@@ -2031,6 +2031,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's directory information with roll number and batch
+  app.get('/api/directory/me', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Try to get linked directory information
+      let directoryInfo = null;
+      if (user.directoryId) {
+        directoryInfo = await storage.getStudentDirectoryById(user.directoryId);
+      } else {
+        // Try to find by email match (normalized to lowercase)
+        directoryInfo = await storage.getStudentDirectoryByEmail(user.email?.toLowerCase());
+        
+        // If found, link the user to the directory record
+        if (directoryInfo) {
+          await storage.updateUser(userId, { directoryId: directoryInfo.id });
+        }
+      }
+
+      // Return user directory info
+      const directoryResponse = {
+        name: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        email: user.email,
+        profileImageUrl: user.profileImageUrl,
+        rollNumber: directoryInfo?.rollNumber || null,
+        batch: directoryInfo?.batch || null
+      };
+
+      res.json(directoryResponse);
+    } catch (error) {
+      console.error("Error fetching user directory info:", error);
+      res.status(500).json({ message: "Failed to fetch directory information" });
+    }
+  });
+
   // Admin routes
   app.get('/api/admin/users', adminOnly(), async (req, res) => {
     try {

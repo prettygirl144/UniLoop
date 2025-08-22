@@ -2,10 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy, Activity } from 'lucide-react';
+import { Calendar, MessageSquare, Heart, Share, CalendarPlus, Users, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Trophy, Activity, GraduationCap } from 'lucide-react';
 import { Link } from 'wouter';
 import { useState } from 'react';
 import type { Announcement } from '@shared/schema';
+
+interface DirectoryInfo {
+  name: string;
+  email: string;
+  profileImageUrl?: string;
+  rollNumber: string | null;
+  batch: string | null;
+}
 import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
 import triathlonBannerBg from '@assets/triathlon-banner-bg.png';
 
@@ -37,6 +45,11 @@ export default function Home() {
 
   const { data: events = [], isLoading: eventsLoading } = useQuery<Event[]>({
     queryKey: ['/api/events'],
+  });
+
+  // Query user's directory information
+  const { data: directoryInfo, isLoading: directoryLoading } = useQuery<DirectoryInfo>({
+    queryKey: ['/api/directory/me'],
   });
 
   // Filter events for this week
@@ -158,6 +171,61 @@ export default function Home() {
           Here's what's happening at IIM Ranchi today.
         </p>
       </div>
+
+      {/* User Directory Card */}
+      {directoryLoading ? (
+        <Card className="mb-6 shadow-sm border-gray-100">
+          <CardContent className="p-4">
+            <div className="animate-pulse">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded mb-2 w-2/3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : directoryInfo && (
+        <Card className="mb-6 shadow-sm border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white">
+                {directoryInfo.profileImageUrl ? (
+                  <img 
+                    src={directoryInfo.profileImageUrl} 
+                    alt={directoryInfo.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <GraduationCap className="h-6 w-6" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-medium font-medium text-gray-900 mb-1">
+                  {directoryInfo.name}
+                </h3>
+                <div className="flex items-center space-x-3 text-small text-gray-600">
+                  {directoryInfo.rollNumber && (
+                    <span className="flex items-center gap-1">
+                      <span className="font-medium">Roll:</span> {directoryInfo.rollNumber}
+                    </span>
+                  )}
+                  {directoryInfo.batch && (
+                    <span className="flex items-center gap-1">
+                      <span className="font-medium">Batch:</span> {directoryInfo.batch}
+                    </span>
+                  )}
+                  {!directoryInfo.rollNumber && !directoryInfo.batch && (
+                    <span className="text-gray-500 italic">Directory info not available</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Mobile-optimized quick stats */}
       <div className="grid grid-cols-2 gap-3 lg:gap-4 mt-[12px] mb-8">
         <Link href="/calendar">

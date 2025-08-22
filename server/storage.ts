@@ -77,6 +77,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(userId: string, updateData: Partial<User>): Promise<User | undefined>;
   updateUserPermissions(userId: string, permissions: any): Promise<User | undefined>;
 
   // Announcements
@@ -150,6 +151,8 @@ export interface IStorage {
   getStudentDirectory(): Promise<StudentDirectory[]>;
   getStudentByEmail(email: string): Promise<StudentDirectory | undefined>;
   getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined>;
+  getStudentDirectoryById(id: number): Promise<StudentDirectory | undefined>;
+  getStudentDirectoryByEmail(email: string): Promise<StudentDirectory | undefined>;
   upsertStudentDirectory(student: InsertStudentDirectory): Promise<StudentDirectory>;
   batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]>;
   checkRollNumberConflicts(students: InsertStudentDirectory[]): Promise<{conflicts: {rollNumber: string, existingEmail: string, newEmail: string}[], validStudents: InsertStudentDirectory[]}>;
@@ -217,6 +220,15 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return user;
     }
+  }
+
+  async updateUser(userId: string, updateData: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
   }
 
   async updateUserPermissions(userId: string, permissions: any): Promise<User | undefined> {
@@ -1017,6 +1029,16 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentByRollNumber(rollNumber: string): Promise<StudentDirectory | undefined> {
     const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.rollNumber, rollNumber));
+    return student;
+  }
+
+  async getStudentDirectoryById(id: number): Promise<StudentDirectory | undefined> {
+    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.id, id));
+    return student;
+  }
+
+  async getStudentDirectoryByEmail(email: string): Promise<StudentDirectory | undefined> {
+    const [student] = await db.select().from(studentDirectory).where(eq(studentDirectory.email, email));
     return student;
   }
 

@@ -32,7 +32,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").default("student").notNull(), // student, admin, committee_club
+  role: varchar("role").default("student").notNull(), // student, admin, committee_club, staff
   permissions: jsonb("permissions").$type<{
     calendar?: boolean;
     attendance?: boolean;
@@ -50,7 +50,9 @@ export const users = pgTable("users", {
   accountType: varchar("account_type").default("primary"), // primary, alternate
   linkedAccountId: varchar("linked_account_id"), // References primary account for alternates
   isActive: boolean("is_active").default(true),
-  // Student directory fields
+  // Student directory linking
+  directoryId: integer("directory_id").references(() => studentDirectory.id), // Link to student directory record
+  // Legacy fields kept for backward compatibility
   batch: varchar("batch"), // From admin upload
   section: varchar("section"), // Sheet name from Excel
   rollNumber: varchar("roll_number"), // Optional secondary identifier for students
