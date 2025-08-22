@@ -2031,6 +2031,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Directory cache version for invalidation
+  let directoryCacheVersion = Date.now();
+
   // Get current user's directory information with roll number and batch
   app.get('/api/directory/me', checkAuth, async (req: any, res) => {
     try {
@@ -2052,22 +2055,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If found, link the user to the directory record
         if (directoryInfo) {
           await storage.updateUser(userId, { directoryId: directoryInfo.id });
+          console.log(`📋 [DIRECTORY-LINK] User ${user.email} auto-linked to directory ID ${directoryInfo.id} by email match`);
         }
       }
 
-      // Return user directory info
+      // Return user directory info with cache version
       const directoryResponse = {
         name: `${user.firstName} ${user.lastName}`.trim() || user.email,
         email: user.email,
         profileImageUrl: user.profileImageUrl,
         rollNumber: directoryInfo?.rollNumber || null,
-        batch: directoryInfo?.batch || null
+        batch: directoryInfo?.batch || null,
+        cacheVersion: directoryCacheVersion
       };
 
       res.json(directoryResponse);
     } catch (error) {
       console.error("Error fetching user directory info:", error);
       res.status(500).json({ message: "Failed to fetch directory information" });
+    }
+  });
+
+  // Directory cache invalidation endpoint (admin only)
+  app.post('/api/directory/invalidate', adminOnly(), async (req, res) => {
+    try {
+      directoryCacheVersion = Date.now();
+      console.log(`📋 [DIRECTORY-CACHE] Cache invalidated - new version: ${directoryCacheVersion}`);
+      res.json({ success: true, cacheVersion: directoryCacheVersion });
+    } catch (error) {
+      console.error("Error invalidating directory cache:", error);
+      res.status(500).json({ message: "Failed to invalidate cache" });
+    }
+  });
+
+  // Backfill existing users with directory links (admin only)
+  app.post('/api/directory/backfill', adminOnly(), async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      let linkedCount = 0;
+      let alreadyLinkedCount = 0;
+      
+      for (const user of users) {
+        if (user.directoryId) {
+          alreadyLinkedCount++;
+          continue;
+        }
+        
+        // Try to find by email match (normalized to lowercase)
+        const directoryInfo = await storage.getStudentDirectoryByEmail(user.email?.toLowerCase());
+        
+        if (directoryInfo) {
+          await storage.updateUser(user.id, { 
+            directoryId: directoryInfo.id,
+            batch: directoryInfo.batch,
+            section: directoryInfo.section
+          });
+          linkedCount++;
+          console.log(`📋 [DIRECTORY-BACKFILL] User ${user.email} linked to directory ID ${directoryInfo.id}`);
+        }
+      }
+      
+      // Invalidate cache after backfill
+      directoryCacheVersion = Date.now();
+      
+      res.json({ 
+        success: true, 
+        linkedCount, 
+        alreadyLinkedCount, 
+        totalUsers: users.length,
+        cacheVersion: directoryCacheVersion
+      });
+    } catch (error) {
+      console.error("Error during directory backfill:", error);
+      res.status(500).json({ message: "Failed to backfill directory links" });
     }
   });
 
@@ -2387,12 +2447,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No valid email addresses found in the uploaded file" });
       }
 
-      // Prepare student records for database
+      // Prepare student records for database with proper normalization
       const studentRecords = parseResult.students.map(student => ({
-        email: student.email,
+        email: student.email.toLowerCase().trim(), // Normalize to lowercase
         batch: student.batch,
         section: student.section,
-        rollNumber: student.rollNumber,
+        rollNumber: student.rollNumber ? student.rollNumber.toUpperCase().trim() : null, // Normalize to uppercase
         uploadedBy: req.currentUser.id
       }));
 
@@ -2433,11 +2493,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Successfully processed ${savedStudents.length} students from ${parseResult.sectionsProcessed.length} sections`);
 
+      // Invalidate directory cache after successful upload
+      directoryCacheVersion = Date.now();
+      console.log(`📋 [DIRECTORY-CACHE] Cache invalidated after student upload - new version: ${directoryCacheVersion}`);
+
       res.json({
         message: "Student directory uploaded successfully",
         studentsProcessed: savedStudents.length,
         sectionsCreated: parseResult.sectionsProcessed,
-        batchName: batchName.trim()
+        batchName: batchName.trim(),
+        cacheVersion: directoryCacheVersion
       });
 
     } catch (error) {

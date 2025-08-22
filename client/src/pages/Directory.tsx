@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Search, Filter, Send, Users } from 'lucide-react';
+import { Search, Filter, Send, Users, GraduationCap, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import { z } from 'zod';
 import type { User } from '@shared/schema';
+
+interface DirectoryInfo {
+  name: string;
+  email: string;
+  profileImageUrl?: string;
+  rollNumber: string | null;
+  batch: string | null;
+}
 
 const messageSchema = z.object({
   message: z.string().min(1, 'Message is required'),
@@ -29,6 +37,15 @@ export default function Directory() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch current user's directory info with fresh data
+  const { data: myDirectoryInfo, isLoading: myInfoLoading, refetch: refetchMyInfo } = useQuery<DirectoryInfo & { cacheVersion?: number }>({
+    queryKey: ['directory', 'me', myDirectoryInfo?.cacheVersion || 0],
+    queryFn: () => fetch('/api/directory/me').then(res => res.json()),
+    staleTime: 0, // Always fetch fresh data during rollout
+    refetchOnWindowFocus: true,
+  });
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ['/api/directory/users'],
@@ -116,10 +133,77 @@ export default function Directory() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-large">Student Directory</h2>
-        <Button variant="ghost" size="sm" className="text-primary p-2">
-          <Filter size={18} />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-primary p-2"
+          onClick={() => refetchMyInfo()}
+          disabled={myInfoLoading}
+        >
+          <RefreshCw className={`h-4 w-4 ${myInfoLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
+
+      {/* Current User's Directory Info */}
+      {myInfoLoading ? (
+        <Card className="mb-6 shadow-sm border-gray-100">
+          <CardContent className="p-4">
+            <div className="animate-pulse">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded mb-2 w-2/3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : myDirectoryInfo && (
+        <Card className="mb-6 shadow-sm border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-small font-medium text-gray-700">My Directory Information</h3>
+              <Badge variant="outline" className="text-xs">Me</Badge>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white">
+                {myDirectoryInfo.profileImageUrl ? (
+                  <img 
+                    src={myDirectoryInfo.profileImageUrl} 
+                    alt={myDirectoryInfo.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <GraduationCap className="h-6 w-6" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h4 className="text-medium font-medium text-gray-900 mb-1">
+                  {myDirectoryInfo.name}
+                </h4>
+                <div className="space-y-1 text-small text-gray-600">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1">
+                      <span className="font-medium">Roll:</span> 
+                      <span>{myDirectoryInfo.rollNumber || "—"}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="font-medium">Batch:</span> 
+                      <span>{myDirectoryInfo.batch || "—"}</span>
+                    </span>
+                  </div>
+                  {!myDirectoryInfo.rollNumber && !myDirectoryInfo.batch && (
+                    <div className="text-amber-600 text-xs mt-1">
+                      Not found in directory. Contact Admin.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search Bar */}
       <div className="relative">

@@ -87,6 +87,7 @@ router.get('/callback', async (req, res) => {
     let databaseError = false;
     try {
       studentRecord = await storage.getStudentByEmail(userInfo.email.toLowerCase());
+      console.log(`📋 [DIRECTORY-LINK] Email lookup for ${userInfo.email.toLowerCase()}: ${studentRecord ? 'found' : 'not_found'}`);
     } catch (error) {
       console.error('Database connection error during student lookup:', error instanceof Error ? error.message : 'Unknown error');
       databaseError = true;
@@ -134,7 +135,14 @@ router.get('/callback', async (req, res) => {
           permissions: permissions,
           batch: studentRecord?.batch || null,
           section: studentRecord?.section || null,
+          directoryId: studentRecord?.id || null,
         });
+        
+        if (studentRecord) {
+          console.log(`📋 [DIRECTORY-LINK] New user ${userInfo.email} linked to directory ID ${studentRecord.id} by email`);
+        } else {
+          console.log(`📋 [DIRECTORY-LINK] New user ${userInfo.email} not linked - no directory record found`);
+        }
       } catch (error) {
         console.error('Database connection error during user creation:', error instanceof Error ? error.message : 'Unknown error');
         databaseError = true;
@@ -144,6 +152,8 @@ router.get('/callback', async (req, res) => {
       const shouldUpgradeToAdmin = isAdminOverride && user.role !== 'admin';
       
       try {
+        // Update directory linking for existing users
+        const newDirectoryId = studentRecord?.id || user.directoryId;
         user = await storage.upsertUser({
           id: userInfo.sub,
           email: userInfo.email,
@@ -161,7 +171,14 @@ router.get('/callback', async (req, res) => {
           } : user.permissions,
           batch: studentRecord?.batch || user.batch,
           section: studentRecord?.section || user.section,
+          directoryId: newDirectoryId,
         });
+        
+        if (studentRecord && !user.directoryId) {
+          console.log(`📋 [DIRECTORY-LINK] Existing user ${userInfo.email} newly linked to directory ID ${studentRecord.id} by email`);
+        } else if (studentRecord && user.directoryId && studentRecord.id !== user.directoryId) {
+          console.log(`📋 [DIRECTORY-LINK] Existing user ${userInfo.email} directory updated from ${user.directoryId} to ${studentRecord.id}`);
+        }
       } catch (error) {
         console.error('Database connection error during user update:', error instanceof Error ? error.message : 'Unknown error');
         databaseError = true;

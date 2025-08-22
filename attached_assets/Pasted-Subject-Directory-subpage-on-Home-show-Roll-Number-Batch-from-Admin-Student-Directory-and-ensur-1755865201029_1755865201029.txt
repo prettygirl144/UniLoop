@@ -1,0 +1,85 @@
+Subject: Directory subpage on Home — show Roll Number + Batch from Admin Student Directory and ensure it updates reliably
+
+Context
+- The Home page has a “Directory” button that opens the Directory subpage.
+- Admin uploads a Student Directory (CSV). Each user should see Roll Number and Batch pulled from that source.
+- Currently the Directory subpage still shows placeholders or stale data.
+
+Objective
+- Make the Directory subpage fetch from a joined “me” API that includes rollNumber and batch from the Student Directory.
+- Ensure user–directory linking happens on login and after admin uploads.
+- Eliminate stale UI by refetching/invalidating caches and avoiding service-worker stale JSON.
+
+Tasks (implement all)
+
+1) Confirm/standardize the joined API used by the subpage
+- Ensure an authenticated read endpoint exists that returns joined fields for the signed-in user:
+  GET /api/directory/me → { name, email, photoUrl, rollNumber, batch, program?, section? }
+- If this endpoint exists already, verify it reads rollNumber and batch from the Student Directory record linked to the user (not only from denormalized user fields).
+- If denormalized fields are present on the user, keep them updated, but prefer reading through to the Student Directory record for accuracy.
+
+2) Link users to the Student Directory on login and via backfill
+- On auth success (login/signup), attempt linkage:
+  - Match directory by emailLower = user.email.toLowerCase().
+  - If not found and user provided a roll number, match by rollUpper = rollNumber.toUpperCase().
+- On match, persist on user:
+  - directoryId, rollNumber, batch (optional denormalized copy).
+- Add a one-time backfill job that links existing users by emailLower.
+- Add concise logs: “directory.link success by email/roll” or “directory.link not_found”.
+
+3) Update the Directory subpage (Home → Directory button destination)
+- Ensure the subpage fetches /api/directory/me directly (do not rely on a stale auth context).
+- Use a stable client cache key (e.g., ['directory','me']) with:
+  - staleTime: 0 (during rollout) and refetchOnWindowFocus: true
+- Render values safely with fallbacks:
+  - Roll Number: data?.rollNumber ?? '—'
+  - Batch: data?.batch ?? '—'
+- Remove any early-return conditions that hide the fields when values are empty.
+- Show a subtle note when not linked: “Not found in directory. Contact Admin.” (no blocking).
+
+4) Invalidate and refresh after changes
+- After successful login/linking, explicitly invalidate ['directory','me'] so the subpage shows fresh data immediately.
+- After an Admin directory upload completes, trigger a lightweight “directory cache bust”:
+  - Option A: increment a server-side version number and return it from /api/directory/me; include that version in the client query key.
+  - Option B: expose an admin-only POST /api/directory/invalidate that bumps a server cache version; client key includes that version.
+
+5) Prevent stale data from the service worker
+- During development and initial rollout, set network-first for GET /api/directory/me.
+- Bump the service-worker version and ensure it does not cache old JSON for this endpoint.
+- Provide a one-time instruction in the deployment notes to clear old SW caches.
+
+6) CSV normalization on upload (if not already)
+- On Admin upload, normalize:
+  - emailLower = trim(email).toLowerCase()
+  - rollUpper = trim(rollNumber).toUpperCase()
+- Maintain quick indices:
+  - by email: dir:index:email:{emailLower} → studentId
+  - by roll: dir:index:roll:{rollUpper} → studentId
+
+7) QA checklist (must pass)
+- Log out → log in as a user present in the uploaded directory:
+  - Open Home → Directory subpage via the “Directory” button.
+  - It should show correct Roll Number and Batch.
+- Change that user’s batch in the Admin CSV and re-upload:
+  - Trigger the cache invalidation step.
+  - Reopen the Directory subpage; batch reflects the change.
+- User not in directory:
+  - Sees “—” values and the non-blocking note; no errors.
+- Hard reload and navigate back; still correct (no SW-stale responses).
+
+Deliverables (files to touch; adjust paths to repo)
+- Server
+  - directory.me endpoint (ensure joined read + returns rollNumber and batch)
+  - auth login callback/linker (email/roll match + save linkage)
+  - admin upload handler (CSV normalize + upsert + indices)
+  - optional directory cache version/invalidate
+- Client
+  - Directory subpage component (Home → Directory):
+    - Fetch /api/directory/me
+    - Render Roll Number + Batch with fallbacks
+    - Invalidate/refetch on login and after admin upload success (if this page is open)
+  - Query client wiring to set staleTime/refetchOnWindowFocus
+  - Optional: small “Linked to student directory” dev-only debug line in console
+
+Acceptance criteria
+- The Directory subpage (opened via Home → “Directory” button) displays the user’s Roll Number and Batch sourced from the Admin Student Directory, updates after admin re-uploads, and never shows stale values due to caching.
