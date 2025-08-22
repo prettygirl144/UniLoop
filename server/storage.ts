@@ -1103,7 +1103,7 @@ export class DatabaseStorage implements IStorage {
 
     // Get paginated data
     const data = await baseQuery
-      .orderBy(studentDirectory.batch, studentDirectory.section, studentDirectory.rollNumber)
+      .orderBy(studentDirectory.rollNumber, studentDirectory.batch, studentDirectory.section)
       .limit(limit)
       .offset(offset);
 

@@ -1,20 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useForm } from 'react-hook-form';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Search, Filter, Send, Users, GraduationCap, RefreshCw, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { isUnauthorizedError } from '@/lib/authUtils';
-import { z } from 'zod';
-import type { User } from '@shared/schema';
+import { Search, Users, GraduationCap, RefreshCw, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 interface DirectoryInfo {
@@ -41,21 +32,11 @@ interface StudentListResponse {
   limit: number;
 }
 
-const messageSchema = z.object({
-  message: z.string().min(1, 'Message is required'),
-});
-
-type MessageForm = z.infer<typeof messageSchema>;
-
 export default function Directory() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStudent, setSelectedStudent] = useState<StudentListItem | null>(null);
-  const [showMessageDialog, setShowMessageDialog] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Parse URL parameters
   const urlParams = useMemo(() => {
@@ -147,60 +128,6 @@ export default function Directory() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const messageMutation = useMutation({
-    mutationFn: async (data: MessageForm & { recipientEmail: string }) => {
-      // This would typically send to a messaging API
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return data;
-    },
-    onSuccess: () => {
-      setShowMessageDialog(false);
-      form.reset();
-      toast({
-        title: 'Message Sent',
-        description: 'Your message has been sent successfully!',
-      });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: 'Error',
-        description: 'Failed to send message. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const form = useForm<MessageForm>({
-    defaultValues: {
-      message: '',
-    },
-  });
-
-  const handleSendMessage = (data: MessageForm) => {
-    if (selectedStudent) {
-      messageMutation.mutate({
-        ...data,
-        recipientEmail: selectedStudent.email,
-      });
-    }
-  };
-
-  const handleContactStudent = (student: StudentListItem) => {
-    setSelectedStudent(student);
-    setShowMessageDialog(true);
-  };
 
   // Pagination handlers
   const totalPages = Math.ceil((studentList?.total || 0) / 20);
@@ -395,63 +322,6 @@ export default function Directory() {
                           </div>
                         </div>
                       </div>
-                      <Dialog open={showMessageDialog && selectedStudent?.id === student.id} onOpenChange={setShowMessageDialog}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleContactStudent(student)}
-                            className="flex items-center space-x-1"
-                            data-testid={`button-message-${student.id}`}
-                          >
-                            <Send size={14} />
-                            <span>Message</span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Send Message to {student.fullName}</DialogTitle>
-                          </DialogHeader>
-                          <Form {...form}>
-                            <form onSubmit={form.handleSubmit(handleSendMessage)} className="space-y-4">
-                              <FormField
-                                control={form.control}
-                                name="message"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Message</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Type your message here..."
-                                        {...field}
-                                        data-testid="textarea-message"
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex justify-end space-x-2">
-                                <Button 
-                                  type="button" 
-                                  variant="outline" 
-                                  onClick={() => setShowMessageDialog(false)}
-                                  data-testid="button-cancel-message"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button 
-                                  type="submit" 
-                                  disabled={messageMutation.isPending}
-                                  data-testid="button-send-message"
-                                >
-                                  {messageMutation.isPending ? 'Sending...' : 'Send'}
-                                </Button>
-                              </div>
-                            </form>
-                          </Form>
-                        </DialogContent>
-                      </Dialog>
                     </div>
                   </CardContent>
                 </Card>
