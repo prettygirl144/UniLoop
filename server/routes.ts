@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 // Replit auth removed - using Auth0 only
-import { checkAuth, handleAuthError, extractUser } from "./auth0Config";
+import { checkAuth, handleAuthError, extractUser, requireAdmin } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import healthRoutes from "./routes/health";
 import {
@@ -567,7 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Regenerate attendance sheets for an event (admin only)
-  app.post('/api/events/:id/regenerate-attendance', adminOnly(), async (req: any, res) => {
+  app.post('/api/events/:id/regenerate-attendance', requireAdmin, async (req: any, res) => {
     try {
       const eventId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -2307,7 +2307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get upload logs (Admin only)
-  app.get('/api/admin/student-uploads', adminOnly(), async (req: any, res) => {
+  app.get('/api/admin/student-uploads', requireAdmin, async (req: any, res) => {
     try {
       const logs = await storage.getUploadLogs();
       res.json(logs);
@@ -2318,7 +2318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Student directory upload (Admin only)
-  app.post('/api/admin/upload-students', adminOnly(), upload.single('studentsFile'), async (req: any, res) => {
+  app.post('/api/admin/upload-students', requireAdmin, upload.single('studentsFile'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -2625,7 +2625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint to send push notifications (admin only for testing)
-  app.post('/api/push/test', adminOnly(), async (req: any, res) => {
+  app.post('/api/push/test', requireAdmin, async (req: any, res) => {
     try {
       const { title, body, userEmail } = req.body;
       

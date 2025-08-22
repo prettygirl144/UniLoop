@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { clearAllCaches, forceUpdate } from '@/utils/serviceWorkerRegistration';
 import { useToast } from '@/hooks/use-toast';
+import { useIsAdmin } from '@/hooks/useAuth';
 
 interface CacheRefreshButtonProps {
   variant?: 'default' | 'outline' | 'ghost';
@@ -19,14 +20,15 @@ export default function CacheRefreshButton({
 }: CacheRefreshButtonProps) {
   const [isClearing, setIsClearing] = useState(false);
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
 
   // Check if we're in development environment
   const isDevelopment = window.location.hostname === 'localhost' || 
                        window.location.hostname.includes('replit.dev') ||
                        window.location.hostname.includes('replit.app');
 
-  // Only show in development or when there are cache issues
-  if (!isDevelopment) return null;
+  // Only show to admins in development mode as per requirements
+  if (!isDevelopment || !isAdmin) return null;
 
   const handleClearCache = async () => {
     setIsClearing(true);
@@ -82,13 +84,15 @@ export default function CacheRefreshButton({
   );
 }
 
-// Development cache status component
+// Development cache status component - admin only per requirements
 export function CacheStatusIndicator() {
+  const { isAdmin } = useIsAdmin();
   const isDevelopment = window.location.hostname === 'localhost' || 
                        window.location.hostname.includes('replit.dev') ||
                        window.location.hostname.includes('replit.app');
 
-  if (!isDevelopment) return null;
+  // Only show to admins in development mode as per requirements
+  if (!isDevelopment || !isAdmin) return null;
 
   return (
     <div className="fixed bottom-4 left-4 z-40 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded-lg border border-yellow-300 dark:border-yellow-700 text-xs flex items-center gap-2 shadow-lg">

@@ -89,9 +89,25 @@ export const extractUser = (req: any) => {
   return null;
 };
 
+// Admin authorization middleware as per requirements
+export const requireAdmin: RequestHandler = (req: any, res, next) => {
+  const user = extractUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  
+  const isAdmin = user.role === 'admin';
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  
+  next();
+};
+
 export default {
   checkAuth,
   checkAuth0Jwt,
   handleAuthError,
   extractUser,
+  requireAdmin,
 };

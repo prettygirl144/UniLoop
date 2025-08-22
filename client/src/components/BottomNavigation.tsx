@@ -1,6 +1,6 @@
 import { useLocation, Link } from 'wouter';
 import { Home, Calendar, MessageSquare, Utensils, Users, Settings, Image, Trophy } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useIsAdmin } from '@/hooks/useAuth';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', id: 'dashboard' },
@@ -14,10 +14,10 @@ const adminNavItem = { path: '/admin', icon: Settings, label: 'Admin', id: 'admi
 
 export default function BottomNavigation() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
   
-  // Add admin item for admin users
-  const allNavItems = (user as any)?.role === 'admin' ? [...navItems, adminNavItem] : navItems;
+  // Add admin item for admin users only (per requirements - not visible to non-admins)
+  const allNavItems = isAdmin ? [...navItems, adminNavItem] : navItems;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-gray-200 z-40

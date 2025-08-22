@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { CacheStatusIndicator } from "@/components/CacheRefreshButton";
+import AdminGuard from "@/components/AdminGuard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
@@ -65,18 +66,18 @@ function Router() {
             <Route path="/hostel/leave/records" component={Amenities} />
             <Route path="/community" component={Forum} />
             
-            {/* Admin routes */}
-            <Route path="/admin" component={Admin} />
-            <Route path="/admin/users" component={Admin} />
-            <Route path="/admin/students" component={Admin} />
-            <Route path="/admin/logs" component={Admin} />
-            <Route path="/admin/amenities" component={Admin} />
-            <Route path="/admin/amenities/records" component={Admin} />
-            <Route path="/admin/forum" component={Admin} />
-            <Route path="/admin/triathlon" component={Admin} />
-            <Route path="/admin/events" component={Admin} />
-            <Route path="/admin/announcements" component={Admin} />
-            <Route path="/admin/leave" component={Admin} />
+            {/* Admin routes - protected by AdminGuard per requirements */}
+            <Route path="/admin" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/users" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/students" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/logs" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/amenities" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/amenities/records" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/forum" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/triathlon" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/events" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/announcements" component={() => <AdminGuard><Admin /></AdminGuard>} />
+            <Route path="/admin/leave" component={() => <AdminGuard><Admin /></AdminGuard>} />
             
             {/* Auth routes */}
             <Route path="/auth/login" component={Auth0Login} />
