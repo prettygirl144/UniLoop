@@ -297,35 +297,45 @@ export default function Directory() {
         ) : (
           <>
             <div className="space-y-3">
-              {studentList.data.map((student) => (
-                <Card key={student.id} className="transition-all hover:shadow-md" data-testid={`card-student-${student.id}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+              {studentList.data.map((student) => {
+                // Extract name from email if fullName contains an email
+                const isEmailInFullName = student.fullName && student.fullName.includes('@');
+                const displayName = isEmailInFullName ? 
+                  student.fullName.split('@')[0].replace(/[._]/g, ' ').split(' ').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                  ).join(' ') : 
+                  student.fullName;
+
+                return (
+                  <Card key={student.id} className="transition-all hover:shadow-md" data-testid={`card-student-${student.id}`}>
+                    <CardContent className="p-3 sm:p-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white">
-                          <UserIcon className="h-6 w-6" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                         </div>
-                        <div className="flex-1">
-                          <h4 className="text-medium font-medium text-gray-900">
-                            {student.fullName}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-small sm:text-medium font-medium text-gray-900 truncate">
+                            {displayName || "Unknown Student"}
                           </h4>
-                          <div className="flex items-center gap-4 text-small text-gray-600 mt-1">
-                            <span className="font-mono">
-                              {student.rollNumber || "—"}
-                            </span>
-                            <span>
-                              {student.batch || "—"}
-                            </span>
-                            <span className="truncate">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-small text-gray-600 mt-1">
+                            <div className="flex items-center gap-2 sm:gap-4">
+                              <span className="font-mono text-xs">
+                                {student.rollNumber || "—"}
+                              </span>
+                              <span className="text-xs sm:text-small">
+                                {student.batch || "—"}
+                              </span>
+                            </div>
+                            <span className="truncate text-xs sm:text-small max-w-full">
                               {student.email}
                             </span>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Pagination */}
