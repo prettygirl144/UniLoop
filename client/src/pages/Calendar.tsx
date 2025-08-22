@@ -774,7 +774,7 @@ export default function Calendar() {
   }
 
   return (
-    <div className="w-full min-h-screen
+    <div className="w-full
                     /* Mobile: full width with padding */
                     p-4 space-y-4
                     /* Desktop: more generous spacing */
