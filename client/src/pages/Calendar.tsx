@@ -733,6 +733,13 @@ export default function Calendar() {
       });
     }
     
+    // Reset roll number attendees to the ones from the existing event
+    // This ensures we don't accumulate attendees from previous edits
+    setRollNumberAttendees([]);
+    
+    // Convert roll number attendees from emails back to full attendee objects if needed
+    // For now, we'll clear them and let the user re-upload if they want to change targeting
+    
     form.reset({
       title: event.title,
       description: event.description || '',

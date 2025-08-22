@@ -457,10 +457,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEvent(id: number): Promise<void> {
-    // First delete related RSVPs
+    // First get all attendance sheets for this event
+    const eventAttendanceSheets = await db.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+    
+    // Delete attendance records for each sheet
+    for (const sheet of eventAttendanceSheets) {
+      await db.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
+    }
+    
+    // Delete attendance sheets
+    await db.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+    
+    // Delete related RSVPs
     await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
     
-    // Then delete the event
+    // Finally delete the event
     await db.delete(events).where(eq(events.id, id));
   }
 
