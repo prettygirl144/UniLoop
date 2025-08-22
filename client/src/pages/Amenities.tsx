@@ -1193,14 +1193,14 @@ export default function Amenities() {
                   <DialogTrigger asChild>
                     <Button className="w-full text-white hover:opacity-90" style={{ backgroundColor: '#2094F3' }}>Fill Form</Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0">
-                    <DialogHeader className="p-6 pb-2">
+                  <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0 flex flex-col">
+                    <DialogHeader className="p-4 pb-2 flex-shrink-0">
                       <DialogTitle>Hostel Leave Application Form</DialogTitle>
                       <p className="text-small text-muted-foreground">
                         Complete the official leave application form. Your email may be automatically populated if you're signed in to Google.
                       </p>
                     </DialogHeader>
-                    <div className="flex-1 p-6 pt-2">
+                    <div className="flex-1 p-4 pt-2 overflow-hidden">
                       <iframe
                         src="https://docs.google.com/forms/u/0/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?pli=1&embedded=true"
                         width="100%"
@@ -1210,7 +1210,6 @@ export default function Amenities() {
                         marginWidth={0}
                         title="Hostel Leave Application Form"
                         className="rounded-lg"
-                        style={{ minHeight: '600px' }}
                         allow="camera; microphone"
                         loading="lazy"
                       />
