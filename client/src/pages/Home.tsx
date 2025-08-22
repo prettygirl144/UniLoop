@@ -328,7 +328,7 @@ export default function Home() {
                     Management Triathlon
                   </h3>
                   <p className="text-white/90 mt-1 bg-[#635d4b7d] pl-[5px] pr-[5px] ml-[0px] mr-[0px]">
-                    View Leaderboard and News
+                    Leaderboard and News
                   </p>
                 </div>
               </div>
