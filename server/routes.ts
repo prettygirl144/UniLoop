@@ -1267,9 +1267,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get sick food bookings with date filter - Enhanced with diagnostics
-  app.get('/api/amenities/sick-food', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
+  app.get('/api/amenities/sick-food', async (req: any, res) => {
     const requestId = req.headers['x-request-id'] || `sf_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const startTime = Date.now();
+    
+    // Check authentication first
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const scope = req.query.scope as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 5;
     
     console.log(`📋 [SICK-FOOD-GET] Fetching bookings - RequestID: ${requestId}`);
     console.log(`👤 [SICK-FOOD-GET] User session:`, {
@@ -1277,43 +1286,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       userId: req.session?.user?.id,
       userEmail: req.session?.user?.email,
       role: req.session?.user?.role,
-      hasPermissions: !!req.session?.user?.permissions,
-      sickFoodAccess: req.session?.user?.permissions?.sickFoodAccess,
+      scope,
+      page,
+      limit,
       requestId
     });
     
+    // If scope=mine, user can access their own bookings without admin permission
+    if (scope !== 'mine') {
+      // For admin access to all bookings, use the authorization middleware
+      const authResult = await new Promise<boolean>((resolve) => {
+        authorizeAmenities('sickFoodAccess')(req as any, res as any, (err: any) => {
+          if (err) resolve(false);
+          else resolve(true);
+        });
+      });
+      
+      if (!authResult) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+    }
+    
     try {
       const date = req.query.date ? new Date(req.query.date as string) : undefined;
-      console.log(`🔍 [SICK-FOOD-GET] Query params - Date filter: ${date ? date.toISOString() : 'None'}, RequestID: ${requestId}`);
+      const userId = scope === 'mine' ? req.session.user.id : undefined;
       
-      const bookings = await storage.getSickFoodBookings(date);
+      console.log(`🔍 [SICK-FOOD-GET] Query params - Date filter: ${date ? date.toISOString() : 'None'}, UserScope: ${userId || 'All'}, RequestID: ${requestId}`);
+      
+      const bookings = await storage.getSickFoodBookings(date, userId);
+      
+      // Apply pagination for scope=mine
+      let paginatedBookings = bookings;
+      let total = bookings.length;
+      
+      if (scope === 'mine') {
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        paginatedBookings = bookings.slice(startIndex, endIndex);
+      }
+      
       const responseTime = Date.now() - startTime;
       
-      console.log(`✅ [SICK-FOOD-GET] Bookings retrieved - Count: ${bookings.length}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
-      console.log(`📊 [SICK-FOOD-GET] Bookings sample:`, bookings.slice(0, 2).map(b => ({ id: b.id, date: b.date, mealType: b.mealType, userId: b.userId })));
+      console.log(`✅ [SICK-FOOD-GET] Bookings retrieved - Count: ${paginatedBookings.length}, Total: ${total}, RequestID: ${requestId}, Response time: ${responseTime}ms`);
+      console.log(`📊 [SICK-FOOD-GET] Bookings sample:`, paginatedBookings.slice(0, 2).map(b => ({ id: b.id, date: b.date, mealType: b.mealType, userId: b.userId })));
       
-      // TRIAGE: Add comprehensive diagnostics to response
-      const diagnosticResponse = {
-        success: true,
-        data: bookings,
-        _triage: {
-          requestId,
-          responseTime: `${responseTime}ms`,
-          totalCount: bookings.length,
-          appliedFilters: {
-            date: date ? date.toISOString() : null,
-            userScope: req.session?.user?.id,
-            role: req.session?.user?.role
-          },
-          sampleIds: bookings.slice(0, 3).map(b => b.id),
-          firstCreatedAt: bookings.length > 0 ? bookings[bookings.length - 1].createdAt : null,
-          lastCreatedAt: bookings.length > 0 ? bookings[0].createdAt : null,
-          timestamp: new Date().toISOString()
-        }
-      };
-      
-      console.log(`🧪 [SICK-FOOD-GET] TRIAGE Response:`, diagnosticResponse._triage);
-      res.json(bookings); // Keep original format for compatibility
+      // Format response based on scope
+      if (scope === 'mine') {
+        const formattedData = paginatedBookings.map(booking => ({
+          id: booking.id.toString(),
+          createdAt: (booking.createdAt || new Date()).toISOString(),
+          status: 'approved', // Sick food bookings are always approved when created
+          type: 'sickFood',
+          title: 'Sick Food',
+          details: booking.specialRequirements || 'No special requirements',
+          dateRange: { from: booking.date.toISOString() },
+          meal: booking.mealType,
+          hostel: `Room ${booking.roomNumber}`,
+        }));
+        
+        res.json({
+          data: formattedData,
+          total,
+          page,
+          limit,
+        });
+      } else {
+        // Keep original format for admin compatibility
+        res.json(bookings);
+      }
     } catch (error) {
       const responseTime = Date.now() - startTime;
       console.error(`❌ [SICK-FOOD-GET] Error fetching bookings - RequestID: ${requestId}, Response time: ${responseTime}ms:`, error);
@@ -1780,11 +1820,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get grievances
-  app.get('/api/grievances', authorizeAmenities('grievanceAccess'), async (req: any, res) => {
+  app.get('/api/grievances', async (req: any, res) => {
+    // Check authentication first
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const scope = req.query.scope as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 5;
+    
+    // If scope=mine, user can access their own grievances without admin permission
+    if (scope !== 'mine') {
+      // For admin access to all grievances, use the authorization middleware
+      const authResult = await new Promise<boolean>((resolve) => {
+        authorizeAmenities('grievanceAccess')(req as any, res as any, (err: any) => {
+          if (err) resolve(false);
+          else resolve(true);
+        });
+      });
+      
+      if (!authResult) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+    }
+    
     try {
       const category = req.query.category as string;
-      const grievances = await storage.getGrievances(category);
-      res.json(grievances);
+      const userId = scope === 'mine' ? req.session.user.id : undefined;
+      
+      const grievances = await storage.getGrievances(category, userId);
+      
+      // Apply pagination for scope=mine
+      let paginatedGrievances = grievances;
+      let total = grievances.length;
+      
+      if (scope === 'mine') {
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        paginatedGrievances = grievances.slice(startIndex, endIndex);
+      }
+      
+      // Format response based on scope
+      if (scope === 'mine') {
+        const formattedData = paginatedGrievances.map(grievance => ({
+          id: grievance.id.toString(),
+          createdAt: (grievance.createdAt || new Date()).toISOString(),
+          status: grievance.status as 'pending' | 'open' | 'resolved',
+          type: 'grievance',
+          title: grievance.category,
+          details: grievance.description,
+          hostel: `Room ${grievance.roomNumber}`,
+        }));
+        
+        res.json({
+          data: formattedData,
+          total,
+          page,
+          limit,
+        });
+      } else {
+        // Keep original format for admin compatibility
+        res.json(grievances);
+      }
     } catch (error) {
       console.error("Error fetching grievances:", error);
       res.status(500).json({ message: "Failed to fetch grievances" });

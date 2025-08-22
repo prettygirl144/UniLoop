@@ -29,8 +29,10 @@ import {
   FileSpreadsheet,
   Check,
   X,
-  Filter
+  Filter,
+  History
 } from 'lucide-react';
+import { YourSubmissionsModal } from '@/components/YourSubmissionsModal';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -98,6 +100,7 @@ export default function Amenities() {
   const [sickFoodDateFilter, setSickFoodDateFilter] = useState('');
   const [showGrievanceDialog, setShowGrievanceDialog] = useState(false);
   const [showMenuUploadDialog, setShowMenuUploadDialog] = useState(false);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [editingMenu, setEditingMenu] = useState<{id: number, date: string, mealType: string, items: string[]} | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -373,6 +376,9 @@ export default function Amenities() {
       queryClient.invalidateQueries({ queryKey: currentBaseKey, exact: true });
       queryClient.invalidateQueries({ queryKey: safetyKey, exact: true });
       
+      // Invalidate user submissions cache for the modal
+      queryClient.invalidateQueries({ queryKey: ['userSubmissions', 'sickFood'] });
+      
       console.log(`🔄 [CLIENT-TRIAGE] Cache invalidation completed`);
     },
     onError: (error) => {
@@ -442,6 +448,9 @@ export default function Amenities() {
         description: 'Grievance submitted successfully!',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/grievances'] });
+      
+      // Invalidate user submissions cache for the modal
+      queryClient.invalidateQueries({ queryKey: ['userSubmissions', 'grievances'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -994,6 +1003,24 @@ export default function Amenities() {
         </TabsContent>
 
         <TabsContent value="services" className="space-y-4">
+          {/* Services Tab Header with View Submissions Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Services</h2>
+              <p className="text-sm text-muted-foreground">Request amenities and submit feedback</p>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowSubmissionsModal(true)}
+              className="flex items-center gap-2"
+              data-testid="button-view-submissions"
+            >
+              <History className="h-4 w-4" />
+              View Submissions
+            </Button>
+          </div>
+          
           <div className="flex flex-col gap-4">
             {/* Sick Food Booking */}
             <Card className="w-full">
@@ -1694,6 +1721,20 @@ export default function Amenities() {
           </Form>
         </DialogContent>
       </Dialog>
+      
+      {/* Your Submissions Modal */}
+      <YourSubmissionsModal
+        isOpen={showSubmissionsModal}
+        onClose={() => setShowSubmissionsModal(false)}
+        onBookSickFood={() => {
+          setShowSubmissionsModal(false);
+          setShowSickFoodDialog(true);
+        }}
+        onSubmitGrievance={() => {
+          setShowSubmissionsModal(false);
+          setShowGrievanceDialog(true);
+        }}
+      />
     </div>
   );
 }

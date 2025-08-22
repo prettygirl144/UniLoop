@@ -782,17 +782,25 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]> {
+  async getSickFoodBookings(date?: Date, userId?: string): Promise<SickFoodBooking[]> {
+    const conditions = [];
+    
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
       
-      return await db.select().from(sickFoodBookings).where(and(
-        gte(sickFoodBookings.date, startDate),
-        lte(sickFoodBookings.date, endDate)
-      )).orderBy(desc(sickFoodBookings.createdAt));
+      conditions.push(gte(sickFoodBookings.date, startDate));
+      conditions.push(lte(sickFoodBookings.date, endDate));
+    }
+    
+    if (userId) {
+      conditions.push(eq(sickFoodBookings.userId, userId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(sickFoodBookings).where(and(...conditions)).orderBy(desc(sickFoodBookings.createdAt));
     }
     
     return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
@@ -880,9 +888,19 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getGrievances(category?: string): Promise<Grievance[]> {
+  async getGrievances(category?: string, userId?: string): Promise<Grievance[]> {
+    const conditions = [];
+    
     if (category) {
-      return await db.select().from(grievances).where(eq(grievances.category, category)).orderBy(desc(grievances.createdAt));
+      conditions.push(eq(grievances.category, category));
+    }
+    
+    if (userId) {
+      conditions.push(eq(grievances.userId, userId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(grievances).where(and(...conditions)).orderBy(desc(grievances.createdAt));
     }
     
     return await db.select().from(grievances).orderBy(desc(grievances.createdAt));
