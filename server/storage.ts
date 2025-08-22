@@ -798,6 +798,26 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateWeeklyMenu(id: number, updates: { mealType?: string; items?: string }): Promise<WeeklyMenu | undefined> {
+    const { mealType, items } = updates;
+    
+    if (mealType && items !== undefined) {
+      // Update specific meal type
+      const updateData: any = { updatedAt: new Date() };
+      updateData[mealType] = items;
+      
+      const [updated] = await db
+        .update(weeklyMenu)
+        .set(updateData)
+        .where(eq(weeklyMenu.id, id))
+        .returning();
+      
+      return updated;
+    }
+    
+    return undefined;
+  }
+
   async bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking> {
     const [created] = await db
       .insert(sickFoodBookings)

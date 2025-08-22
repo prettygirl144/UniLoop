@@ -1256,6 +1256,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Edit individual menu items (RBAC protected)
+  app.put('/api/amenities/menu/:id', authorizeAmenities('menuUpload'), async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const menuId = parseInt(req.params.id);
+      const { mealType, items } = req.body;
+
+      if (!mealType || items === undefined) {
+        return res.status(400).json({ message: "mealType and items are required" });
+      }
+
+      // Validate mealType
+      const validMealTypes = ['breakfast', 'lunch', 'eveningSnacks', 'dinner'];
+      if (!validMealTypes.includes(mealType)) {
+        return res.status(400).json({ message: "Invalid meal type" });
+      }
+
+      // Convert items array to comma-separated string if needed
+      const itemsString = Array.isArray(items) ? items.join(', ') : items;
+
+      const updated = await storage.updateWeeklyMenu(menuId, { mealType, items: itemsString });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Menu not found" });
+      }
+
+      res.json({
+        message: `${mealType} updated successfully`,
+        data: updated
+      });
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      res.status(500).json({ message: "Failed to update menu" });
+    }
+  });
+
   // Book sick food - Enhanced with comprehensive diagnostics
   app.post('/api/amenities/sick-food', checkAuth, async (req: any, res) => {
     const requestId = req.headers['x-request-id'] || `sf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

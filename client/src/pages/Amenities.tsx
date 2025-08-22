@@ -756,7 +756,7 @@ export default function Amenities() {
 
   // Edit menu functionality
   const editMenuMutation = useMutation({
-    mutationFn: async ({ id, items, mealType }: { id: number; items: string[]; mealType?: string }) => {
+    mutationFn: async ({ id, items, mealType }: { id: number; items: string | string[]; mealType?: string }) => {
       // If editing a specific meal type, send the mealType and items
       const payload = mealType ? { items, mealType } : { items };
       await apiRequest('PUT', `/api/amenities/menu/${id}`, payload);
@@ -800,12 +800,11 @@ export default function Amenities() {
   const handleSaveMenuEdit = (data: { items: string }) => {
     if (!editingMenu) return;
     
-    // For specific meal type edits (breakfast, lunch, etc.), we need to update just that meal type
+    // For specific meal type edits, send the items as a string (comma-separated)
     if (editingMenu.mealType && editingMenu.mealType !== 'all') {
-      const items = data.items; // Keep as comma-separated string for meal types
       editMenuMutation.mutate({ 
         id: editingMenu.id, 
-        items: [items], // Wrap in array for API consistency
+        items: data.items, // Send as string, not array
         mealType: editingMenu.mealType 
       });
     } else {
