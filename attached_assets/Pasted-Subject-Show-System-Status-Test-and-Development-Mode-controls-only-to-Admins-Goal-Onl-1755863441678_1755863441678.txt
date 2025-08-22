@@ -1,0 +1,106 @@
+Subject: Show “System Status”, “Test”, and “Development Mode” controls only to Admins
+
+Goal
+- Only users with the Admin role should see and use:
+  - System Status widget/section
+  - Test button/action
+  - Development Mode cache/refresh/debug controls
+- Non-admins must not see these controls in the UI or access their APIs/routes.
+
+Implement exactly:
+
+1) Derive an isAdmin flag once
+- In your auth/session context or hook:
+  const isAdmin = !!session?.user && (session.user.role === 'admin' || session.user.roles?.includes?.('admin'));
+- Export/use this helper everywhere admin-only UI is gated.
+
+2) Gate UI rendering
+- Wherever these controls appear (Dashboard/Home card rail, footer/dev bar, headers):
+  {isAdmin && <SystemStatus />}
+  {isAdmin && <TestButton />}
+  {isAdmin && <DevToolsBar />}
+- For non-admins, these elements should not be in the DOM at all (not just hidden).
+
+3) Protect routes with an AdminGuard
+- Wrap any admin-only pages or panels (e.g., /admin/status, /admin/tools):
+  function AdminGuard({ children }) {
+    const { isAdmin, isLoading } = useSession();
+    if (isLoading) return <Spinner />;
+    if (!isAdmin) return <Unauthorized />; // or redirect('/')
+    return children;
+  }
+- Usage:
+  <Route path="/admin/status" element={<AdminGuard><AdminStatusPage/></AdminGuard>} />
+
+4) Enforce server-side authorization
+- For every endpoint used by these controls (status probes, test actions, cache purge, debug endpoints):
+  - Check role=admin using the authenticated session on the server.
+  - If not admin: return 403 { error: 'forbidden' }.
+- Do not rely solely on hidden UI.
+
+5) Remove from navigation and tab order for non-admins
+- Admin menu items:
+  {isAdmin && <NavItem to="/admin/status" />}
+- Do not render disabled placeholders; omit entirely for non-admins.
+
+6) Optional: feature flag fallback
+- Add a feature flag that also requires admin:
+  const canSeeDevBar = isAdmin && flags.devBar !== false;
+- Lets you disable dev controls globally without code changes.
+
+7) QA checklist
+- Admin account:
+  - Sees System Status, Test button, and Development Mode bar.
+  - Can access /admin/status directly; APIs return 200.
+- Non-admin account:
+  - Controls are not visible (not present in DOM).
+  - Visiting /admin/status shows Unauthorized or redirects.
+  - Calling admin APIs returns 403.
+- Signed-out:
+  - Controls hidden; admin APIs blocked.
+
+8) Files to touch (adjust to project paths)
+- src/auth/session.ts or hooks/useSession.ts (add isAdmin)
+- Components that render the controls:
+  - components/SystemStatus.tsx
+  - components/TestButton.tsx
+  - components/DevToolsBar.tsx
+  - layouts/Header/Footer where these are placed
+- Router:
+  - App routes file: add AdminGuard to admin-only pages
+- Server:
+  - routes/api/status.ts, routes/api/test.ts, routes/api/cache.ts (add admin checks)
+
+9) Minimal code snippets
+
+Client guard helper:
+- export function useIsAdmin() {
+    const { session, isLoading } = useSession();
+    const isAdmin = !!session?.user && (session.user.role === 'admin' || session.user.roles?.includes?.('admin'));
+    return { isAdmin, isLoading };
+  }
+
+AdminGuard:
+- function AdminGuard({ children }) {
+    const { isAdmin, isLoading } = useIsAdmin();
+    if (isLoading) return <Spinner />;
+    if (!isAdmin) return <Unauthorized />;
+    return children;
+  }
+
+Server check (pseudo):
+- function requireAdmin(req, res, next) {
+    const user = req.auth?.user;
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+    const isAdmin = user.role === 'admin' || (user.roles || []).includes('admin');
+    if (!isAdmin) return res.status(403).json({ error: 'forbidden' });
+    next();
+  }
+- app.get('/api/status', requireAdmin, statusHandler);
+- app.post('/api/test', requireAdmin, testHandler);
+- app.post('/api/cache/purge', requireAdmin, purgeHandler);
+
+Acceptance criteria
+- Only Admins see and can interact with System Status, Test, and Dev Mode controls.
+- Non-admins cannot access related routes or APIs, and these elements are not present in the DOM.
+- Admin-only pages are protected by the guard; server endpoints enforce role=admin.
