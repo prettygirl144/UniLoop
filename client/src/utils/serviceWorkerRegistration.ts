@@ -75,6 +75,17 @@ function registerValidSW(swUrl: string, config?: Config) {
               // "Content is cached for offline use." message.
               console.log('Content is cached for offline use.');
 
+              // Request notification permission when service worker is registered
+              if ('Notification' in window && Notification.permission === 'default') {
+                console.log('Requesting notification permission...');
+                Notification.requestPermission().then((permission) => {
+                  console.log('Notification permission:', permission);
+                  if (permission === 'granted') {
+                    console.log('✅ Push notifications enabled');
+                  }
+                });
+              }
+
               // Execute callback
               if (config && config.onSuccess) {
                 config.onSuccess(registration);

@@ -568,6 +568,9 @@ function NotificationSettings({
                   
                   <div className="space-y-2">
                     <Label>Delivery channels</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Choose how you want to receive these notifications
+                    </p>
                     <div className="flex gap-2 flex-wrap">
                       {['in_app', 'push', 'email'].map(channel => (
                         <Badge
@@ -580,10 +583,20 @@ function NotificationSettings({
                               : [...prefs.channels, channel];
                             updateCategorySetting(category, 'channels', newChannels);
                           }}
+                          title={
+                            channel === 'in_app' ? 'Show in notification center' :
+                            channel === 'push' ? 'Browser push notifications' :
+                            'Email notifications'
+                          }
                         >
-                          {channel.replace('_', '-')}
+                          {channel === 'in_app' ? 'In-App' : 
+                           channel === 'push' ? 'Push' : 
+                           'Email'}
                         </Badge>
                       ))}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <strong>In-App:</strong> Shows in notification center • <strong>Push:</strong> Browser notifications • <strong>Email:</strong> Email alerts
                     </div>
                   </div>
                 </>
