@@ -1310,39 +1310,41 @@ export default function Amenities() {
           <TabsContent value="records" className="space-y-4">
             <div className="grid gap-4">
               {/* Sick Food Bookings */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-medium">Sick Food Bookings</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      <Input
-                        type="date"
-                        value={sickFoodDateFilter}
-                        onChange={(e) => setSickFoodDateFilter(e.target.value)}
-                        className="w-36 h-8"
-                        placeholder="Filter by date"
-                      />
-                      {sickFoodDateFilter && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSickFoodDateFilter('')}
-                          className="h-8 px-2"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                    <CardTitle className="text-medium">Sick Food Bookings</CardTitle>
+                    <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:gap-2">
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 flex-shrink-0" />
+                        <Input
+                          type="date"
+                          value={sickFoodDateFilter}
+                          onChange={(e) => setSickFoodDateFilter(e.target.value)}
+                          className="w-full sm:w-36 h-8 min-w-0"
+                          placeholder="Filter by date"
+                        />
+                        {sickFoodDateFilter && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSickFoodDateFilter('')}
+                            className="h-8 px-2 flex-shrink-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => downloadReports('sick-food')}
+                        className="flex items-center gap-1 h-8 px-2 justify-center"
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="hidden sm:inline">Download</span>
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => downloadReports('sick-food')}
-                      className="flex items-center gap-1 h-8 px-2"
-                    >
-                      <Download className="h-3 w-3" />
-                      <span className="hidden sm:inline">Download</span>
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
@@ -1368,22 +1370,27 @@ export default function Amenities() {
                             {sickFoodBookings.map((booking: any, index: number) => {
                               console.log(`🧪 [CLIENT-TRIAGE] RENDER ITEM ${index}:`, booking);
                               return (
-                                <div key={booking.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0 flex-shrink-0">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-small font-medium truncate">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
-                                    <p className="text-small text-muted-foreground truncate">Room: {booking.roomNumber}</p>
-                                    <p className="text-xs text-blue-600">ID: {booking.id} | User: {booking.userId?.substring(0, 10)}...</p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      Phone: {booking.phoneNumber || '—'} | 
-                                      Mode: {booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess'}
-                                    </p>
-                                    {booking.specialRequirements && (
-                                      <p className="text-small text-muted-foreground truncate">Special: {booking.specialRequirements}</p>
-                                    )}
+                                <div key={booking.id} className="flex flex-col p-3 border rounded-lg space-y-2 flex-shrink-0">
+                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                      <p className="text-small font-medium break-words">{booking.mealType} - {new Date(booking.date).toLocaleDateString()}</p>
+                                      <p className="text-small text-muted-foreground break-words">Room: {booking.roomNumber}</p>
+                                      <p className="text-xs text-blue-600 break-words">ID: {booking.id}</p>
+                                      <p className="text-xs text-blue-600 break-words">User: {booking.userId?.substring(0, 20)}...</p>
+                                      <p className="text-xs text-muted-foreground break-words">
+                                        Phone: {booking.phoneNumber || '—'}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground break-words">
+                                        Mode: {booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess'}
+                                      </p>
+                                      {booking.specialRequirements && (
+                                        <p className="text-small text-muted-foreground break-words">Special: {booking.specialRequirements}</p>
+                                      )}
+                                    </div>
+                                    <Badge variant="default" className="w-fit self-start">
+                                      Confirmed
+                                    </Badge>
                                   </div>
-                                  <Badge variant="default" className="w-fit">
-                                    Confirmed
-                                  </Badge>
                                 </div>
                               );
                             })}
@@ -1418,77 +1425,83 @@ export default function Amenities() {
               </Card>
 
               {/* Leave Applications */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-medium">Leave Applications</CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadReports('leave-applications')}
-                    className="flex items-center gap-1 h-8 px-2"
-                  >
-                    <Download className="h-3 w-3" />
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                    <CardTitle className="text-medium">Leave Applications</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadReports('leave-applications')}
+                      className="flex items-center gap-1 h-8 px-2 justify-center"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span className="hidden sm:inline">Download</span>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="h-48 flex flex-col">
                     {(leaveApplications as any[]).length > 0 ? (
                       <div className="space-y-2 overflow-y-auto flex-1 pr-2">
                         {(leaveApplications as any[]).map((application: any) => (
-                          <div key={application.id} className="p-3 border rounded-lg space-y-2 flex-shrink-0">
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-2 sm:space-y-0">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-small font-medium truncate">
-                                  {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
-                                </p>
-                                <p className="text-small text-muted-foreground truncate">
-                                  Email: {application.email || '—'} | City: {application.leaveCity || '—'}
-                                </p>
-                                <p className="text-small text-muted-foreground truncate">Room: {application.roomNumber} | Contact: {application.emergencyContact}</p>
-                                <p className="text-small text-muted-foreground truncate">Reason: {application.reason}</p>
-                                {application.correlationId && (
-                                  <p className="text-xs text-blue-600 truncate">Correlation ID: {application.correlationId}</p>
-                                )}
-                                {application.googleStatus && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge 
-                                      variant={application.googleStatus.ok ? 'default' : 'destructive'} 
-                                      className="text-xs px-1 py-0 h-5"
-                                    >
-                                      Google: {application.googleStatus.ok ? '✓ Synced' : `✗ Failed (${application.googleStatus.attempts} attempts)`}
-                                    </Badge>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit">
+                          <div key={application.id} className="p-3 border rounded-lg space-y-3 flex-shrink-0">
+                            <div className="space-y-2">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <p className="text-small font-medium break-words">
+                                    {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-small text-muted-foreground break-words">
+                                    Email: {application.email || '—'}
+                                  </p>
+                                  <p className="text-small text-muted-foreground break-words">
+                                    City: {application.leaveCity || '—'}
+                                  </p>
+                                  <p className="text-small text-muted-foreground break-words">Room: {application.roomNumber}</p>
+                                  <p className="text-small text-muted-foreground break-words">Contact: {application.emergencyContact}</p>
+                                  <p className="text-small text-muted-foreground break-words">Reason: {application.reason}</p>
+                                  {application.correlationId && (
+                                    <p className="text-xs text-blue-600 break-words">Correlation ID: {application.correlationId}</p>
+                                  )}
+                                  {application.googleStatus && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge 
+                                        variant={application.googleStatus.ok ? 'default' : 'destructive'} 
+                                        className="text-xs px-1 py-0 h-5"
+                                      >
+                                        Google: {application.googleStatus.ok ? '✓ Synced' : `✗ Failed (${application.googleStatus.attempts} attempts)`}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                                <Badge variant={application.status === 'pending' ? 'secondary' : application.status === 'approved' ? 'default' : 'destructive'} className="w-fit self-start">
                                   {application.status}
                                 </Badge>
-                                {application.status === 'pending' && (
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => approveLeaveApplication.mutate(application.id)}
-                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
-                                      className="h-8 px-3 bg-green-600 hover:bg-green-700"
-                                    >
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => denyLeaveApplication.mutate(application.id)}
-                                      disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
-                                      className="h-8 px-3"
-                                    >
-                                      <X className="h-3 w-3 mr-1" />
-                                      Deny
-                                    </Button>
-                                  </div>
-                                )}
                               </div>
+                              {application.status === 'pending' && (
+                                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => approveLeaveApplication.mutate(application.id)}
+                                    disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                    className="h-8 px-3 bg-green-600 hover:bg-green-700 flex items-center justify-center"
+                                  >
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => denyLeaveApplication.mutate(application.id)}
+                                    disabled={approveLeaveApplication.isPending || denyLeaveApplication.isPending}
+                                    className="h-8 px-3 flex items-center justify-center"
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Deny
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1503,45 +1516,49 @@ export default function Amenities() {
               </Card>
 
               {/* Grievance Management */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-medium">Grievance Management</CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadReports('grievances')}
-                    className="flex items-center gap-1 h-8 px-2"
-                  >
-                    <Download className="h-3 w-3" />
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                    <CardTitle className="text-medium">Grievance Management</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadReports('grievances')}
+                      className="flex items-center gap-1 h-8 px-2 justify-center"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span className="hidden sm:inline">Download</span>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="h-48 flex flex-col">
                     {(grievances as any[]).length > 0 ? (
                       <div className="space-y-2 overflow-y-auto flex-1 pr-2">
                         {(grievances as any[]).map((grievance: any) => (
-                          <div key={grievance.id} className="p-3 border rounded-lg space-y-2 flex-shrink-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Badge variant="outline" className="w-fit">{grievance.category}</Badge>
-                                <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
-                                  {grievance.status}
-                                </Badge>
+                          <div key={grievance.id} className="p-3 border rounded-lg space-y-3 flex-shrink-0">
+                            <div className="space-y-2">
+                              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                                <div className="flex flex-col space-y-2 sm:flex-row sm:gap-2">
+                                  <Badge variant="outline" className="w-fit">{grievance.category}</Badge>
+                                  <Badge variant={grievance.status === 'pending' ? 'secondary' : 'default'} className="w-fit">
+                                    {grievance.status}
+                                  </Badge>
+                                </div>
+                                {grievance.status === 'pending' && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
+                                    disabled={resolveGrievanceMutation.isPending}
+                                    className="h-8 px-3 w-full sm:w-auto"
+                                  >
+                                    Mark Resolved
+                                  </Button>
+                                )}
                               </div>
-                              {grievance.status === 'pending' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => resolveGrievanceMutation.mutate({ id: grievance.id })}
-                                  disabled={resolveGrievanceMutation.isPending}
-                                  className="h-8 px-3"
-                                >
-                                  Mark Resolved
-                                </Button>
-                              )}
+                              <p className="text-small break-words">{grievance.description}</p>
+                              <p className="text-small text-muted-foreground break-words">Room: {grievance.roomNumber}</p>
                             </div>
-                            <p className="text-small break-words">{grievance.description}</p>
-                            <p className="text-small text-muted-foreground">Room: {grievance.roomNumber}</p>
                           </div>
                         ))}
                       </div>
