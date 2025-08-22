@@ -288,8 +288,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Events routes
   app.get('/api/events', async (req, res) => {
     try {
+      const { tag, limit } = req.query;
+      const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`🔍 [EVENTS-GET] Fetching events - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, RequestID: ${requestId}`);
+      
       const events = await storage.getEvents();
-      res.json(events);
+      
+      let filteredEvents = events;
+      
+      // Filter by tag (case-insensitive) - check both category and any future tags field
+      if (tag) {
+        const tagLower = (tag as string).toLowerCase();
+        filteredEvents = events.filter(event => 
+          event.category?.toLowerCase().includes(tagLower) ||
+          event.hostCommittee?.toLowerCase().includes(tagLower)
+        );
+        console.log(`🏷️ [EVENTS-GET] Filtered ${events.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
+      }
+      
+      // Apply limit if specified
+      if (limit) {
+        const limitNum = parseInt(limit as string, 10);
+        if (!isNaN(limitNum) && limitNum > 0) {
+          filteredEvents = filteredEvents.slice(0, limitNum);
+          console.log(`📏 [EVENTS-GET] Limited to ${limitNum} events, RequestID: ${requestId}`);
+        }
+      }
+      
+      console.log(`✅ [EVENTS-GET] Returning ${filteredEvents.length} events, RequestID: ${requestId}`);
+      res.json(filteredEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
       res.status(500).json({ message: "Failed to fetch events" });
@@ -722,8 +750,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Community Board routes (Section 1) - Reddit-like functionality
   app.get('/api/community/posts', async (req, res) => {
     try {
-      const posts = await storage.getCommunityPosts();
-      res.json(posts);
+      const { tag, limit, scope } = req.query;
+      const requestId = `posts_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`🔍 [FORUM-GET] Fetching posts - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Scope: ${scope || 'posts'}, RequestID: ${requestId}`);
+      
+      let allPosts = [];
+      
+      // If scope=all, get both community posts and announcements
+      if (scope === 'all') {
+        const [posts, announcements] = await Promise.all([
+          storage.getCommunityPosts(),
+          storage.getCommunityAnnouncements()
+        ]);
+        
+        // Transform announcements to match post structure and add source field
+        const transformedAnnouncements = announcements.map(ann => ({
+          ...ann,
+          source: 'announcement' as const
+        }));
+        
+        const transformedPosts = posts.map(post => ({
+          ...post,
+          source: 'forum' as const
+        }));
+        
+        allPosts = [...transformedPosts, ...transformedAnnouncements];
+        console.log(`📊 [FORUM-GET] Combined ${posts.length} posts + ${announcements.length} announcements = ${allPosts.length}, RequestID: ${requestId}`);
+      } else {
+        const posts = await storage.getCommunityPosts();
+        allPosts = posts.map(post => ({ ...post, source: 'forum' as const }));
+        console.log(`📊 [FORUM-GET] Retrieved ${allPosts.length} community posts, RequestID: ${requestId}`);
+      }
+      
+      let filteredPosts = allPosts;
+      
+      // Filter by tag (case-insensitive) - check title and content
+      if (tag) {
+        const tagLower = (tag as string).toLowerCase();
+        filteredPosts = allPosts.filter(post => 
+          post.title?.toLowerCase().includes(tagLower) ||
+          post.content?.toLowerCase().includes(tagLower) ||
+          post.category?.toLowerCase().includes(tagLower)
+        );
+        console.log(`🏷️ [FORUM-GET] Filtered ${allPosts.length} -> ${filteredPosts.length} posts by tag '${tag}', RequestID: ${requestId}`);
+      }
+      
+      // Sort by creation date (newest first)
+      filteredPosts.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      // Apply limit if specified
+      if (limit) {
+        const limitNum = parseInt(limit as string, 10);
+        if (!isNaN(limitNum) && limitNum > 0) {
+          filteredPosts = filteredPosts.slice(0, limitNum);
+          console.log(`📏 [FORUM-GET] Limited to ${limitNum} posts, RequestID: ${requestId}`);
+        }
+      }
+      
+      console.log(`✅ [FORUM-GET] Returning ${filteredPosts.length} posts, RequestID: ${requestId}`);
+      res.json(filteredPosts);
     } catch (error) {
       console.error("Error fetching community posts:", error);
       res.status(500).json({ message: "Failed to fetch community posts" });

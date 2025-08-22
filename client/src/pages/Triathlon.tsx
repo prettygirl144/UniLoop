@@ -20,6 +20,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
+import TriathlonNews from '@/components/TriathlonNews';
 
 // Form schemas
 const teamSchema = z.object({
@@ -572,6 +573,9 @@ export default function Triathlon() {
           )}
         </CardContent>
       </Card>
+
+      {/* Triathlon News Section */}
+      <TriathlonNews />
       {/* Edit Points Dialog */}
       {hasTriathlonPermission && (
         <Dialog open={showEditPoints} onOpenChange={setShowEditPoints}>
