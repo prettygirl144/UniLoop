@@ -329,20 +329,27 @@ function NotificationItem({
       }`}
       data-testid={`notification-item-${notification.id}`}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start gap-2 sm:gap-3">
           <div className="flex-shrink-0 mt-1">
             <div className={`w-3 h-3 rounded-full ${priorityColor}`} />
           </div>
           
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-2">
+            {/* Header with title and actions */}
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 mb-1">
-                {categoryIcon}
-                <h4 className="font-medium text-sm truncate">{notification.title}</h4>
-                {notification.priority === 'critical' && (
-                  <Badge variant="destructive" className="text-xs">Urgent</Badge>
-                )}
+              <div className="flex items-start gap-2 min-w-0 flex-1">
+                <div className="flex-shrink-0 mt-0.5">
+                  {categoryIcon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium text-sm leading-tight break-words pr-1">
+                    {notification.title}
+                  </h4>
+                  {notification.priority === 'critical' && (
+                    <Badge variant="destructive" className="text-xs mt-1">Urgent</Badge>
+                  )}
+                </div>
               </div>
               
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -350,7 +357,7 @@ function NotificationItem({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 flex-shrink-0"
                     onClick={(e) => onMarkAsRead(notification.id, e)}
                     data-testid={`button-mark-read-${notification.id}`}
                   >
@@ -360,7 +367,7 @@ function NotificationItem({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-6 w-6 flex-shrink-0"
                   onClick={(e) => onDismiss(notification.id, e)}
                   data-testid={`button-dismiss-${notification.id}`}
                 >
@@ -369,16 +376,22 @@ function NotificationItem({
               </div>
             </div>
             
-            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+            {/* Content */}
+            <p className="text-sm text-muted-foreground leading-relaxed break-words line-clamp-3">
               {notification.content}
             </p>
             
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
-              <div className="flex items-center gap-1">
+            {/* Footer - stack on mobile, inline on desktop */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 text-xs text-muted-foreground">
+              <span className="flex-shrink-0">
+                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+              </span>
+              <div className="flex items-center gap-1 flex-wrap">
                 {notification.deliveryChannels.map(channel => (
-                  <Badge key={channel} variant="outline" className="text-xs">
-                    {channel}
+                  <Badge key={channel} variant="outline" className="text-xs flex-shrink-0">
+                    {channel === 'in_app' ? 'In-App' : 
+                     channel === 'push' ? 'Push' : 
+                     channel}
                   </Badge>
                 ))}
               </div>
