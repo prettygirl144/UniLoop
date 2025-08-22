@@ -756,8 +756,10 @@ export default function Amenities() {
 
   // Edit menu functionality
   const editMenuMutation = useMutation({
-    mutationFn: async ({ id, items }: { id: number; items: string[] }) => {
-      await apiRequest('PUT', `/api/amenities/menu/${id}`, { items });
+    mutationFn: async ({ id, items, mealType }: { id: number; items: string[]; mealType?: string }) => {
+      // If editing a specific meal type, send the mealType and items
+      const payload = mealType ? { items, mealType } : { items };
+      await apiRequest('PUT', `/api/amenities/menu/${id}`, payload);
     },
     onSuccess: () => {
       setShowEditDialog(false);
@@ -797,8 +799,20 @@ export default function Amenities() {
 
   const handleSaveMenuEdit = (data: { items: string }) => {
     if (!editingMenu) return;
-    const items = data.items.split('\n').filter(item => item.trim() !== '');
-    editMenuMutation.mutate({ id: editingMenu.id, items });
+    
+    // For specific meal type edits (breakfast, lunch, etc.), we need to update just that meal type
+    if (editingMenu.mealType && editingMenu.mealType !== 'all') {
+      const items = data.items; // Keep as comma-separated string for meal types
+      editMenuMutation.mutate({ 
+        id: editingMenu.id, 
+        items: [items], // Wrap in array for API consistency
+        mealType: editingMenu.mealType 
+      });
+    } else {
+      // For full menu edits, split by lines
+      const items = data.items.split('\n').filter(item => item.trim() !== '');
+      editMenuMutation.mutate({ id: editingMenu.id, items });
+    }
   };
 
   return (
@@ -951,11 +965,103 @@ export default function Amenities() {
 
               {/* Today's Menu */}
               <TabsContent value="today" className="space-y-4">
-                <WeeklyMenuCard 
-                  title="Today's Menu"
-                  menu={getTodayMenu()}
-                  date={getDateOffset(0)}
-                />
+                {(() => {
+                  const todayMenu = getTodayMenu();
+                  const todayDate = getDateOffset(0);
+                  const todayMenuData = (weeklyMenuData as any[])?.find(m => m.date === todayDate);
+                  
+                  return (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Utensils className="h-5 w-5" />
+                          Today's Menu
+                          {isAdmin && (
+                            <Badge variant="secondary" className="text-xs ml-2">Admin: Click meal types to edit</Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {todayMenu ? (
+                          <div className="space-y-0">
+                            <MealSection 
+                              title="Breakfast" 
+                              items={todayMenu.breakfast}
+                              isAdmin={isAdmin}
+                              onEdit={() => {
+                                if (todayMenuData) {
+                                  setEditingMenu({
+                                    id: todayMenuData.id,
+                                    date: todayDate,
+                                    mealType: 'breakfast',
+                                    items: todayMenu.breakfast ? todayMenu.breakfast.split(',').map((item: string) => item.trim()) : []
+                                  });
+                                  menuEditForm.setValue('items', todayMenu.breakfast || '');
+                                  setShowEditDialog(true);
+                                }
+                              }}
+                            />
+                            <MealSection 
+                              title="Lunch" 
+                              items={todayMenu.lunch}
+                              isAdmin={isAdmin}
+                              onEdit={() => {
+                                if (todayMenuData) {
+                                  setEditingMenu({
+                                    id: todayMenuData.id,
+                                    date: todayDate,
+                                    mealType: 'lunch',
+                                    items: todayMenu.lunch ? todayMenu.lunch.split(',').map((item: string) => item.trim()) : []
+                                  });
+                                  menuEditForm.setValue('items', todayMenu.lunch || '');
+                                  setShowEditDialog(true);
+                                }
+                              }}
+                            />
+                            <MealSection 
+                              title="Evening Snacks" 
+                              items={todayMenu.eveningSnacks}
+                              isAdmin={isAdmin}
+                              onEdit={() => {
+                                if (todayMenuData) {
+                                  setEditingMenu({
+                                    id: todayMenuData.id,
+                                    date: todayDate,
+                                    mealType: 'eveningSnacks',
+                                    items: todayMenu.eveningSnacks ? todayMenu.eveningSnacks.split(',').map((item: string) => item.trim()) : []
+                                  });
+                                  menuEditForm.setValue('items', todayMenu.eveningSnacks || '');
+                                  setShowEditDialog(true);
+                                }
+                              }}
+                            />
+                            <MealSection 
+                              title="Dinner" 
+                              items={todayMenu.dinner}
+                              isAdmin={isAdmin}
+                              onEdit={() => {
+                                if (todayMenuData) {
+                                  setEditingMenu({
+                                    id: todayMenuData.id,
+                                    date: todayDate,
+                                    mealType: 'dinner',
+                                    items: todayMenu.dinner ? todayMenu.dinner.split(',').map((item: string) => item.trim()) : []
+                                  });
+                                  menuEditForm.setValue('items', todayMenu.dinner || '');
+                                  setShowEditDialog(true);
+                                }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No menu available for {new Date(todayDate + 'T00:00:00').toLocaleDateString()}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
               </TabsContent>
 
               {/* Tomorrow's Menu */}
@@ -1601,7 +1707,12 @@ export default function Amenities() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Menu - {editingMenu?.mealType}</DialogTitle>
+            <DialogTitle>
+              {editingMenu?.mealType && editingMenu.mealType !== 'all' 
+                ? `Edit ${editingMenu.mealType.charAt(0).toUpperCase() + editingMenu.mealType.slice(1)} - Today's Menu`
+                : `Edit Menu - ${editingMenu?.mealType}`
+              }
+            </DialogTitle>
           </DialogHeader>
           <Form {...menuEditForm}>
             <form onSubmit={menuEditForm.handleSubmit(handleSaveMenuEdit)} className="space-y-4">
@@ -1613,7 +1724,10 @@ export default function Amenities() {
                     <FormLabel>Menu Items (one per line)</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Rice&#10;Dal&#10;Sabzi&#10;Roti"
+                        placeholder={editingMenu?.mealType && editingMenu.mealType !== 'all' 
+                          ? "Enter menu items separated by commas (e.g. Rice, Dal, Sabzi, Roti)"
+                          : "Rice&#10;Dal&#10;Sabzi&#10;Roti"
+                        }
                         className="min-h-[150px]"
                         {...field} 
                       />
@@ -1662,13 +1776,30 @@ export default function Amenities() {
 }
 
 // Helper component for individual meal sections - Row-based design for mobile
-function MealSection({ title, items }: { title: string; items: string | null }) {
+function MealSection({ title, items, isAdmin = false, onEdit }: { 
+  title: string; 
+  items: string | null;
+  isAdmin?: boolean;
+  onEdit?: () => void;
+}) {
   const menuItems = items ? items.split(',').map(item => item.trim()).filter(item => item) : [];
   
   return (
     <div className="mb-4 last:mb-0">
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center justify-between gap-2 mb-2">
         <h4 className="text-medium font-medium capitalize">{title}:</h4>
+        {isAdmin && onEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+            className="h-6 px-2 text-xs"
+            title={`Edit ${title.toLowerCase()}`}
+          >
+            <Edit className="h-3 w-3 mr-1" />
+            Edit
+          </Button>
+        )}
       </div>
       {menuItems.length > 0 ? (
         <div className="text-small text-muted-foreground leading-relaxed pl-2">
