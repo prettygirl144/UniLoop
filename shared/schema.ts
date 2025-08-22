@@ -683,11 +683,161 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   lastSeenAt: timestamp("last_seen_at").defaultNow(),
 });
 
+// Smart Notifications Schema
+export const smartNotifications = pgTable("smart_notifications", {
+  id: serial("id").primaryKey(),
+  recipientUserId: varchar("recipient_user_id").notNull().references(() => users.id),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  category: varchar("category").notNull(), // announcement, event, calendar, forum, amenities, system
+  priority: varchar("priority").notNull().default("medium"), // critical, high, medium, low
+  contextualData: jsonb("contextual_data").$type<{
+    entityType?: string; // event, announcement, post, etc.
+    entityId?: number;
+    actionRequired?: boolean;
+    deadline?: string;
+    batchTargeted?: string[];
+    sectionTargeted?: string[];
+    relatedUser?: string;
+    location?: string;
+    urgencyScore?: number;
+  }>().default({}),
+  status: varchar("status").notNull().default("pending"), // pending, sent, delivered, read, dismissed, failed
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  deliveryChannels: text("delivery_channels").array().default([]), // push, email, in_app
+  metadata: jsonb("metadata").$type<{
+    source?: string;
+    groupId?: string;
+    batchId?: string;
+    retryCount?: number;
+    engagementScore?: number;
+    personalizedContent?: string;
+  }>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Notification Preferences Schema
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  globalSettings: jsonb("global_settings").$type<{
+    enabled: boolean;
+    quietHours: { start: string; end: string };
+    maxDailyNotifications: number;
+    batchDelay: number; // minutes to wait before batching
+  }>().default({
+    enabled: true,
+    quietHours: { start: "22:00", end: "08:00" },
+    maxDailyNotifications: 20,
+    batchDelay: 15
+  }),
+  categoryPreferences: jsonb("category_preferences").$type<{
+    announcement: { enabled: boolean; priority: string; channels: string[] };
+    event: { enabled: boolean; priority: string; channels: string[] };
+    calendar: { enabled: boolean; priority: string; channels: string[] };
+    forum: { enabled: boolean; priority: string; channels: string[] };
+    amenities: { enabled: boolean; priority: string; channels: string[] };
+    system: { enabled: boolean; priority: string; channels: string[] };
+  }>().default({
+    announcement: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+    event: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+    calendar: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+    forum: { enabled: true, priority: "low", channels: ["in_app"] },
+    amenities: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+    system: { enabled: true, priority: "critical", channels: ["push", "in_app", "email"] }
+  }),
+  contextualRules: jsonb("contextual_rules").$type<{
+    academicHours: boolean; // reduce notifications during class hours
+    locationBased: boolean; // campus vs off-campus notifications
+    roleSpecific: boolean; // admin vs student notification differences
+    eventProximity: boolean; // increase priority for nearby events
+    engagementBased: boolean; // adjust based on past engagement
+  }>().default({
+    academicHours: true,
+    locationBased: false,
+    roleSpecific: true,
+    eventProximity: true,
+    engagementBased: true
+  }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Notification Analytics Schema
+export const notificationAnalytics = pgTable("notification_analytics", {
+  id: serial("id").primaryKey(),
+  notificationId: integer("notification_id").notNull().references(() => smartNotifications.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  event: varchar("event").notNull(), // sent, delivered, opened, clicked, dismissed, timeout
+  timestamp: timestamp("timestamp").defaultNow(),
+  metadata: jsonb("metadata").$type<{
+    channel?: string;
+    deviceType?: string;
+    location?: string;
+    sessionId?: string;
+    engagementTime?: number;
+    clickTarget?: string;
+  }>().default({}),
+});
+
+// Notification Batches Schema for grouping related notifications
+export const notificationBatches = pgTable("notification_batches", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title").notNull(),
+  summary: text("summary"),
+  notificationCount: integer("notification_count").notNull().default(0),
+  priority: varchar("priority").notNull().default("medium"),
+  status: varchar("status").notNull().default("pending"), // pending, sent, delivered, read
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Push subscription relations
 export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
   user: one(users, {
     fields: [pushSubscriptions.userEmail],
     references: [users.email],
+  }),
+}));
+
+// Smart Notification relations
+export const smartNotificationsRelations = relations(smartNotifications, ({ one, many }) => ({
+  recipient: one(users, {
+    fields: [smartNotifications.recipientUserId],
+    references: [users.id],
+  }),
+  analytics: many(notificationAnalytics),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationAnalyticsRelations = relations(notificationAnalytics, ({ one }) => ({
+  notification: one(smartNotifications, {
+    fields: [notificationAnalytics.notificationId],
+    references: [smartNotifications.id],
+  }),
+  user: one(users, {
+    fields: [notificationAnalytics.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationBatchesRelations = relations(notificationBatches, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationBatches.userId],
+    references: [users.id],
   }),
 }));
 
@@ -698,9 +848,47 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
   lastSeenAt: true,
 });
 
+// Smart Notification schemas
+export const insertSmartNotificationSchema = createInsertSchema(smartNotifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  sentAt: true,
+  readAt: true,
+  dismissedAt: true,
+});
+
+export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNotificationAnalyticsSchema = createInsertSchema(notificationAnalytics).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertNotificationBatchSchema = createInsertSchema(notificationBatches).omit({
+  id: true,
+  createdAt: true,
+  sentAt: true,
+  readAt: true,
+});
+
 // Push subscription types
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
+// Smart Notification types
+export type InsertSmartNotification = z.infer<typeof insertSmartNotificationSchema>;
+export type SmartNotification = typeof smartNotifications.$inferSelect;
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationAnalytics = z.infer<typeof insertNotificationAnalyticsSchema>;
+export type NotificationAnalytics = typeof notificationAnalytics.$inferSelect;
+export type InsertNotificationBatch = z.infer<typeof insertNotificationBatchSchema>;
+export type NotificationBatch = typeof notificationBatches.$inferSelect;
 
 // Triathlon types
 export type InsertTriathlonTeam = z.infer<typeof insertTriathlonTeamSchema>;

@@ -30,10 +30,14 @@ export const checkAuth: RequestHandler = async (req: any, res, next) => {
         role: 'admin',
         permissions: { diningHostel: true }
       };
+      req.user = req.session.user;
       return next();
     }
     return res.status(401).json({ message: "Unauthorized" });
   }
+  
+  // Set req.user from session for route handlers to use
+  req.user = sessionUser;
   next();
 };
 

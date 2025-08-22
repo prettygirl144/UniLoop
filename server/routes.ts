@@ -2850,6 +2850,268 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart Notifications API Routes
+  
+  // Get user notifications
+  app.get('/api/notifications', checkAuth, async (req: any, res) => {
+    try {
+      // Return mock notifications for demonstration
+      const mockNotifications = [
+        {
+          id: 1,
+          title: "Welcome to Smart Notifications!",
+          content: "Your intelligent notification system is now active. Notifications will be prioritized based on context and user preferences.",
+          category: "system",
+          priority: "high",
+          status: "sent",
+          isRead: false,
+          isDismissed: false,
+          createdAt: new Date().toISOString(),
+          deliveryChannels: ["in_app", "push"],
+          contextualData: { actionRequired: false },
+          metadata: { batchEligible: false }
+        },
+        {
+          id: 2,
+          title: "New Event: Team Meeting",
+          content: "Mandatory team meeting scheduled for tomorrow at 3 PM in Conference Room A.",
+          category: "event",
+          priority: "medium",
+          status: "sent",
+          isRead: true,
+          isDismissed: false,
+          createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // 1 hour ago
+          deliveryChannels: ["in_app", "push"],
+          contextualData: { actionRequired: true, deadline: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString() },
+          metadata: { batchEligible: false }
+        },
+        {
+          id: 3,
+          title: "Forum Discussion",
+          content: "New discussion started in the Academic Forum about upcoming semester schedule.",
+          category: "forum",
+          priority: "low",
+          status: "sent",
+          isRead: false,
+          isDismissed: false,
+          createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+          deliveryChannels: ["in_app"],
+          contextualData: { actionRequired: false },
+          metadata: { batchEligible: true }
+        }
+      ];
+      
+      res.json(mockNotifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Get unread notifications count
+  app.get('/api/notifications/unread', checkAuth, async (req: any, res) => {
+    try {
+      // Return mock unread notifications
+      const mockUnreadNotifications = [
+        {
+          id: 1,
+          title: "Welcome to Smart Notifications!",
+          content: "Your intelligent notification system is now active.",
+          category: "system",
+          priority: "high",
+          status: "sent",
+          isRead: false,
+          isDismissed: false,
+          createdAt: new Date().toISOString(),
+          deliveryChannels: ["in_app", "push"]
+        },
+        {
+          id: 3,
+          title: "Forum Discussion",
+          content: "New discussion started in the Academic Forum.",
+          category: "forum",
+          priority: "low",
+          status: "sent",
+          isRead: false,
+          isDismissed: false,
+          createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+          deliveryChannels: ["in_app"]
+        }
+      ];
+      
+      res.json({ count: mockUnreadNotifications.length, notifications: mockUnreadNotifications });
+    } catch (error) {
+      console.error("Error fetching unread notifications:", error);
+      res.status(500).json({ message: "Failed to fetch unread notifications" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch('/api/notifications/:id/read', checkAuth, async (req: any, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      await storage.markNotificationAsRead(notificationId, userId);
+      
+      // Track analytics
+      await storage.trackNotificationEvent({
+        notificationId,
+        userId,
+        event: 'opened',
+        metadata: {
+          userAgent: req.headers['user-agent'],
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Dismiss notification
+  app.patch('/api/notifications/:id/dismiss', checkAuth, async (req: any, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const userId = req.user.id;
+      
+      await storage.markNotificationAsDismissed(notificationId, userId);
+      
+      // Track analytics
+      await storage.trackNotificationEvent({
+        notificationId,
+        userId,
+        event: 'dismissed',
+        metadata: {
+          userAgent: req.headers['user-agent'],
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error dismissing notification:", error);
+      res.status(500).json({ message: "Failed to dismiss notification" });
+    }
+  });
+
+  // Get user notification preferences
+  app.get('/api/notifications/preferences', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      let preferences = await storage.getNotificationPreferences(userId);
+      
+      // Create default preferences if none exist
+      if (!preferences) {
+        preferences = await storage.setNotificationPreferences({
+          userId,
+          globalSettings: {
+            enabled: true,
+            quietHours: { start: "22:00", end: "08:00" },
+            maxDailyNotifications: 20,
+            batchDelay: 15
+          },
+          categoryPreferences: {
+            announcement: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+            event: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+            calendar: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+            forum: { enabled: true, priority: "low", channels: ["in_app"] },
+            amenities: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+            system: { enabled: true, priority: "critical", channels: ["push", "in_app", "email"] }
+          },
+          contextualRules: {
+            academicHours: true,
+            locationBased: false,
+            roleSpecific: true,
+            eventProximity: true,
+            engagementBased: true
+          }
+        });
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json({ message: "Failed to fetch notification preferences" });
+    }
+  });
+
+  // Update user notification preferences
+  app.patch('/api/notifications/preferences', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const preferences = req.body;
+      
+      const updated = await storage.setNotificationPreferences({
+        userId,
+        ...preferences
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      res.status(500).json({ message: "Failed to update notification preferences" });
+    }
+  });
+
+  // Get user engagement analytics
+  app.get('/api/notifications/analytics', checkAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const days = parseInt(req.query.days as string) || 30;
+      
+      const engagementStats = await storage.getUserEngagementStats(userId, days);
+      res.json(engagementStats);
+    } catch (error) {
+      console.error("Error fetching notification analytics:", error);
+      res.status(500).json({ message: "Failed to fetch notification analytics" });
+    }
+  });
+
+  // Admin: Send test smart notification
+  app.post('/api/notifications/test', requireAdmin, async (req: any, res) => {
+    try {
+      const { recipientUserId, title, content, category, priority, contextualData } = req.body;
+      
+      // Import here to avoid circular dependencies
+      const { smartNotificationEngine } = await import('./smartNotificationEngine');
+      
+      const context = {
+        userId: recipientUserId,
+        userRole: 'student', // Default for test
+        currentTime: new Date(),
+        isAcademicHours: false
+      };
+      
+      const notification = await smartNotificationEngine.createSmartNotification({
+        recipientUserId,
+        title,
+        content,
+        category: category || 'system',
+        priority: priority || 'medium',
+        contextualData: contextualData || {},
+        deliveryChannels: ['in_app', 'push'],
+        status: 'pending'
+      }, context);
+      
+      res.json({ 
+        message: "Test notification created successfully",
+        notification: {
+          id: notification.id,
+          title: notification.title,
+          priority: notification.priority,
+          scheduledFor: notification.scheduledFor
+        }
+      });
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
   // Health endpoints for database verification
   app.use('/api', healthRoutes);
 
