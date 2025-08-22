@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 // Replit auth removed - using Auth0 only
-import { checkAuth, handleAuthError, extractUser, requireAdmin } from "./auth0Config";
+import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import healthRoutes from "./routes/health";
 import {
@@ -155,6 +155,33 @@ function adminOnly() {
     
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: "Admin access required" });
+    }
+    
+    req.currentUser = user;
+    next();
+  };
+}
+
+// Student management permission middleware
+function manageStudentsOnly() {
+  return async (req: any, res: any, next: any) => {
+    const sessionUser = req.session?.user;
+    if (!sessionUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const user = await storage.getUser(sessionUser.id);
+    
+    if (!user) {
+      return res.status(403).json({ message: "User not found" });
+    }
+    
+    // Admins have access to everything, or users with specific manageStudents permission
+    const isAdmin = user.role === 'admin';
+    const hasManageStudents = user.permissions?.manageStudents;
+    
+    if (!isAdmin && !hasManageStudents) {
+      return res.status(403).json({ message: "Student management access required" });
     }
     
     req.currentUser = user;
@@ -2229,8 +2256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete user (Admin only)
-  app.delete('/api/admin/users/:id', adminOnly(), async (req: any, res) => {
+  // Delete user (Admin or manageStudents permission for students)
+  app.delete('/api/admin/users/:id', manageStudentsOnly(), async (req: any, res) => {
     try {
       const targetUserId = req.params.id;
       
@@ -2455,8 +2482,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Student Directory Management Routes
   
-  // Get student directory (Admin only)
-  app.get('/api/admin/students', adminOnly(), async (req: any, res) => {
+  // Get student directory (Admin or manageStudents permission)
+  app.get('/api/admin/students', manageStudentsOnly(), async (req: any, res) => {
     try {
       const students = await storage.getStudentDirectory();
       res.json(students);
@@ -2477,8 +2504,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Student directory upload (Admin only)
-  app.post('/api/admin/upload-students', requireAdmin, upload.single('studentsFile'), async (req: any, res) => {
+  // Student directory upload (Admin or manageStudents permission)
+  app.post('/api/admin/upload-students', manageStudentsOnly(), upload.single('studentsFile'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });

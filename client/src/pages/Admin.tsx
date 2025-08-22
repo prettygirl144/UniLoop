@@ -100,6 +100,10 @@ export default function Admin() {
     }
   };
   const [batchName, setBatchName] = useState("");
+  
+  // Check if user can manage students
+  const canManageStudents = currentUser?.role === 'admin' || currentUser?.permissions?.manageStudents;
+  
   const [editForm, setEditForm] = useState({
     role: "",
     permissions: {
@@ -110,6 +114,7 @@ export default function Admin() {
       diningHostel: false,
       postCreation: false,
       triathlon: false,
+      manageStudents: false,
       sickFoodAccess: false,
       leaveApplicationAccess: false,
       grievanceAccess: false,
@@ -180,7 +185,7 @@ export default function Admin() {
   const { data: students = [], isLoading: studentsLoading } = useQuery<StudentDirectory[]>({
     queryKey: ["/api/admin/students"],
     retry: false,
-    enabled: isAuthenticated && currentUser?.role === 'admin',
+    enabled: isAuthenticated && canManageStudents,
   });
 
   // Fetch upload logs
@@ -359,6 +364,7 @@ export default function Admin() {
         diningHostel: user.permissions?.diningHostel || false,
         postCreation: user.permissions?.postCreation || false,
         triathlon: user.permissions?.triathlon || false,
+        manageStudents: (user.permissions as any)?.manageStudents || false,
         sickFoodAccess: user.permissions?.sickFoodAccess || false,
         leaveApplicationAccess: user.permissions?.leaveApplicationAccess || false,
         grievanceAccess: user.permissions?.grievanceAccess || false,
@@ -583,6 +589,7 @@ export default function Admin() {
                     <TableHead>Dining/Hostel</TableHead>
                     <TableHead>Post Creation</TableHead>
                     <TableHead>Triathlon</TableHead>
+                    <TableHead>Manage Students</TableHead>
                     <TableHead>Sick Food</TableHead>
                     <TableHead>Leave Apps</TableHead>
                     <TableHead>Grievance</TableHead>
@@ -593,14 +600,14 @@ export default function Admin() {
                 <TableBody>
                   {usersLoading ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8">
+                      <TableCell colSpan={15} className="text-center py-8">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
                         Loading users...
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -665,6 +672,11 @@ export default function Admin() {
                         <TableCell>
                           <div className="flex justify-center">
                             {user.permissions?.triathlon ? '✅' : '❌'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            {(user.permissions as any)?.manageStudents ? '✅' : '❌'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1068,6 +1080,19 @@ export default function Admin() {
                         setEditForm(prev => ({ 
                           ...prev, 
                           permissions: { ...prev.permissions, triathlon: checked }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="manageStudents" className="text-sm">Manage Students</Label>
+                    <Switch
+                      id="manageStudents"
+                      checked={editForm.permissions.manageStudents || false}
+                      onCheckedChange={(checked) => 
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          permissions: { ...prev.permissions, manageStudents: checked }
                         }))
                       }
                     />

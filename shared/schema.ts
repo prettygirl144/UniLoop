@@ -53,6 +53,7 @@ export const users = pgTable("users", {
     diningHostel?: boolean;
     postCreation?: boolean;
     triathlon?: boolean;
+    manageStudents?: boolean;
     // Amenities granular permissions
     sickFoodAccess?: boolean;
     leaveApplicationAccess?: boolean;

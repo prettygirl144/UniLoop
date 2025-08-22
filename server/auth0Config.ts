@@ -104,10 +104,28 @@ export const requireAdmin: RequestHandler = (req: any, res, next) => {
   next();
 };
 
+export const requireManageStudents: RequestHandler = (req: any, res, next) => {
+  const user = extractUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  
+  // Admins have access to everything
+  const isAdmin = user.role === 'admin';
+  const hasManageStudents = user.permissions?.manageStudents;
+  
+  if (!isAdmin && !hasManageStudents) {
+    return res.status(403).json({ error: 'forbidden - requires manageStudents permission' });
+  }
+  
+  next();
+};
+
 export default {
   checkAuth,
   checkAuth0Jwt,
   handleAuthError,
   extractUser,
   requireAdmin,
+  requireManageStudents,
 };
