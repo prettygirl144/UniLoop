@@ -1189,180 +1189,34 @@ export default function Amenities() {
                 <p className="text-small text-muted-foreground mb-4 leading-relaxed">
                   Apply for hostel leave with approval workflow
                 </p>
-                <div className="flex flex-col gap-3">
-                  <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full">Apply for Leave</Button>
-                    </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Hostel Leave Application</DialogTitle>
+                <Dialog open={showGoogleFormDialog} onOpenChange={setShowGoogleFormDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">Fill Form</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0">
+                    <DialogHeader className="p-6 pb-2">
+                      <DialogTitle>Hostel Leave Application Form</DialogTitle>
+                      <p className="text-small text-muted-foreground">
+                        Complete the official leave application form. Your email may be automatically populated if you're signed in to Google.
+                      </p>
                     </DialogHeader>
-                    <Form {...leaveForm}>
-                      <form onSubmit={leaveForm.handleSubmit((data) => leaveMutation.mutate(data))} className="space-y-4">
-                        {/* Google Form Required Fields */}
-                        <FormField
-                          control={leaveForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email *</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="email" 
-                                  placeholder="your.email@example.com"
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs text-muted-foreground">
-                                Record your email as the email included with your response
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={leaveForm.control}
-                          name="reason"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Reason for leave *</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Please provide the reason for your leave application..."
-                                  {...field} 
-                                  rows={3} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={leaveForm.control}
-                            name="startDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Leave From *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={leaveForm.control}
-                            name="endDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Leave To *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <FormField
-                          control={leaveForm.control}
-                          name="leaveCity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Leave City *</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Enter destination city"
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* App-Specific Fields */}
-                        <div className="border-t pt-4 mt-6">
-                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Additional Information</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={leaveForm.control}
-                              name="emergencyContact"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Emergency Contact</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Phone number"
-                                      {...field} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={leaveForm.control}
-                              name="roomNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Room Number</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="e.g., A101, B205"
-                                      {...field} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          type="submit" 
-                          disabled={leaveMutation.isPending}
-                          className="w-full mt-6"
-                        >
-                          {leaveMutation.isPending ? 'Submitting Application...' : 'Submit Leave Application'}
-                        </Button>
-                      </form>
-                    </Form>
+                    <div className="flex-1 p-6 pt-2">
+                      <iframe
+                        src="https://docs.google.com/forms/u/0/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?pli=1&embedded=true"
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        marginHeight={0}
+                        marginWidth={0}
+                        title="Hostel Leave Application Form"
+                        className="rounded-lg"
+                        style={{ minHeight: '600px' }}
+                        allow="camera; microphone"
+                        loading="lazy"
+                      />
+                    </div>
                   </DialogContent>
                 </Dialog>
-                  
-                  <Dialog open={showGoogleFormDialog} onOpenChange={setShowGoogleFormDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">Fill Form</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0">
-                      <DialogHeader className="p-6 pb-2">
-                        <DialogTitle>Hostel Leave Application Form</DialogTitle>
-                        <p className="text-small text-muted-foreground">
-                          Complete the official leave application form. Your email may be automatically populated if you're signed in to Google.
-                        </p>
-                      </DialogHeader>
-                      <div className="flex-1 p-6 pt-2">
-                        <iframe
-                          src="https://docs.google.com/forms/u/0/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?pli=1&embedded=true"
-                          width="100%"
-                          height="100%"
-                          frameBorder="0"
-                          marginHeight={0}
-                          marginWidth={0}
-                          title="Hostel Leave Application Form"
-                          className="rounded-lg"
-                          style={{ minHeight: '600px' }}
-                          allow="camera; microphone"
-                          loading="lazy"
-                        />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
               </CardContent>
             </Card>
 
