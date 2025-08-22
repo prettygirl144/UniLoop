@@ -12,12 +12,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon } from 'lucide-react';
+import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon, MessageSquare } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 import TriathlonNews from '@/components/TriathlonNews';
@@ -415,8 +416,22 @@ export default function Triathlon() {
           </Dialog>
         )}
       </div>
-      {/* Leaderboard */}
-      <Card>
+
+      {/* Tabs */}
+      <Tabs defaultValue="leaderboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="leaderboard" className="flex items-center space-x-2">
+            <Trophy className="h-4 w-4" />
+            <span>Leaderboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="news" className="flex items-center space-x-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>News</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="leaderboard" className="mt-6">
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Trophy className="h-5 w-5" />
@@ -571,11 +586,14 @@ export default function Triathlon() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Triathlon News Section */}
-      <TriathlonNews />
+          </CardContent>
+        </Card>
+        </TabsContent>
+        
+        <TabsContent value="news" className="mt-6">
+          <TriathlonNews />
+        </TabsContent>
+      </Tabs>
       {/* Edit Points Dialog */}
       {hasTriathlonPermission && (
         <Dialog open={showEditPoints} onOpenChange={setShowEditPoints}>
