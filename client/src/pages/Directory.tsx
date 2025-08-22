@@ -41,7 +41,7 @@ export default function Directory() {
 
   // Fetch current user's directory info with fresh data
   const { data: myDirectoryInfo, isLoading: myInfoLoading, refetch: refetchMyInfo } = useQuery<DirectoryInfo & { cacheVersion?: number }>({
-    queryKey: ['directory', 'me', myDirectoryInfo?.cacheVersion || 0],
+    queryKey: ['directory', 'me'],
     queryFn: () => fetch('/api/directory/me').then(res => res.json()),
     staleTime: 0, // Always fetch fresh data during rollout
     refetchOnWindowFocus: true,
