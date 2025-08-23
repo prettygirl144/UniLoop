@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -68,39 +68,10 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeBatch, setActiveBatch] = useState<string | null>(null);
 
-  // Watch selected batches to manage active batch
-  const selectedBatches = form.watch('targets.batches');
-  const sectionsByBatch = form.watch('targets.sectionsByBatch');
-
-  // Set active batch to first selected batch if none selected
-  React.useEffect(() => {
-    if (selectedBatches.length > 0 && !activeBatch) {
-      setActiveBatch(selectedBatches[0]);
-    } else if (selectedBatches.length === 0) {
-      setActiveBatch(null);
-    } else if (activeBatch && !selectedBatches.includes(activeBatch)) {
-      setActiveBatch(selectedBatches[0] || null);
-    }
-  }, [selectedBatches, activeBatch]);
-
   // Check permissions
   const canManageEvents = user?.permissions?.['events.manage'] || user?.role === 'admin' || user?.role === 'events_manager';
 
-  // Fetch available batches
-  const { data: batches = [] } = useQuery<string[]>({
-    queryKey: ['/api/batches'],
-    enabled: canManageEvents,
-  });
-
-  // Fetch sections for the active batch (waterfall UX)
-  const { data: activeBatchSections = [] } = useQuery<string[]>({
-    queryKey: ['/api/batches', activeBatch, 'sections'],
-    queryFn: () => activeBatch ? fetch(`/api/batches/${encodeURIComponent(activeBatch)}/sections`).then(r => r.json()) : [],
-    enabled: canManageEvents && !!activeBatch,
-  });
-
-
-  // Initialize form with canonical schema
+  // Initialize form with canonical schema - MOVED UP BEFORE USAGE
   const form = useForm<CanonicalEventFormData>({
     resolver: zodResolver(canonicalEventSchema),
     defaultValues: {
@@ -119,6 +90,34 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
         programs: []
       }
     }
+  });
+
+  // Watch selected batches to manage active batch - NOW SAFE TO USE
+  const selectedBatches = form.watch('targets.batches');
+  const sectionsByBatch = form.watch('targets.sectionsByBatch');
+
+  // Set active batch to first selected batch if none selected
+  React.useEffect(() => {
+    if (selectedBatches.length > 0 && !activeBatch) {
+      setActiveBatch(selectedBatches[0]);
+    } else if (selectedBatches.length === 0) {
+      setActiveBatch(null);
+    } else if (activeBatch && !selectedBatches.includes(activeBatch)) {
+      setActiveBatch(selectedBatches[0] || null);
+    }
+  }, [selectedBatches, activeBatch]);
+
+  // Fetch available batches
+  const { data: batches = [] } = useQuery<string[]>({
+    queryKey: ['/api/batches'],
+    enabled: canManageEvents,
+  });
+
+  // Fetch sections for the active batch (waterfall UX)
+  const { data: activeBatchSections = [] } = useQuery<string[]>({
+    queryKey: ['/api/batches', activeBatch, 'sections'],
+    queryFn: () => activeBatch ? fetch(`/api/batches/${encodeURIComponent(activeBatch)}/sections`).then(r => r.json()) : [],
+    enabled: canManageEvents && !!activeBatch,
   });
 
   // Create/Update event mutation
@@ -477,7 +476,7 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    size="xs"
+                                    size="sm"
                                     onClick={selectAll}
                                     disabled={isAllSections}
                                     data-testid={`select-all-${activeBatch}`}
@@ -487,7 +486,7 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    size="xs"
+                                    size="sm"
                                     onClick={clearAll}
                                     disabled={currentBatchSections.length === activeBatchSections.length}
                                     data-testid={`clear-${activeBatch}`}
