@@ -123,9 +123,11 @@ export function isEligible(user: { batch?: string | null; section?: string | nul
   return true;
 }
 
-// Utility: Normalize arrays for atomic replacement
-export function normalizeArray(arr?: any[]): string[] {
-  return [...new Set((arr || []).map(x => String(x).trim()))].filter(Boolean).sort();
+// Normalize utility exactly as specified - same as in routes.ts
+function norm(arr: any): string[] {
+  return [...new Set((arr || []).map((x: any) => String(x).trim()))]
+    .filter(Boolean)
+    .sort();
 }
 
 export interface IStorage {

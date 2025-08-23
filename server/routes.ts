@@ -461,7 +461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eligible = isEligible(user, targets);
 
       // Add temporary debug log as specified
-      logOperation('debug', { 
+      logOperation('info', { 
         user: { batch: user.batch, section: user.section, program: user.program || null }, 
         eventId: event.id, 
         targets: targets, 
@@ -582,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create attendance sheet for the event
       try {
-        await storage.createEventAttendanceSheets(event.id, normalizedTargets.targetBatchSections, userId);
+        await storage.createEventAttendanceSheets(event.id, newTargets.targetBatchSections, userId);
         logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_ATTENDANCE_SHEET');
       } catch (sheetError) {
         logOperation('warn', { requestId, eventId: event.id, error: sheetError instanceof Error ? sheetError.message : String(sheetError) }, 'EVENT_CREATE_ATTENDANCE_SHEET_FAILED');
@@ -592,8 +592,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const savedEvent = await storage.getEventById(event.id);
       if (savedEvent) {
         try {
-          assert.deepStrictEqual(savedEvent.targetBatches, normalizedTargets.targetBatches, 'Target batches must match exactly');
-          assert.deepStrictEqual(savedEvent.targetBatchSections, normalizedTargets.targetBatchSections, 'Target batch sections must match exactly');
+          assert.deepStrictEqual(savedEvent.targetBatches, newTargets.targetBatches, 'Target batches must match exactly');
+          assert.deepStrictEqual(savedEvent.targetBatchSections, newTargets.targetBatchSections, 'Target batch sections must match exactly');
           logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_TARGETS_VERIFIED');
         } catch (assertError) {
           logOperation('error', { requestId, eventId: event.id, error: assertError instanceof Error ? assertError.message : String(assertError) }, 'EVENT_CREATE_TARGETS_MISMATCH');
