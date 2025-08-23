@@ -21,7 +21,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
