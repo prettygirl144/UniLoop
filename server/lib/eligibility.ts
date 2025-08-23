@@ -1,38 +1,29 @@
-export function isEligible(user: { batch?: string | null; section?: string | null; email?: string | null; program?: string | null; role?: string }, targets: { batches?: string[]; sections?: string[]; programs?: string[]; rollEmailAttendees?: string[] }): boolean {
-  // Input validation
-  if (!user || !targets) return false;
-
-  // Check email-based inclusion first (highest priority)
-  if (targets.rollEmailAttendees?.length && user.email && targets.rollEmailAttendees.includes(user.email)) {
-    return true;
-  }
-
-  // Normalize arrays
-  const batches = Array.isArray(targets?.batches) ? targets.batches : [];
-  const sections = Array.isArray(targets?.sections) ? targets.sections : [];
-  const programs = Array.isArray(targets?.programs) ? targets.programs : [];
-
-  // POLICY DECISION: Explicit targeting required (no open-to-all events)
+/**
+ * CANONICAL ELIGIBILITY HELPER - Single source of truth
+ * Implements the exact specification from the requirements
+ */
+export function isEligible(user: { batch?: string | null; section?: string | null; email?: string | null; program?: string | null; role?: string }, targets: { batches?: string[]; sections?: string[]; programs?: string[] }): boolean {
+  const batches = targets?.batches ?? [];
+  const sections = targets?.sections ?? [];
+  const programs = targets?.programs ?? [];
+  
   // If no batches specified, event is not open to anyone
   if (batches.length === 0) return false;
-
-  // Check batch eligibility (required)
-  const batchOK = user.batch && batches.includes(user.batch);
-  if (!batchOK) return false;
-
-  // Check section eligibility (optional filter)
-  // If sections specified, user must be in one of them
-  // If sections empty, all sections in the targeted batches are eligible
-  const sectionOK = sections.length === 0 || (user.section && sections.includes(user.section));
-  if (!sectionOK) return false;
-
-  // Check program eligibility (optional filter)
-  // If programs specified, user must be in one of them
-  // If programs empty, all programs are eligible
-  const programOK = programs.length === 0 || (user.program && programs.includes(user.program));
-  if (!programOK) return false;
-
-  return true;
+  
+  // Check batch eligibility - user batch must be in target batches
+  const batchOK = batches.includes(user.batch || '');
+  
+  // Check section eligibility
+  // sections empty ⇒ all sections in selected batches are eligible
+  // sections specified ⇒ user section must be in target sections
+  const sectionOK = sections.length === 0 || sections.includes(user.section || '');
+  
+  // Check program eligibility  
+  // programs empty ⇒ all programs are eligible
+  // programs specified ⇒ user program must be in target programs
+  const programOK = programs.length === 0 || programs.includes(user.program || '');
+  
+  return batchOK && sectionOK && programOK;
 }
 
 export interface EligibilityTargets {

@@ -44,7 +44,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").default("student").notNull(), // student, admin, committee_club, staff
+  role: varchar("role").default("student").notNull(), // student, admin, events_manager, committee_club, staff
   permissions: jsonb("permissions").$type<{
     calendar?: boolean;
     attendance?: boolean;
@@ -54,6 +54,8 @@ export const users = pgTable("users", {
     postCreation?: boolean;
     triathlon?: boolean;
     manageStudents?: boolean;
+    // New RBAC permissions
+    "events.manage"?: boolean;
     // Amenities granular permissions
     sickFoodAccess?: boolean;
     leaveApplicationAccess?: boolean;
@@ -87,34 +89,46 @@ export const announcements = pgTable("announcements", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Events table
+// Events table - New canonical structure
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  date: timestamp("date").notNull(),
-  startTime: varchar("start_time").notNull(), // HH:MM format
-  endTime: varchar("end_time").notNull(), // HH:MM format
+  // New canonical datetime fields
+  startsAt: timestamp("starts_at"),
+  endsAt: timestamp("ends_at"),
   location: text("location").notNull(),
-  hostCommittee: text("host_committee").notNull(),
-  category: varchar("category").notNull(),
-  rsvpEnabled: boolean("rsvp_enabled").default(false),
-  isMandatory: boolean("is_mandatory").default(false),
-  // New canonical targeting structure (preferred)
+  createdBy: varchar("created_by").notNull().references(() => users.id), // canonical creator field
+  tenantId: varchar("tenant_id").default("default"), // for multi-tenancy
+  
+  // Canonical targeting structure (primary)
   targets: jsonb("targets").$type<{
     batches: string[];
     sections: string[];
     programs: string[];
-    rollEmailAttendees: string[];
-  }>().default({ batches: [], sections: [], programs: [], rollEmailAttendees: [] }),
+  }>().default({ batches: [], sections: [], programs: [] }),
   
-  // Legacy targeting fields (for backward compatibility)
-  targetBatches: text("target_batches").array().default([]), // Array of batches
-  targetSections: text("target_sections").array().default([]), // Array of sections
-  targetBatchSections: text("target_batch_sections").array().default([]), // Array of "batch::section" pairs
-  rollNumberAttendees: jsonb("roll_number_attendees").$type<string[]>().default([]), // Array of email addresses from roll number upload
-  authorId: varchar("author_id").notNull().references(() => users.id),
+  // Metadata
+  meta: jsonb("meta").$type<{
+    mandatory?: boolean;
+    tags?: string[];
+  }>().default({}),
+  
+  // Legacy fields for backward compatibility
+  date: timestamp("date"), // migrated to startsAt
+  startTime: varchar("start_time"), // HH:MM format - legacy
+  endTime: varchar("end_time"), // HH:MM format - legacy
+  hostCommittee: text("host_committee"), // legacy
+  category: varchar("category"), // legacy
+  rsvpEnabled: boolean("rsvp_enabled").default(false), // legacy
+  isMandatory: boolean("is_mandatory").default(false), // migrated to meta.mandatory
+  targetBatches: text("target_batches").array().default([]), // legacy
+  targetSections: text("target_sections").array().default([]), // legacy
+  targetBatchSections: text("target_batch_sections").array().default([]), // legacy
+  rollNumberAttendees: jsonb("roll_number_attendees").$type<string[]>().default([]), // legacy
+  authorId: varchar("author_id").references(() => users.id), // legacy, use createdBy
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -137,12 +151,34 @@ export const attendance = pgTable("attendance", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Attendance Container - summary per event
+export const attendanceContainers = pgTable("attendance_containers", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().unique().references(() => events.id, { onDelete: "cascade" }),
+  summary: jsonb("summary").$type<{
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+  }>().default({ total: 0, present: 0, absent: 0, late: 0, excused: 0 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Attendance Sheets - multiple sheets per event (one per batch-section pair)
 export const attendanceSheets = pgTable("attendance_sheets", {
   id: serial("id").primaryKey(),
-  eventId: integer("event_id").notNull().references(() => events.id),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
   batch: varchar("batch").notNull(),
   section: varchar("section").notNull(),
+  counts: jsonb("counts").$type<{
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+  }>().default({ total: 0, present: 0, absent: 0, late: 0, excused: 0 }),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -153,19 +189,27 @@ export const attendanceSheets = pgTable("attendance_sheets", {
 // Attendance Records - individual student records within a sheet
 export const attendanceRecords = pgTable("attendance_records", {
   id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }), // direct event link
   sheetId: integer("sheet_id").notNull().references(() => attendanceSheets.id, { onDelete: "cascade" }),
-  studentEmail: varchar("student_email").notNull(),
-  studentName: varchar("student_name").notNull(),
+  userId: varchar("user_id").references(() => users.id), // link to user if exists
+  email: varchar("email").notNull(), // student email (canonical)
   rollNumber: varchar("roll_number"),
-  status: varchar("status").default("UNMARKED").notNull(), // UNMARKED, PRESENT, ABSENT, LATE
-  note: text("note"),
+  batch: varchar("batch").notNull(), // denormalized for easy filtering
+  section: varchar("section").notNull(), // denormalized for easy filtering
+  status: varchar("status").default("UNMARKED").notNull(), // UNMARKED, PRESENT, ABSENT, LATE, EXCUSED
+  remark: text("remark"), // renamed from note
+  // Legacy fields
+  studentEmail: varchar("student_email"), // legacy, use email
+  studentName: varchar("student_name"),
+  note: text("note"), // legacy, use remark
   markedBy: varchar("marked_by").references(() => users.id),
   markedAt: timestamp("marked_at"),
   isArchived: boolean("is_archived").default(false), // for sync functionality
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  unique("unique_sheet_student").on(table.sheetId, table.studentEmail),
+  unique("unique_event_email").on(table.eventId, table.email), // one record per event per student
+  unique("unique_sheet_student").on(table.sheetId, table.studentEmail), // legacy constraint
 ]);
 
 // Community Board Posts table (Section 1)
@@ -328,15 +372,31 @@ export const announcementsRelations = relations(announcements, ({ one }) => ({
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [events.createdBy],
+    references: [users.id],
+  }),
+  // Legacy relation
   author: one(users, {
     fields: [events.authorId],
     references: [users.id],
   }),
   rsvps: many(eventRsvps),
-  attendanceSheet: one(attendanceSheets, {
+  attendanceContainer: one(attendanceContainers, {
     fields: [events.id],
-    references: [attendanceSheets.eventId],
+    references: [attendanceContainers.eventId],
   }),
+  attendanceSheets: many(attendanceSheets),
+  attendanceRecords: many(attendanceRecords),
+}));
+
+// New relations for attendance system
+export const attendanceContainersRelations = relations(attendanceContainers, ({ one, many }) => ({
+  event: one(events, {
+    fields: [attendanceContainers.eventId],
+    references: [events.id],
+  }),
+  sheets: many(attendanceSheets),
 }));
 
 export const attendanceSheetsRelations = relations(attendanceSheets, ({ one, many }) => ({
@@ -344,7 +404,11 @@ export const attendanceSheetsRelations = relations(attendanceSheets, ({ one, man
     fields: [attendanceSheets.eventId],
     references: [events.id],
   }),
-  createdBy: one(users, {
+  container: one(attendanceContainers, {
+    fields: [attendanceSheets.eventId],
+    references: [attendanceContainers.eventId],
+  }),
+  creator: one(users, {
     fields: [attendanceSheets.createdBy],
     references: [users.id],
   }),
@@ -352,11 +416,19 @@ export const attendanceSheetsRelations = relations(attendanceSheets, ({ one, man
 }));
 
 export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  event: one(events, {
+    fields: [attendanceRecords.eventId],
+    references: [events.id],
+  }),
   sheet: one(attendanceSheets, {
     fields: [attendanceRecords.sheetId],
     references: [attendanceSheets.id],
   }),
-  markedBy: one(users, {
+  user: one(users, {
+    fields: [attendanceRecords.userId],
+    references: [users.id],
+  }),
+  markedByUser: one(users, {
     fields: [attendanceRecords.markedBy],
     references: [users.id],
   }),
@@ -887,6 +959,17 @@ export const insertNotificationBatchSchema = createInsertSchema(notificationBatc
   sentAt: true,
   readAt: true,
 });
+
+// New canonical event schemas (attendance container needs to be added)
+export const insertAttendanceContainerSchema = createInsertSchema(attendanceContainers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new canonical system
+export type AttendanceContainer = typeof attendanceContainers.$inferSelect;
+export type NewAttendanceContainer = z.infer<typeof insertAttendanceContainerSchema>;
 
 // Push subscription types
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;

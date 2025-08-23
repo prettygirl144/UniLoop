@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from 'ws';
 // Replit auth removed - using Auth0 only
-import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents } from "./auth0Config";
+import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents, requireEventsManage, requireAnyRole } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import healthRoutes from "./routes/health";
 import {
@@ -23,6 +23,7 @@ import {
   insertStudentUploadLogSchema,
   insertPushSubscriptionSchema,
   insertAttendanceRecordSchema,
+  insertAttendanceContainerSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -347,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Events routes - ENFORCE ELIGIBILITY on APIs as specified
+  // Events routes - CANONICAL IMPLEMENTATION with RBAC
   app.get('/api/events', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
@@ -359,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { tag, limit } = req.query;
-      const requestId = req.headers['x-request-id'] || `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = req.headers['x-request-id'] || `canonical_events_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       logOperation('info', { 
         tag: tag || 'none', 
@@ -369,22 +370,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole: user.role,
         userBatch: user.batch,
         userSection: user.section
-      }, 'EVENTS_GET_REQUEST');
+      }, 'CANONICAL_EVENTS_GET_REQUEST');
 
-      // Use new eligibility-aware method
-      const eventsWithEligibility = await storage.getEventsWithEligibility(user);
+      // Get all events from database
+      const allEvents = await storage.getEvents();
       
-      // Filter events by user eligibility for non-admin users
-      let userEligibleEvents = eventsWithEligibility;
-      if (user.role !== 'admin') {
-        userEligibleEvents = eventsWithEligibility.filter(event => event.eligible === true);
-      }
+      // Apply canonical eligibility filtering for each event
+      const eventsWithEligibility = allEvents.map(event => {
+        // Use canonical targets if available, otherwise adapt from legacy
+        let targets;
+        if (event.targets && (event.targets.batches?.length > 0 || event.targets.sections?.length > 0 || event.targets.programs?.length > 0)) {
+          targets = event.targets;
+        } else {
+          // Adapt from legacy fields
+          targets = adaptLegacyTargets({
+            targetBatches: event.targetBatches || [],
+            targetSections: event.targetSections || [],
+            targetBatchSections: event.targetBatchSections || [],
+            rollNumberAttendees: event.rollNumberAttendees || []
+          });
+        }
+        
+        const eligible = user.role === 'admin' || user.role === 'events_manager' || 
+                        isEligible(user, targets);
+        
+        return { ...event, eligible };
+      });
+      
+      // Filter by eligibility for non-admin users
+      let filteredEvents = user.role === 'admin' || user.role === 'events_manager' 
+        ? eventsWithEligibility
+        : eventsWithEligibility.filter(event => event.eligible);
 
       // Filter by tag if specified
-      let filteredEvents = userEligibleEvents;
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = userEligibleEvents.filter(event => 
+        filteredEvents = filteredEvents.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
@@ -400,15 +421,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logOperation('info', {
         requestId,
-        totalEvents: eventsWithEligibility.length,
-        eligibleEvents: userEligibleEvents.length,
-        finalEvents: filteredEvents.length,
+        totalEvents: allEvents.length,
+        eligibleEvents: filteredEvents.length,
         userRole: user.role
-      }, 'EVENTS_GET_RESPONSE');
+      }, 'CANONICAL_EVENTS_GET_RESPONSE');
       
       res.json(filteredEvents);
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENTS_GET_ERROR');
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'CANONICAL_EVENTS_GET_ERROR');
       res.status(500).json({ message: "Failed to fetch events" });
     }
   });
@@ -516,72 +536,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', checkAuth, async (req: any, res) => {
+  app.post('/api/events', requireEventsManage, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
-      const requestId = req.headers['x-request-id'] || `evt_create_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = req.headers['x-request-id'] || `canonical_evt_create_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      if (!user?.permissions?.calendar && user?.role !== 'admin') {
-        return res.status(403).json({ message: "No permission to create events" });
+      if (!user) {
+        return res.status(401).json({ message: 'Authentication required' });
       }
-
-      // Validate inputs early - ensure arrays are arrays
-      if (req.body.targetBatches && !Array.isArray(req.body.targetBatches)) {
-        return res.status(400).json({ message: 'targetBatches must be an array' });
-      }
-      if (req.body.targetSections && !Array.isArray(req.body.targetSections)) {
-        return res.status(400).json({ message: 'targetSections must be an array' });
-      }
-      if (req.body.targetBatchSections && !Array.isArray(req.body.targetBatchSections)) {
-        return res.status(400).json({ message: 'targetBatchSections must be an array' });
-      }
-
-      // Normalize and REPLACE targets as specified  
-      const newTargets = {
-        targetBatches: norm(req.body.targetBatches),
-        targetSections: norm(req.body.targetSections),
-        targetBatchSections: norm(req.body.targetBatchSections),
-        rollNumberAttendees: norm(req.body.rollNumberAttendees)
-      };
 
       logOperation('info', {
         requestId,
         userId,
-        targets: newTargets,
+        userRole: user.role,
         eventTitle: req.body.title
-      }, 'EVENT_CREATE_TARGETS');
+      }, 'CANONICAL_EVENT_CREATE_START');
 
-      const eventData = insertEventSchema.parse({
-        ...req.body,
-        ...newTargets,
-        authorId: userId,
-        date: new Date(req.body.date),
-      });
+      // Validate canonical targets structure
+      const targets = {
+        batches: norm(req.body.targets?.batches || []),
+        sections: norm(req.body.targets?.sections || []), 
+        programs: norm(req.body.targets?.programs || [])
+      };
+
+      // At least one batch must be specified (per canonical specification)
+      if (targets.batches.length === 0) {
+        return res.status(400).json({ message: 'At least one batch must be specified in targets' });
+      }
+
+      // Parse startsAt and endsAt dates for canonical format
+      let startsAt: Date;
+      let endsAt: Date | null = null;
       
-      const event = await storage.createEvent(eventData);
-      
-      // Create attendance sheet for the event
       try {
-        await storage.createEventAttendanceSheets(event.id, newTargets.targetBatchSections, userId);
-        logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_ATTENDANCE_SHEET');
-      } catch (sheetError) {
-        logOperation('warn', { requestId, eventId: event.id, error: sheetError instanceof Error ? sheetError.message : String(sheetError) }, 'EVENT_CREATE_ATTENDANCE_SHEET_FAILED');
-      }
-      
-      // Verify targets were saved correctly
-      const savedEvent = await storage.getEventById(event.id);
-      if (savedEvent) {
-        try {
-          assert.deepStrictEqual(savedEvent.targetBatches, newTargets.targetBatches, 'Target batches must match exactly');
-          assert.deepStrictEqual(savedEvent.targetBatchSections, newTargets.targetBatchSections, 'Target batch sections must match exactly');
-          logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_TARGETS_VERIFIED');
-        } catch (assertError) {
-          logOperation('error', { requestId, eventId: event.id, error: assertError instanceof Error ? assertError.message : String(assertError) }, 'EVENT_CREATE_TARGETS_MISMATCH');
+        startsAt = new Date(req.body.startsAt);
+        if (req.body.endsAt) {
+          endsAt = new Date(req.body.endsAt);
         }
+      } catch (dateError) {
+        return res.status(400).json({ message: 'Invalid date format for startsAt or endsAt' });
+      }
+
+      logOperation('info', {
+        requestId,
+        userId,
+        targets,
+        eventTitle: req.body.title,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt?.toISOString()
+      }, 'CANONICAL_EVENT_CREATE_DATA');
+
+      // Build canonical event data
+      const eventData = {
+        title: req.body.title,
+        description: req.body.description,
+        category: req.body.category,
+        hostCommittee: req.body.hostCommittee,
+        location: req.body.location,
+        startsAt,
+        endsAt,
+        targets,
+        authorId: userId,
+        rsvpRequired: req.body.rsvpRequired || false
+      };
+
+      // Validate with insert schema
+      const validatedEvent = insertEventSchema.parse(eventData);
+      
+      // Create the event
+      const event = await storage.createEvent(validatedEvent);
+      
+      // Create AttendanceContainer for summary data
+      try {
+        const containerData = {
+          eventId: event.id,
+          totalStudents: 0, // Will be calculated when students are added
+          presentCount: 0,
+          absentCount: 0,
+          lateCount: 0,
+          unmarkedCount: 0,
+          excusedCount: 0
+        };
+        
+        const container = await storage.createAttendanceContainer(insertAttendanceContainerSchema.parse(containerData));
+        logOperation('info', { requestId, eventId: event.id, containerId: container.id }, 'CANONICAL_EVENT_CONTAINER_CREATED');
+      } catch (containerError) {
+        logOperation('warn', { requestId, eventId: event.id, error: containerError instanceof Error ? containerError.message : String(containerError) }, 'CANONICAL_EVENT_CONTAINER_FAILED');
       }
       
+      logOperation('info', { requestId, eventId: event.id }, 'CANONICAL_EVENT_CREATE_SUCCESS');
       res.json(event);
     } catch (error) {
       logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_CREATE_ERROR');
@@ -589,8 +634,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update existing event - ATOMIC REPLACEMENT as specified
-  app.put('/api/events/:id', checkAuth, async (req: any, res) => {
+  // Update existing event - CANONICAL RBAC
+  app.put('/api/events/:id', requireEventsManage, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
@@ -955,36 +1000,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Attendance Management Routes
-  // Get attendance sheet for an event
-  app.get('/api/events/:id/attendance', checkAuth, async (req: any, res) => {
+  // ======== CANONICAL ATTENDANCE MANAGEMENT APIs ========
+  
+  // Get attendance summary and records for an event (managers/admin only)
+  app.get('/api/events/:id/attendance', requireEventsManage, async (req: any, res) => {
     try {
-      const eventId = parseInt(req.params.id);
-      const userId = req.session.user.id;
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return res.status(401).json({ message: 'Authentication required' });
       }
 
-      // Check if user has permission to view attendance (admin or attendance permission)
-      if (user.role !== 'admin' && !user.permissions?.attendance) {
-        return res.status(403).json({ message: "No permission to view attendance" });
+      const eventId = parseInt(req.params.id);
+      const requestId = req.headers['x-request-id'] || `att_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Verify event exists
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
       }
 
-      const attendanceSheet = await storage.getAttendanceSheetByEventId(eventId);
-      if (!attendanceSheet) {
-        return res.status(404).json({ message: "No attendance sheet found for this event" });
-      }
+      logOperation('info', {
+        requestId,
+        eventId,
+        userId,
+        userRole: user.role
+      }, 'CANONICAL_ATTENDANCE_GET_REQUEST');
 
-      const records = await storage.getAttendanceRecordsBySheetId(attendanceSheet.id);
-      res.json({
-        sheet: attendanceSheet,
-        records: records,
-      });
+      // Get attendance container for summary stats
+      const container = await storage.getAttendanceContainer(eventId);
+      
+      // Get all attendance records for this event
+      const records = await storage.getAttendanceRecords(eventId);
+      
+      // Get attendance sheets if they exist
+      const sheets = await storage.getAttendanceSheetsByEventId(eventId);
+      
+      const response = {
+        eventId,
+        eventTitle: event.title,
+        container,
+        records,
+        sheets,
+        totalRecords: records.length
+      };
+      
+      logOperation('info', {
+        requestId,
+        eventId,
+        recordCount: records.length,
+        containerExists: !!container
+      }, 'CANONICAL_ATTENDANCE_GET_RESPONSE');
+      
+      res.json(response);
     } catch (error) {
-      console.error("Error fetching attendance sheet:", error);
-      res.status(500).json({ message: "Failed to fetch attendance sheet" });
+      logOperation('error', {
+        error: error instanceof Error ? error.message : String(error),
+        eventId: req.params.id
+      }, 'CANONICAL_ATTENDANCE_GET_ERROR');
+      res.status(500).json({ message: 'Failed to get attendance data' });
     }
   });
 
@@ -1059,8 +1135,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a single attendance record
-  app.put('/api/attendance/records/:id', adminOnly(), async (req: any, res) => {
+  // Mark attendance for students (bulk or individual) - managers/admin only
+  app.post('/api/events/:id/attendance/mark', requireEventsManage, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const requestId = req.headers['x-request-id'] || `att_mark_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Verify event exists
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      const { records, bulkAction } = req.body;
+      
+      logOperation('info', {
+        requestId,
+        eventId,
+        userId,
+        recordCount: records?.length || 0,
+        bulkAction: bulkAction || 'none'
+      }, 'CANONICAL_ATTENDANCE_MARK_REQUEST');
+
+      let updatedRecords = [];
+      
+      if (bulkAction) {
+        // Handle bulk actions: mark-all-present, mark-all-absent, clear-all
+        const allowedBulkActions = ['mark-all-present', 'mark-all-absent', 'clear-all'];
+        if (!allowedBulkActions.includes(bulkAction)) {
+          return res.status(400).json({ message: 'Invalid bulk action' });
+        }
+        
+        const bulkResult = await storage.bulkUpdateAttendance(eventId, bulkAction, userId);
+        updatedRecords = bulkResult.updatedRecords || [];
+        
+        logOperation('info', {
+          requestId,
+          eventId,
+          bulkAction,
+          updatedCount: updatedRecords.length
+        }, 'CANONICAL_ATTENDANCE_BULK_ACTION');
+      } else if (records && Array.isArray(records)) {
+        // Handle individual record updates
+        for (const recordData of records) {
+          const validatedRecord = {
+            ...recordData,
+            eventId,
+            markedBy: userId,
+            markedAt: new Date()
+          };
+          
+          const updatedRecord = await storage.updateAttendanceRecord(validatedRecord);
+          if (updatedRecord) {
+            updatedRecords.push(updatedRecord);
+          }
+        }
+        
+        logOperation('info', {
+          requestId,
+          eventId,
+          individualUpdates: updatedRecords.length
+        }, 'CANONICAL_ATTENDANCE_INDIVIDUAL_UPDATES');
+      }
+
+      // Update attendance container summary stats
+      await storage.updateAttendanceContainerStats(eventId);
+      
+      // Get updated container stats
+      const updatedContainer = await storage.getAttendanceContainer(eventId);
+      
+      res.json({
+        message: 'Attendance updated successfully',
+        updatedRecords,
+        container: updatedContainer,
+        totalUpdated: updatedRecords.length
+      });
+    } catch (error) {
+      logOperation('error', {
+        error: error instanceof Error ? error.message : String(error),
+        eventId: req.params.id
+      }, 'CANONICAL_ATTENDANCE_MARK_ERROR');
+      res.status(500).json({ message: 'Failed to mark attendance' });
+    }
+  });
+
+  // Sync attendance roster with student directory - managers/admin only
+  app.post('/api/events/:id/attendance/sync', requireEventsManage, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const requestId = req.headers['x-request-id'] || `att_sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Verify event exists
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      logOperation('info', {
+        requestId,
+        eventId,
+        userId
+      }, 'CANONICAL_ATTENDANCE_SYNC_REQUEST');
+
+      // Get canonical targets or adapt from legacy
+      let targets;
+      if (event.targets && (event.targets.batches?.length > 0 || event.targets.sections?.length > 0 || event.targets.programs?.length > 0)) {
+        targets = event.targets;
+      } else {
+        targets = adaptLegacyTargets({
+          targetBatches: event.targetBatches || [],
+          targetSections: event.targetSections || [],
+          targetBatchSections: event.targetBatchSections || [],
+          rollNumberAttendees: event.rollNumberAttendees || []
+        });
+      }
+      
+      // Get all students from directory
+      const allStudents = await storage.getStudentDirectory();
+      
+      // Filter eligible students using canonical eligibility
+      const eligibleStudents = allStudents.filter(student => {
+        return isEligible({
+          batch: student.batch,
+          section: student.section,
+          program: student.program,
+          email: student.email,
+          role: 'student'
+        }, targets);
+      });
+      
+      // Sync attendance records
+      const syncResult = await storage.syncAttendanceRecords(eventId, eligibleStudents, userId);
+      
+      // Update container stats
+      await storage.updateAttendanceContainerStats(eventId);
+      const updatedContainer = await storage.getAttendanceContainer(eventId);
+      
+      logOperation('info', {
+        requestId,
+        eventId,
+        eligibleStudents: eligibleStudents.length,
+        syncResult
+      }, 'CANONICAL_ATTENDANCE_SYNC_SUCCESS');
+      
+      res.json({
+        message: 'Attendance roster synced successfully',
+        eligibleStudents: eligibleStudents.length,
+        syncResult,
+        container: updatedContainer
+      });
+    } catch (error) {
+      logOperation('error', {
+        error: error instanceof Error ? error.message : String(error),
+        eventId: req.params.id
+      }, 'CANONICAL_ATTENDANCE_SYNC_ERROR');
+      res.status(500).json({ message: 'Failed to sync attendance roster' });
+    }
+  });
+
+  // Legacy Update a single attendance record (keep for compatibility)
+  app.put('/api/attendance/records/:id', requireEventsManage, async (req: any, res) => {
     try {
       const recordId = parseInt(req.params.id);
       const { status, note } = req.body;
