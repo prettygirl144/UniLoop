@@ -395,25 +395,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userSection: user.section
       }, 'EVENTS_GET_REQUEST');
 
-      const events = await storage.getEvents();
+      // Use new eligibility-aware method
+      const eventsWithEligibility = await storage.getEventsWithEligibility(user);
       
-      // Filter events by user eligibility
-      let userEligibleEvents = events;
+      // Filter events by user eligibility for non-admin users
+      let userEligibleEvents = eventsWithEligibility;
       if (user.role !== 'admin') {
-        userEligibleEvents = events.filter(event => isUserEligibleForEvent(user, event));
+        userEligibleEvents = eventsWithEligibility.filter(event => event.eligible === true);
       }
 
-      // Add eligibility flag to each event for frontend
-      const eventsWithEligibility = userEligibleEvents.map(event => ({
-        ...event,
-        eligible: isUserEligibleForEvent(user, event)
-      }));
-
       // Filter by tag if specified
-      let filteredEvents = eventsWithEligibility;
+      let filteredEvents = userEligibleEvents;
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = eventsWithEligibility.filter(event => 
+        filteredEvents = userEligibleEvents.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
@@ -429,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logOperation('info', {
         requestId,
-        totalEvents: events.length,
+        totalEvents: eventsWithEligibility.length,
         eligibleEvents: userEligibleEvents.length,
         finalEvents: filteredEvents.length,
         userRole: user.role
@@ -585,55 +580,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
-      // Store previous targets for logging
-      const previousTargets = {
-        targetBatches: existingEvent.targetBatches || [],
-        targetSections: existingEvent.targetSections || [],
-        targetBatchSections: existingEvent.targetBatchSections || [],
-        rollNumberAttendees: existingEvent.rollNumberAttendees || []
-      };
+      // Validate the request body
+      const eventData = insertEventSchema.parse(req.body);
 
-      // Normalize target arrays - replace completely, don't append
-      const normalizedTargets = {
-        targetBatches: normalizeArray(req.body.targetBatches),
-        targetSections: normalizeArray(req.body.targetSections),
-        targetBatchSections: normalizeArray(req.body.targetBatchSections),
-        rollNumberAttendees: normalizeArray(req.body.rollNumberAttendees)
-      };
+      // Use new atomic update method with logging and normalization
+      const updatedEvent = await storage.updateEvent(eventId, eventData, requestId);
+
+      res.json({ 
+        message: 'Event updated successfully', 
+        event: updatedEvent
+      });
+    } catch (error) {
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_UPDATE_ERROR');
+      res.status(500).json({ message: "Failed to update event" });
+    }
+  });
+
+  // Admin repair endpoint for missing attendance sheets  
+  app.post('/api/admin/events/repair-sheets', requireAdmin, async (req: any, res) => {
+    try {
+      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`🔧 [REPAIR_SHEETS] Starting repair - RequestID: ${requestId}`);
+      
+      const repairResult = await storage.repairMissingAttendanceSheets();
+      
+      console.log(`✅ [REPAIR_SHEETS] Completed - RequestID: ${requestId}`, repairResult);
+      
+      res.json({
+        message: `Repaired ${repairResult.repaired} events with missing attendance sheets`,
+        ...repairResult
+      });
+    } catch (error) {
+      console.error('🚨 [REPAIR_SHEETS] Error:', error);
+      res.status(500).json({ message: 'Failed to repair attendance sheets' });
+    }
+  });
+
+  // Delete event
+  app.delete('/api/events/:id', checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      const requestId = req.headers['x-request-id'] || `evt_delete_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const existingEvent = await storage.getEventById(eventId);
+      
+      if (!existingEvent) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Check if user can delete this event (owner or admin)  
+      if (user.role !== 'admin' && existingEvent.authorId !== userId) {
+        return res.status(403).json({ message: 'You can only delete events you created' });
+      }
+
+      logOperation('info', { requestId, eventId, userId }, 'EVENT_DELETE_START');
+
+      // Use existing delete method (already has cascade implemented)
+      const deleteResult = await storage.deleteEventWithCascade(eventId);
 
       logOperation('info', {
         requestId,
         eventId,
-        userId,
-        before: previousTargets,
-        after: normalizedTargets
-      }, 'EVENT_PATCH_TARGETS');
+        sheetFound: deleteResult.sheetFound,
+        rowsDeleted: deleteResult.rowsDeleted
+      }, 'EVENT_DELETE_CASCADE');
+      
+      res.json({ message: 'Event deleted successfully', ...deleteResult });
+    } catch (error) {
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_DELETE_ERROR');
+      res.status(500).json({ message: 'Failed to delete event' });
+    }
+  });
 
-      const eventData = insertEventSchema.parse({
-        ...req.body,
-        ...normalizedTargets,
-        authorId: existingEvent.authorId, // Keep the original author
-        date: new Date(req.body.date),
-      });
-      
-      const updatedEvent = await storage.updateEvent(eventId, eventData);
-      
-      // Verify targets were replaced correctly
-      const savedEvent = await storage.getEventById(eventId);
-      if (savedEvent) {
-        try {
-          assert.deepStrictEqual(savedEvent.targetBatches, normalizedTargets.targetBatches, 'Target batches must match exactly');
-          assert.deepStrictEqual(savedEvent.targetBatchSections, normalizedTargets.targetBatchSections, 'Target batch sections must match exactly');
-          logOperation('info', { requestId, eventId }, 'EVENT_PATCH_TARGETS_VERIFIED');
-        } catch (assertError) {
-          logOperation('error', { requestId, eventId, error: assertError instanceof Error ? assertError.message : String(assertError) }, 'EVENT_PATCH_TARGETS_MISMATCH');
+  // Admin repair endpoint for missing attendance sheets
+  app.post('/api/admin/repair-attendance-sheets', requireAdmin, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      logOperation('info', { requestId, userId }, 'REPAIR_ATTENDANCE_SHEETS_START');
+
+      const allEvents = await storage.getEvents();
+      let repairedCount = 0;
+
+      for (const event of allEvents) {
+        if (event.targetBatchSections && event.targetBatchSections.length > 0) {
+          // Check if attendance sheets exist
+          const existingSheets = await storage.getAttendanceSheetsByEventId(event.id);
+          const existingBatchSections = existingSheets.map(sheet => `${sheet.batch}::${sheet.section}`);
+          
+          const missingBatchSections = event.targetBatchSections.filter(
+            batchSection => !existingBatchSections.includes(batchSection)
+          );
+
+          if (missingBatchSections.length > 0) {
+            await storage.createEventAttendanceSheets(event.id, missingBatchSections, userId);
+            repairedCount++;
+            logOperation('warn', { 
+              requestId, 
+              eventId: event.id, 
+              missingSheets: missingBatchSections.length,
+              eventTitle: event.title
+            }, 'REPAIRED_MISSING_SHEET');
+          }
         }
       }
-      
-      res.json(updatedEvent);
+
+      logOperation('info', { requestId, totalEvents: allEvents.length, repairedCount }, 'REPAIR_ATTENDANCE_SHEETS_COMPLETE');
+
+      res.json({ 
+        message: `Repair completed. Fixed ${repairedCount} events with missing attendance sheets.`,
+        totalEvents: allEvents.length,
+        repairedCount
+      });
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_UPDATE_ERROR');
-      res.status(500).json({ message: 'Failed to update event' });
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'REPAIR_ATTENDANCE_SHEETS_ERROR');
+      res.status(500).json({ message: 'Failed to repair attendance sheets' });
     }
   });
 

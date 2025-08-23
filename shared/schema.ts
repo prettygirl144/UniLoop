@@ -582,7 +582,9 @@ export type CommunityReplyWithVotes = CommunityReply & {
 };
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
-export type Event = typeof events.$inferSelect;
+export type Event = typeof events.$inferSelect & { 
+  eligible?: boolean; // Server-computed eligibility for the current user
+};
 export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
 export type EventRsvp = typeof eventRsvps.$inferSelect;
 export type InsertAttendanceSheet = z.infer<typeof insertAttendanceSheetSchema>;

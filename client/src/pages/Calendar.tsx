@@ -326,9 +326,14 @@ export default function Calendar() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch events data - moved before useEffect to fix variable declaration order
+  // Fetch events data with network-first strategy for fresh eligibility data
   const { data: events, isLoading } = useQuery<Event[]>({
     queryKey: ['/api/events'],
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always consider data stale for eligibility freshness
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
   });
 
 
@@ -345,46 +350,7 @@ export default function Calendar() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Helper function to check if user is eligible for event based on batch/section or roll number attendance
-  const isUserEligibleForEvent = (event: Event) => {
-    // Admin users can see all events
-    if (user?.role === 'admin') {
-      return true;
-    }
-    
-    // Event creator can see their own events
-    if (event.authorId === user?.id) {
-      return true;
-    }
-    
-    // Check if user's email is in roll number attendees
-    if (event.rollNumberAttendees?.includes(user?.email || '')) {
-      return true;
-    }
-    
-    // If no targeting specified, event is for everyone
-    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
-      return true;
-    }
-    
-    const userBatch = user?.batch;
-    const userSection = user?.section;
-    
-    // If batch-section pairs are specified, check them first (most specific)
-    if (event.targetBatchSections?.length) {
-      // User section is already in batch::section format, compare directly
-      return event.targetBatchSections.includes(userSection || '');
-    }
-    
-    // Fallback to legacy batch/section checks
-    // Extract just the section part from batch::section format for legacy comparison
-    const extractedSection = userSection?.includes('::') ? userSection.split('::')[1] : userSection;
-    
-    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userBatch || '');
-    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(extractedSection || '');
-    
-    return batchMatch && sectionMatch;
-  };
+  // Note: Eligibility is now computed server-side and included in event.eligible field
 
   // Fetch batches and sections for admin event creation
   const { data: batchesAndSections, isLoading: batchesLoading } = useQuery({
@@ -500,33 +466,38 @@ export default function Calendar() {
 
   const createEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm) => {
-      // Generate batch-section pairs from batch-specific selections
+      // Generate batch-section pairs from batch-specific selections - COMPLETE ARRAYS
       const batchSectionPairs: string[] = [];
-      Object.entries(data.batchSections).forEach(([batch, sections]) => {
+      Object.entries(data.batchSections || {}).forEach(([batch, sections]) => {
         sections.forEach(section => {
           batchSectionPairs.push(`${batch}::${section}`);
         });
       });
 
-      // Extract emails from roll number attendees for storage
-      const rollNumberEmails = rollNumberAttendees.map(attendee => attendee.email);
-      
-      // Combine roll number attendees with batch/section selections
-      const combinedData = {
+      const requestData = {
         ...data,
-        targetBatchSections: batchSectionPairs,
-        rollNumberAttendees: rollNumberEmails, // Store only emails in database
+        date: new Date(data.date).toISOString(),
+        targetBatches: Array.from(data.targetBatches || []), // Complete array
+        targetSections: [], // Legacy field, always empty
+        targetBatchSections: batchSectionPairs, // Complete array
+        rollNumberAttendees: rollNumberAttendees.map(attendee => attendee.email), // Complete array
       };
 
-      return apiRequest('POST', '/api/events', {
-        ...combinedData,
-        date: new Date(data.date).toISOString(),
+      await apiRequest('POST', '/api/events', requestData, {
+        headers: {
+          'x-request-id': `evt_create_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }
       });
     },
     onSuccess: () => {
+      // Invalidate all relevant caches
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', 'adminList'] });
+      queryClient.invalidateQueries({ queryKey: ['events', 'userFeed'] });
       setShowCreateDialog(false);
       form.reset();
+      setRollNumberAttendees([]);
       toast({
         title: 'Success',
         description: 'Event created successfully!',
@@ -1576,7 +1547,7 @@ export default function Calendar() {
           <CardContent className="max-h-[400px] overflow-y-auto">
             <div className="space-y-3">
             {todaysEvents.map((event) => {
-              const isEligible = isUserEligibleForEvent(event);
+              const isEligible = event.eligible;
               return (
                 <div
                   key={event.id}
@@ -1678,7 +1649,7 @@ export default function Calendar() {
             <div className="space-y-3">
               {events.map((event) => {
                 const eventDate = new Date(event.date);
-                const isEligible = isUserEligibleForEvent(event);
+                const isEligible = event.eligible;
                 
                 return (
                   <div
@@ -1844,17 +1815,17 @@ export default function Calendar() {
                 </div>
               </div>
 
-              {/* Attendee Status */}
+              {/* Attendee Status - Using server-computed eligibility */}
               <div className="p-3 rounded-lg border">
-                {isUserEligibleForEvent(selectedEvent) ? (
+                {selectedEvent.eligible ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <Check className="w-4 h-4" />
-                    <span className="text-small">You are registered for this event</span>
+                    <span className="text-small">You are eligible for this event</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Info className="w-4 h-4" />
-                    <span className="text-small">You are not registered for this event</span>
+                    <span className="text-small">You are not eligible for this event</span>
                   </div>
                 )}
               </div>
@@ -1873,9 +1844,68 @@ export default function Calendar() {
                       variant="outline" 
                       size="sm" 
                       className="w-full"
-                      onClick={() => {
-                        setShowEventDetails(false);
-                        window.location.href = `/attendance/${selectedEvent.id}`;
+                      onClick={async () => {
+                        try {
+                          // Check if attendance sheet exists first
+                          const response = await fetch(`/api/events/${selectedEvent.id}/attendance`);
+                          if (response.status === 404) {
+                            // No attendance sheet found - try to repair for admin users
+                            if (user?.role === 'admin') {
+                              toast({
+                                title: "Creating attendance sheet...",
+                                description: "No attendance sheet found. Creating one now.",
+                              });
+                              
+                              try {
+                                await apiRequest('POST', '/api/admin/events/repair-sheets', {}, {
+                                  headers: {
+                                    'x-request-id': `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                                  }
+                                });
+                                
+                                // Retry navigation after repair
+                                setTimeout(() => {
+                                  setShowEventDetails(false);
+                                  window.location.href = `/attendance/${selectedEvent.id}`;
+                                }, 1000);
+                                
+                                toast({
+                                  title: "Attendance sheet created!",
+                                  description: "Redirecting to attendance page...",
+                                });
+                              } catch (repairError) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to create attendance sheet. Please try again.",
+                                  variant: "destructive",
+                                });
+                              }
+                            } else {
+                              toast({
+                                title: "No attendance sheet",
+                                description: "This event doesn't have an attendance sheet yet.",
+                                variant: "destructive",
+                              });
+                            }
+                          } else if (response.ok) {
+                            // Sheet exists, navigate to it
+                            setShowEventDetails(false);
+                            window.location.href = `/attendance/${selectedEvent.id}`;
+                          } else {
+                            toast({
+                              title: "Error",
+                              description: "Failed to access attendance sheet.",
+                              variant: "destructive",
+                            });
+                          }
+                        } catch (error) {
+                          console.error('Error checking attendance sheet:', error);
+                          toast({
+                            title: "Error",
+                            description: "Failed to check attendance sheet status.",
+                            variant: "destructive",
+                          });
+                        }
                       }}
                       data-testid="button-view-attendance"
                     >

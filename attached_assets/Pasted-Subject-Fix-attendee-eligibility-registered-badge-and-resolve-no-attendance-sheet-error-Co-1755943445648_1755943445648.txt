@@ -1,0 +1,103 @@
+Subject: Fix attendee eligibility + “registered” badge and resolve “no attendance sheet” error
+
+Context
+- After editing an event to exclude a section, users from that section still see “You are registered for this event”.
+- A “no attendance sheet” error appears for some events.
+- Root causes are typically: stale eligibility logic, non-replacing target updates, cached client state, and missing/ broken attendance-sheet linkage.
+
+Objectives
+- Compute eligibility strictly from the event’s current targets on both server and client.
+- Replace attendee targets atomically on edit (no append/merge).
+- Ensure every event has exactly one attendance sheet linked by eventId; repair legacy events.
+- Make the “registered” badge depend on either explicit registration or computed eligibility only if business rules say “auto-registered”.
+
+Implement — Backend
+
+1) Single source of truth for eligibility
+- Add a pure function used by API and anywhere else:
+  function isEligible(user, targets) {
+    if (!targets) return false;
+    const inBatch = targets.batches?.length ? targets.batches.includes(user.batch) : false;
+    const inSection = targets.sections?.length ? targets.sections.includes(user.section) : true;
+    const inProgram = targets.programs?.length ? targets.programs.includes(user.program) : true;
+    return inBatch && inSection && inProgram;
+  }
+
+2) Enforce replace-on-edit for targets
+- In PATCH /api/events/:id:
+  - Normalize and REPLACE arrays (do not merge):
+    const norm = a => [...new Set((a||[]).map(x => x.trim()))].filter(Boolean).sort();
+    const newTargets = {
+      batches: norm(body.targets?.batches),
+      sections: norm(body.targets?.sections),
+      programs: norm(body.targets?.programs),
+    };
+    await tx.events.update(id, { targets: newTargets, updatedAt: now() });
+  - Read back and assert equality to newTargets (optional in dev).
+  - Update attendance sheet meta (see 3).
+
+3) Attendance sheet upsert and repair
+- Schema rule: AttendanceSheet has unique eventId.
+- On POST (create) and PATCH (edit):
+  - Upsert: if sheet for eventId exists, keep it; if missing, create it.
+  - Optionally store a copy of targets in sheet.metaTargets for audit.
+- One-time repair endpoint (admin-only):
+  POST /api/admin/events/repair-sheets
+  - For each event without a sheet, create one and log: REPAIRED_MISSING_SHEET { eventId }.
+
+4) Server responses for detail and feed
+- In GET /api/events/:id and user feed:
+  - Compute and include a boolean eligible using isEligible(currentUser, event.targets).
+  - If “registered” is a separate concept (user explicitly RSVP’d), include registered based on registrations table; otherwise do not conflate eligibility with registration.
+
+5) Delete cascade remains robust
+- DELETE /api/events/:id:
+  - Transactionally delete attendance rows, sheet (if any), then event.
+  - If no sheet exists, do not error; log and continue.
+
+Implement — Frontend
+
+6) Event detail modal/card: badges must reflect truth
+- Prefer backend fields eligible and registered.
+- If backend does not provide registered and there is no RSVP system:
+  - Do NOT show “You are registered for this event”.
+  - Instead show “Eligible” only if eligible === true; otherwise hide or show “Not eligible”.
+- Never cache eligibility locally beyond the current fetch.
+
+7) Edit form must send full targets
+- On save, payload must contain the complete, current selections:
+  targets: {
+    batches: [...checkedBatches],
+    sections: [...checkedSections],
+    programs: [...checkedPrograms]
+  }
+- After success, invalidate queries:
+  ['events','adminList'], ['events','userFeed'], ['events',eventId], ['attendance',eventId]
+
+8) Handle “no attendance sheet” gracefully
+- When opening “View Attendance Sheet”:
+  - If 404/NO_SHEET for this event, call the repair endpoint (admin-only) or show a “Sheet will be created on first open” message, then refetch.
+  - Do not crash the modal; show a retry button.
+
+9) Cache/SW hygiene to avoid stale eligibility
+- For GET /api/events and /api/events/:id set network-first during rollout.
+- Invalidate affected queries after any edit.
+
+Diagnostic logs to add temporarily (then remove)
+- In PATCH: log before/after targets with requestId.
+- In GET detail: log computed eligible with user batch/section and event targets.
+- In sheet upsert: log CREATED/EXISTS for eventId.
+
+Acceptance tests
+- As admin:
+  - Create event for MBA 2025-27 sections A,B; view as user in C → Not eligible.
+  - Edit event to MBA 2025-27 section C only; user in C sees Eligible; user in A no longer Eligible.
+  - Open “View Attendance Sheet” → no error; if missing sheet, it is auto-created.
+- As student not in targets: event card/ modal does NOT show “You are registered for this event”.
+
+Please implement the above changes and confirm with:
+- One PATCH log showing before/after targets and a subsequent GET detail showing eligible=false for an excluded section.
+- Screenshot of the event modal no longer showing “You are registered” for excluded users.
+- Confirmation that “no attendance sheet” no longer appears or auto-repairs on open.
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/82741753/3eee707a-734d-4168-9f88-059d46647d22/image.jpg)
