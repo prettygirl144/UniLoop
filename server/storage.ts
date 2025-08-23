@@ -427,7 +427,7 @@ export class DatabaseStorage implements IStorage {
         targetBatches: event.targetBatches || [],
         targetSections: event.targetSections || [],
         targetBatchSections: event.targetBatchSections || [],
-        rollNumberAttendees: event.rollNumberAttendees || []
+        rollNumberAttendees: (event.rollNumberAttendees as string[]) || []
       });
       eventData.targets = canonicalTargets;
       
@@ -1716,7 +1716,12 @@ export class DatabaseStorage implements IStorage {
   async createSmartNotification(notification: InsertSmartNotification): Promise<SmartNotification> {
     const [created] = await db
       .insert(smartNotifications)
-      .values([notification])
+      .values([{
+        ...notification,
+        contextualData: notification.contextualData || {},
+        deliveryChannels: (notification.deliveryChannels as string[]) || [],
+        metadata: notification.metadata || {}
+      }])
       .returning();
     return created;
   }
@@ -1826,7 +1831,30 @@ export class DatabaseStorage implements IStorage {
   async setNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
     const [created] = await db
       .insert(notificationPreferences)
-      .values([preferences])
+      .values([{
+        ...preferences,
+        globalSettings: preferences.globalSettings || {
+          enabled: true,
+          quietHours: { start: "22:00", end: "08:00" },
+          maxDailyNotifications: 20,
+          batchDelay: 15
+        },
+        categoryPreferences: preferences.categoryPreferences || {
+          announcement: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+          event: { enabled: true, priority: "high", channels: ["push", "in_app"] },
+          calendar: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+          forum: { enabled: true, priority: "low", channels: ["in_app"] },
+          amenities: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
+          system: { enabled: true, priority: "critical", channels: ["push", "in_app", "email"] }
+        },
+        contextualRules: preferences.contextualRules || {
+          academicHours: true,
+          locationBased: false,
+          roleSpecific: true,
+          eventProximity: true,
+          engagementBased: true
+        }
+      }])
       .onConflictDoUpdate({
         target: notificationPreferences.userId,
         set: {
@@ -1844,7 +1872,10 @@ export class DatabaseStorage implements IStorage {
   async trackNotificationEvent(analytics: InsertNotificationAnalytics): Promise<NotificationAnalytics> {
     const [created] = await db
       .insert(notificationAnalytics)
-      .values([analytics])
+      .values([{
+        ...analytics,
+        metadata: analytics.metadata || {}
+      }])
       .returning();
     return created;
   }
