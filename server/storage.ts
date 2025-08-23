@@ -14,6 +14,7 @@ import {
   attendance,
   attendanceSheets,
   attendanceRecords,
+  attendanceContainers,
   galleryFolders,
   amenitiesPermissions,
   studentDirectory,
@@ -63,6 +64,8 @@ import {
   type InsertAttendanceSheet,
   type AttendanceRecord,
   type InsertAttendanceRecord,
+  type AttendanceContainer,
+  type NewAttendanceContainer,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -82,6 +85,7 @@ import {
   type InsertNotificationBatch,
 } from "@shared/schema";
 import { db } from "./db";
+import { sql } from "drizzle-orm";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { isEligible, adaptLegacyTargets, normalizeTargets, type EligibilityTargets } from "./lib/eligibility";
@@ -362,7 +366,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(events)
-      .orderBy(events.date);
+      .orderBy(sql`COALESCE(${events.startsAt}, ${events.date}) DESC`);
   }
 
   // Events with eligibility computation for user feed - SINGLE SOURCE OF TRUTH
@@ -2071,6 +2075,135 @@ export class DatabaseStorage implements IStorage {
 
     // Return updated attendance records
     return await this.getAttendanceRecordsBySheetId(sheetId);
+  }
+
+  // ======== CANONICAL EVENT MANAGEMENT METHODS ========
+  
+  /**
+   * Update event with canonical fields (startsAt, endsAt, targets)
+   */
+  async updateEventCanonical(eventId: number, updates: {
+    startsAt?: Date;
+    endsAt?: Date | null;
+    targets?: { batches: string[]; sections: string[]; programs: string[] };
+  }): Promise<Event> {
+    const [updated] = await db
+      .update(events)
+      .set(updates)
+      .where(eq(events.id, eventId))
+      .returning();
+    
+    if (!updated) {
+      throw new Error(`Event ${eventId} not found for canonical update`);
+    }
+    
+    return updated;
+  }
+
+  // ======== ATTENDANCE CONTAINER METHODS ========
+  
+  /**
+   * Get attendance container for an event
+   */
+  async getAttendanceContainer(eventId: number): Promise<AttendanceContainer | undefined> {
+    const [container] = await db
+      .select()
+      .from(attendanceContainers)
+      .where(eq(attendanceContainers.eventId, eventId));
+    return container;
+  }
+  
+  /**
+   * Create attendance container for an event
+   */
+  async createAttendanceContainer(data: NewAttendanceContainer): Promise<AttendanceContainer> {
+    const [container] = await db
+      .insert(attendanceContainers)
+      .values(data)
+      .returning();
+    
+    if (!container) {
+      throw new Error('Failed to create attendance container');
+    }
+    
+    return container;
+  }
+  
+  /**
+   * Update attendance container statistics
+   */
+  async updateAttendanceContainerStats(eventId: number): Promise<AttendanceContainer> {
+    // Get all attendance records for this event
+    const sheets = await this.getAttendanceSheetsByEventId(eventId);
+    
+    if (sheets.length === 0) {
+      // No sheets, set all counts to 0
+      const [updated] = await db
+        .update(attendanceContainers)
+        .set({
+          totalStudents: 0,
+          presentCount: 0,
+          absentCount: 0,
+          lateCount: 0,
+          unmarkedCount: 0,
+          excusedCount: 0,
+          updatedAt: new Date()
+        })
+        .where(eq(attendanceContainers.eventId, eventId))
+        .returning();
+      
+      return updated!;
+    }
+    
+    // Calculate statistics from all sheets
+    let totalStudents = 0;
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    let unmarkedCount = 0;
+    let excusedCount = 0;
+    
+    for (const sheet of sheets) {
+      const records = await this.getAttendanceRecordsBySheetId(sheet.id);
+      
+      totalStudents += records.length;
+      
+      for (const record of records) {
+        switch (record.status) {
+          case 'PRESENT':
+            presentCount++;
+            break;
+          case 'ABSENT':
+            absentCount++;
+            break;
+          case 'LATE':
+            lateCount++;
+            break;
+          case 'EXCUSED':
+            excusedCount++;
+            break;
+          default:
+            unmarkedCount++;
+        }
+      }
+    }
+    
+    // Update container with calculated stats
+    const [updated] = await db
+      .update(attendanceContainers)
+      .set({
+        totalStudents,
+        presentCount,
+        absentCount,
+        lateCount,
+        unmarkedCount,
+        excusedCount,
+        updatedAt: new Date()
+      })
+      .where(eq(attendanceContainers.eventId, eventId))
+      .returning();
+    
+    return updated!;
   }
 }
 
