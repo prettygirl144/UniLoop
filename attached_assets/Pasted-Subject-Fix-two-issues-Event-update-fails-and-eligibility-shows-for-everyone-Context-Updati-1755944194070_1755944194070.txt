@@ -1,0 +1,132 @@
+Subject: Fix two issues — Event update fails and eligibility shows for everyone
+
+Context
+- Updating an event (changing batches/sections) often fails or silently doesn’t apply.
+- After edits, the user feed and event modal show “Eligible” for all users regardless of targets.
+
+Objective
+- Make PATCH update replace targets atomically and succeed.
+- Compute eligibility correctly and enforce it in both the list and detail responses.
+- Prove the fix with logs and quick tests.
+
+Implement exactly
+
+Backend
+
+1) Normalize and REPLACE targets on create/update
+- Utility:
+  function norm(arr) {
+    return [...new Set((arr || []).map(x => String(x).trim()))]
+      .filter(Boolean)
+      .sort();
+  }
+- In POST and PATCH handlers:
+  const newTargets = {
+    batches: norm(req.body?.targets?.batches),
+    sections: norm(req.body?.targets?.sections),
+    programs: norm(req.body?.targets?.programs),
+  };
+  // Replace, DO NOT merge or arrayUnion:
+  await db.events.update(eventId, { targets: newTargets, updatedAt: now() });
+
+- After saving, read back once and assert equality in dev:
+  const saved = await db.events.get(eventId);
+  if (process.env.NODE_ENV !== 'production') {
+    if (JSON.stringify(saved.targets) !== JSON.stringify(newTargets)) {
+      throw new Error('Targets mismatch after update');
+    }
+  }
+
+- Log before/after (temporary):
+  log.info({ eventId, before: prev.targets, after: newTargets }, 'EVENT_PATCH_REPLACED_TARGETS');
+
+2) Correct eligibility predicate (no “open to all” by default)
+- Single helper used by list and detail:
+  function isEligible(user, targets) {
+    if (!targets) return false;
+    const batches = Array.isArray(targets.batches) ? targets.batches : [];
+    const sections = Array.isArray(targets.sections) ? targets.sections : [];
+    const programs = Array.isArray(targets.programs) ? targets.programs : [];
+
+    // Require explicit batch match; empty batches → not eligible
+    if (batches.length === 0) return false;
+
+    const batchOK = batches.includes(user.batch);
+    const sectionOK = sections.length === 0 || sections.includes(user.section);
+    const programOK = programs.length === 0 || programs.includes(user.program);
+
+    return batchOK && sectionOK && programOK;
+  }
+
+3) Enforce eligibility on APIs
+- GET /api/events (user feed):
+  - For non-admin users: filter server-side with isEligible(currentUser, ev.targets).
+  - Include eligible: true on returned items (optional but recommended).
+- GET /api/events/:id (detail):
+  - Include eligible computed by the same helper.
+
+- Add temporary debug log:
+  log.debug({ user: { batch: u.batch, section: u.section, program: u.program }, eventId: ev.id, targets: ev.targets, eligible: isEligible(u, ev.targets) }, 'ELIGIBILITY_EVAL');
+
+4) Attendance sheet robustness (prevents update failures tied to FK)
+- On PATCH and DELETE, wrap in a transaction.
+- For PATCH: do not recreate the sheet; keep existing sheet by eventId. If sheet missing, create it once (upsert by unique eventId).
+- For DELETE: delete attendance rows, then sheet, then event. Missing sheet must not throw.
+
+5) Validate inputs early
+- Reject invalid batch/section/program codes with 400 and a clear message.
+- Ensure arrays in payload are arrays (coerce or 400).
+
+Frontend
+
+6) Edit form must send full replacement arrays
+- On save, always send complete selections (not diffs):
+  payload = {
+    ...otherFields,
+    targets: {
+      batches: Array.from(selectedBatches),
+      sections: Array.from(selectedSections),
+      programs: Array.from(selectedPrograms),
+    }
+  };
+
+7) Use server eligibility and refresh after edits
+- Event cards and modal should use the eligible field from the API; if absent, compute client-side with the same rule.
+- After successful PATCH:
+  - Invalidate and refetch:
+    ['events','userFeed'], ['events','adminList'], ['events', eventId]
+- Do not show “registered” unless there is explicit RSVP/registration data; otherwise show “Eligible” only when eligible is true.
+
+8) Caching/SW hygiene
+- Ensure GET /api/events and /api/events/:id are network-first during rollout.
+- Remove any local memoization of targets in the client that might override fresh data.
+
+Quick tests (run now)
+
+A) Replace targets works
+- Create event for batches ['MBA 2024-26'], sections ['A'].
+- Edit to ['MBA 2025-27'], ['B'].
+- Fetch event detail → targets exactly equal to new arrays (no old values). Check server log EVENT_PATCH_REPLACED_TARGETS.
+
+B) Eligibility enforced
+- User in MBA 2024-26 A: event no longer appears in feed; detail eligible: false.
+- User in MBA 2025-27 B: event appears; detail eligible: true; card shows Eligible.
+
+C) No FK/update crashes
+- Edit multiple times in a row; no “no attendance sheet” or FK errors.
+- Delete event; no error; attendance sheet removed or skipped gracefully.
+
+Acceptance criteria
+- PATCH updates succeed; targets fully replace prior values.
+- Only targeted users see events as eligible in feed and detail.
+- No “no attendance sheet” errors during edit/delete.
+- Temporary logs show correct before/after targets and eligibility evaluations.
+
+[1](https://weconvene.com/implementing-a-new-event-management-solution-best-practices-and-pitfalls/)
+[2](https://www.zuddl.com/blog/best-event-management-software-guide)
+[3](https://www.scribd.com/document/398390610/Design-and-Implementation-of-Online-Event-Management-System)
+[4](https://www.ijirmps.org/special-issues/1/18.pdf)
+[5](https://events.com/blog/how-to-implement-an-event-management-software/)
+[6](https://prakashinfotech.com/event-management-software-development)
+[7](https://whova.com/blog/free-event-planning-software-make-you-rockstar/)
+[8](https://binmile.com/blog/event-management-application/)

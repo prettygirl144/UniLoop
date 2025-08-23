@@ -38,10 +38,11 @@ import { randomUUID } from 'crypto';
 import assert from 'assert';
 
 // Configure multer for file uploads
-// Utility functions for event target normalization
-function normalizeArray(arr: any): string[] {
-  const normalized = (arr || []).map((x: any) => String(x).trim()).filter(Boolean);
-  return Array.from(new Set(normalized)).sort();
+// Normalize utility exactly as specified
+function norm(arr: any): string[] {
+  return [...new Set((arr || []).map((x: any) => String(x).trim()))]
+    .filter(Boolean)
+    .sort();
 }
 
 // Enhanced logging utility
@@ -50,32 +51,30 @@ function logOperation(level: 'info' | 'warn' | 'error', data: any, message: stri
   console.log(`${timestamp} [${level.toUpperCase()}] ${message}`, JSON.stringify(data, null, 2));
 }
 
-// Eligibility check utility
-function isUserEligibleForEvent(user: any, event: any): boolean {
-  // Admins see all events
-  if (user?.role === 'admin') return true;
-  
-  // Event creators see their own events
-  if (event.authorId === user?.id) return true;
-  
-  // Check if user is in rollNumberAttendees
-  if (event.rollNumberAttendees?.includes(user?.email)) return true;
-  
-  // Check batch-section targeting
-  if (event.targetBatchSections?.length > 0) {
-    const userBatchSection = `${user?.batch}::${user?.section}`;
-    if (event.targetBatchSections.includes(userBatchSection)) return true;
-  }
-  
-  // If no targeting specified, event is visible to all
-  if ((!event.targetBatches || event.targetBatches.length === 0) && 
-      (!event.targetSections || event.targetSections.length === 0) &&
-      (!event.targetBatchSections || event.targetBatchSections.length === 0) &&
-      (!event.rollNumberAttendees || event.rollNumberAttendees.length === 0)) {
-    return true;
-  }
-  
-  return false;
+// Correct eligibility predicate exactly as specified (no "open to all" by default)
+function isEligible(user: any, targets: any): boolean {
+  if (!targets) return false;
+  const batches = Array.isArray(targets.batches) ? targets.batches : [];
+  const sections = Array.isArray(targets.sections) ? targets.sections : [];
+  const programs = Array.isArray(targets.programs) ? targets.programs : [];
+
+  // Require explicit batch match; empty batches → not eligible
+  if (batches.length === 0) return false;
+
+  const batchOK = batches.includes(user.batch);
+  const sectionOK = sections.length === 0 || sections.includes(user.section);
+  const programOK = programs.length === 0 || programs.includes(user.program);
+
+  return batchOK && sectionOK && programOK;
+}
+
+// Helper to adapt current schema to targets format for eligibility check
+function adaptEventToTargets(event: any) {
+  return {
+    batches: event.targetBatches || [],
+    sections: event.targetSections || [],
+    programs: [] // Not used in current schema but needed for compatibility
+  };
 }
 
 const multerStorage = multer.diskStorage({
@@ -371,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Events routes
+  // Events routes - ENFORCE ELIGIBILITY on APIs as specified
   app.get('/api/events', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
@@ -434,6 +433,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENTS_GET_ERROR');
       res.status(500).json({ message: "Failed to fetch events" });
+    }
+  });
+
+  // GET individual event with eligibility as specified
+  app.get('/api/events/:id', checkAuth, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const eventId = parseInt(req.params.id);
+      const event = await storage.getEventById(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Adapt current schema to targets format for eligibility check
+      const targets = adaptEventToTargets(event);
+      
+      // Include eligible computed by the same helper as specified
+      const eligible = isEligible(user, targets);
+
+      // Add temporary debug log as specified
+      logOperation('debug', { 
+        user: { batch: user.batch, section: user.section, program: user.program || null }, 
+        eventId: event.id, 
+        targets: targets, 
+        eligible: eligible 
+      }, 'ELIGIBILITY_EVAL');
+
+      const eventWithEligibility = { ...event, eligible };
+      
+      res.json(eventWithEligibility);
+    } catch (error) {
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_GET_BY_ID_ERROR');
+      res.status(500).json({ message: "Failed to fetch event" });
     }
   });
 
@@ -505,24 +545,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No permission to create events" });
       }
 
-      // Normalize target arrays - replace, don't append
-      const normalizedTargets = {
-        targetBatches: normalizeArray(req.body.targetBatches),
-        targetSections: normalizeArray(req.body.targetSections),
-        targetBatchSections: normalizeArray(req.body.targetBatchSections),
-        rollNumberAttendees: normalizeArray(req.body.rollNumberAttendees)
+      // Validate inputs early - ensure arrays are arrays
+      if (req.body.targetBatches && !Array.isArray(req.body.targetBatches)) {
+        return res.status(400).json({ message: 'targetBatches must be an array' });
+      }
+      if (req.body.targetSections && !Array.isArray(req.body.targetSections)) {
+        return res.status(400).json({ message: 'targetSections must be an array' });
+      }
+      if (req.body.targetBatchSections && !Array.isArray(req.body.targetBatchSections)) {
+        return res.status(400).json({ message: 'targetBatchSections must be an array' });
+      }
+
+      // Normalize and REPLACE targets as specified  
+      const newTargets = {
+        targetBatches: norm(req.body.targetBatches),
+        targetSections: norm(req.body.targetSections),
+        targetBatchSections: norm(req.body.targetBatchSections),
+        rollNumberAttendees: norm(req.body.rollNumberAttendees)
       };
 
       logOperation('info', {
         requestId,
         userId,
-        targets: normalizedTargets,
+        targets: newTargets,
         eventTitle: req.body.title
       }, 'EVENT_CREATE_TARGETS');
 
       const eventData = insertEventSchema.parse({
         ...req.body,
-        ...normalizedTargets,
+        ...newTargets,
         authorId: userId,
         date: new Date(req.body.date),
       });
@@ -556,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update existing event
+  // Update existing event - ATOMIC REPLACEMENT as specified
   app.put('/api/events/:id', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
@@ -580,18 +631,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
-      // Validate the request body
-      const eventData = insertEventSchema.parse(req.body);
+      // Validate inputs early - ensure arrays are arrays
+      if (req.body.targetBatches && !Array.isArray(req.body.targetBatches)) {
+        return res.status(400).json({ message: 'targetBatches must be an array' });
+      }
+      if (req.body.targetSections && !Array.isArray(req.body.targetSections)) {
+        return res.status(400).json({ message: 'targetSections must be an array' });
+      }
+      if (req.body.targetBatchSections && !Array.isArray(req.body.targetBatchSections)) {
+        return res.status(400).json({ message: 'targetBatchSections must be an array' });
+      }
 
-      // Use new atomic update method with logging and normalization
-      const updatedEvent = await storage.updateEvent(eventId, eventData, requestId);
+      // Store previous targets for logging
+      const prevTargets = {
+        batches: existingEvent.targetBatches,
+        sections: existingEvent.targetSections,
+        batchSections: existingEvent.targetBatchSections
+      };
+
+      // Normalize and REPLACE targets atomically as specified
+      const newTargets = {
+        targetBatches: norm(req.body.targetBatches),
+        targetSections: norm(req.body.targetSections), 
+        targetBatchSections: norm(req.body.targetBatchSections),
+        rollNumberAttendees: norm(req.body.rollNumberAttendees)
+      };
+
+      // Prepare event data with proper date handling and authorId
+      const eventData = {
+        ...req.body,
+        authorId: existingEvent.authorId, // Preserve original author
+        date: req.body.date ? new Date(req.body.date) : existingEvent.date,
+        ...newTargets // Complete replacement, DO NOT merge
+      };
+
+      // Validate the request body after adding required fields
+      const validatedEventData = insertEventSchema.parse(eventData);
+
+      // Log before/after as specified (temporary)
+      logOperation('info', { 
+        eventId, 
+        before: prevTargets, 
+        after: newTargets, 
+        requestId 
+      }, 'EVENT_PATCH_REPLACED_TARGETS');
+
+      // Update using atomic method
+      const updatedEvent = await storage.updateEvent(eventId, validatedEventData, requestId);
+
+      // Read back and assert equality in dev as specified
+      if (process.env.NODE_ENV !== 'production') {
+        const saved = await storage.getEventById(eventId);
+        const savedTargets = {
+          targetBatches: saved?.targetBatches,
+          targetSections: saved?.targetSections,
+          targetBatchSections: saved?.targetBatchSections
+        };
+        if (JSON.stringify(savedTargets) !== JSON.stringify(newTargets)) {
+          throw new Error('Targets mismatch after update');
+        }
+      }
 
       res.json({ 
         message: 'Event updated successfully', 
         event: updatedEvent
       });
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_UPDATE_ERROR');
+      logOperation('error', { 
+        error: error instanceof Error ? error.message : String(error),
+        requestId: req.headers['x-request-id']
+      }, 'EVENT_UPDATE_ERROR');
       res.status(500).json({ message: "Failed to update event" });
     }
   });
@@ -2633,22 +2742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update other protected routes to use authorize middleware
-  app.post('/api/events', authorize('calendar'), async (req: any, res) => {
-    try {
-      const userId = req.session.user.id;
-      const eventData = insertEventSchema.parse({
-        ...req.body,
-        authorId: userId,
-      });
-      
-      const event = await storage.createEvent(eventData);
-      res.json(event);
-    } catch (error) {
-      console.error("Error creating event:", error);
-      res.status(500).json({ message: "Failed to create event" });
-    }
-  });
+  // Remove duplicate POST route - using the one with eligibility logic above
 
   app.post('/api/attendance', authorize('attendance'), async (req: any, res) => {
     try {

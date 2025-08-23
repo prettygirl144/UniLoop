@@ -400,8 +400,8 @@ export class DatabaseStorage implements IStorage {
       .orderBy(events.date);
   }
 
-  // Events with eligibility computation for user feed
-  async getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string }): Promise<(Event & { eligible?: boolean })[]> {
+  // Events with eligibility computation for user feed - CORRECT ELIGIBILITY as specified
+  async getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string; role?: string }): Promise<(Event & { eligible?: boolean })[]> {
     const events = await this.getEvents();
     
     if (!user) {
@@ -409,14 +409,47 @@ export class DatabaseStorage implements IStorage {
     }
 
     return events.map(event => {
-      const eligible = isEligible(user, {
-        targetBatches: event.targetBatches,
-        targetSections: event.targetSections,
-        targetBatchSections: event.targetBatchSections,
-        rollNumberAttendees: event.rollNumberAttendees
-      });
+      // Adapt current schema to targets format for eligibility check
+      const targets = {
+        batches: event.targetBatches || [],
+        sections: event.targetSections || [],
+        programs: [] // Not used in current schema but needed for compatibility
+      };
+
+      // Use correct eligibility predicate as specified (no "open to all" by default)
+      const eligible = this.isEligible(user, targets);
+
+      // Add temporary debug log as specified
+      console.log(JSON.stringify({ 
+        user: { 
+          batch: user.batch, 
+          section: user.section, 
+          program: user.program || null 
+        }, 
+        eventId: event.id, 
+        targets: targets, 
+        eligible: eligible 
+      }));
+
       return { ...event, eligible };
     });
+  }
+
+  // Correct eligibility predicate exactly as specified (no "open to all" by default)
+  private isEligible(user: any, targets: any): boolean {
+    if (!targets) return false;
+    const batches = Array.isArray(targets.batches) ? targets.batches : [];
+    const sections = Array.isArray(targets.sections) ? targets.sections : [];
+    const programs = Array.isArray(targets.programs) ? targets.programs : [];
+
+    // Require explicit batch match; empty batches → not eligible
+    if (batches.length === 0) return false;
+
+    const batchOK = batches.includes(user.batch);
+    const sectionOK = sections.length === 0 || sections.includes(user.section);
+    const programOK = programs.length === 0 || programs.includes(user.program);
+
+    return batchOK && sectionOK && programOK;
   }
 
   async createEvent(event: InsertEvent): Promise<Event> {
@@ -505,92 +538,100 @@ export class DatabaseStorage implements IStorage {
     return event;
   }
 
+  // ATTENDANCE SHEET ROBUSTNESS: wrap in transaction as specified
   async updateEvent(id: number, eventData: Partial<InsertEvent>, requestId?: string): Promise<Event> {
     const reqId = requestId || `evt_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Get current event for before/after logging
-    const currentEvent = await this.getEventById(id);
-    console.log(`🔧 [EVENT_PATCH_TARGETS] Before update - RequestID: ${reqId}`, {
-      eventId: id,
-      currentTargets: {
-        targetBatches: currentEvent?.targetBatches,
-        targetSections: currentEvent?.targetSections,
-        targetBatchSections: currentEvent?.targetBatchSections,
-        rollNumberAttendees: currentEvent?.rollNumberAttendees
+    return await db.transaction(async (tx) => {
+      // Get current event for before/after logging
+      const [currentEvent] = await tx.select().from(events).where(eq(events.id, id));
+      console.log(`🔧 [EVENT_PATCH_TARGETS] Before update - RequestID: ${reqId}`, {
+        eventId: id,
+        currentTargets: {
+          targetBatches: currentEvent?.targetBatches,
+          targetSections: currentEvent?.targetSections,
+          targetBatchSections: currentEvent?.targetBatchSections,
+          rollNumberAttendees: currentEvent?.rollNumberAttendees
+        }
+      });
+
+      // ATOMIC REPLACEMENT of target arrays
+      const updateData: any = {
+        ...eventData,
+        updatedAt: new Date(),
+      };
+      
+      // For PATCH: do not recreate sheet; keep existing sheet by eventId as specified
+      // If sheet missing, create it once (upsert by unique eventId)
+      if (currentEvent) {
+        try {
+          const existingSheet = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id)).limit(1);
+          if (existingSheet.length === 0 && (currentEvent.targetBatchSections?.length > 0 || currentEvent.isMandatory)) {
+            // Create missing attendance sheet - upsert by unique eventId
+            await tx.insert(attendanceSheets).values({
+              eventId: id,
+              batch: 'Multiple', // For events with multiple batch-sections
+              section: 'Multiple',
+              createdBy: currentEvent.authorId,
+            }).onConflictDoNothing(); // Upsert behavior
+          }
+        } catch (error) {
+          console.warn(`[ATTENDANCE_SHEET_UPSERT] Non-critical error for event ${id}:`, error);
+          // Continue with event update even if attendance sheet fails
+        }
       }
-    });
 
-    // ATOMIC REPLACEMENT of target arrays
-    const updateData: any = {
-      ...eventData,
-      updatedAt: new Date(),
-    };
-    
-    // Normalize and REPLACE arrays (no merge/append)
-    if (updateData.targetBatches !== undefined) {
-      updateData.targetBatches = normalizeArray(updateData.targetBatches);
-    }
-    if (updateData.targetSections !== undefined) {
-      updateData.targetSections = normalizeArray(updateData.targetSections);
-    }
-    if (updateData.targetBatchSections !== undefined) {
-      updateData.targetBatchSections = normalizeArray(updateData.targetBatchSections);
-    }
-    if (updateData.rollNumberAttendees !== undefined) {
-      updateData.rollNumberAttendees = normalizeArray(updateData.rollNumberAttendees);
-    }
-    
-    // Ensure mediaUrls is properly formatted for JSONB field
-    if (updateData.mediaUrls !== undefined) {
-      updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
-    }
-
-    // Perform the update
-    const [event] = await db.update(events)
-      .set(updateData)
-      .where(eq(events.id, id))
-      .returning();
-
-    // Log after update for verification
-    console.log(`✅ [EVENT_PATCH_TARGETS] After update - RequestID: ${reqId}`, {
-      eventId: id,
-      newTargets: {
-        targetBatches: event.targetBatches,
-        targetSections: event.targetSections,
-        targetBatchSections: event.targetBatchSections,
-        rollNumberAttendees: event.rollNumberAttendees
+      // Ensure mediaUrls is properly formatted for JSONB field
+      if (updateData.mediaUrls !== undefined) {
+        updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
       }
+
+      // Perform the update
+      const [event] = await tx.update(events)
+        .set(updateData)
+        .where(eq(events.id, id))
+        .returning();
+
+      // Log after update for verification
+      console.log(`✅ [EVENT_PATCH_TARGETS] After update - RequestID: ${reqId}`, {
+        eventId: id,
+        newTargets: {
+          targetBatches: event.targetBatches,
+          targetSections: event.targetSections,
+          targetBatchSections: event.targetBatchSections,
+          rollNumberAttendees: event.rollNumberAttendees
+        }
+      });
+
+      return event;
     });
-
-    // ATTENDANCE SHEET UPSERT: Ensure every event has exactly one sheet
-    await this.upsertAttendanceSheet(id, event.createdBy || event.authorId, reqId);
-
-    // Assert equality for development verification
-    if (updateData.targetBatches !== undefined) {
-      const matches = JSON.stringify(event.targetBatches) === JSON.stringify(updateData.targetBatches);
-      console.log(`🔍 [ASSERTION] targetBatches match: ${matches} - RequestID: ${reqId}`);
-    }
-    
-    return event;
   }
 
+  // ROBUSTNESS: wrap in transaction and handle missing sheets as specified
   async deleteEvent(id: number): Promise<void> {
-    // First get all attendance sheets for this event
-    const eventAttendanceSheets = await db.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-    
-    // Delete attendance records for each sheet
-    for (const sheet of eventAttendanceSheets) {
-      await db.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
-    }
-    
-    // Delete attendance sheets
-    await db.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-    
-    // Delete related RSVPs
-    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
-    
-    // Finally delete the event
-    await db.delete(events).where(eq(events.id, id));
+    await db.transaction(async (tx) => {
+      try {
+        // Get all attendance sheets for this event (missing sheet must not throw)
+        const eventAttendanceSheets = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+        
+        // Delete attendance records for each sheet (if any)
+        for (const sheet of eventAttendanceSheets) {
+          await tx.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
+        }
+        
+        // Delete attendance sheets (if any)
+        await tx.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+      } catch (error) {
+        console.warn(`[DELETE_EVENT] Non-critical attendance cleanup error for event ${id}:`, error);
+        // Continue with event deletion even if attendance cleanup fails
+      }
+      
+      // Delete related RSVPs
+      await tx.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+      
+      // Finally delete the event
+      await tx.delete(events).where(eq(events.id, id));
+    });
   }
 
   async deleteEventWithCascade(id: number): Promise<{ sheetFound: boolean, rowsDeleted: number }> {
