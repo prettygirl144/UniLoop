@@ -81,10 +81,6 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
     enabled: canManageEvents,
   });
 
-  const { data: programs = [] } = useQuery<string[]>({
-    queryKey: ['/api/programs'],
-    enabled: canManageEvents,
-  });
 
   // Initialize form with canonical schema
   const form = useForm<CanonicalEventFormData>({
@@ -102,7 +98,7 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
       targets: {
         batches: event?.targets?.batches || [],
         sections: event?.targets?.sections || [],
-        programs: event?.targets?.programs || []
+        programs: []
       }
     }
   });
@@ -118,6 +114,10 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
         meta: {
           mandatory: data.mandatory,
           tags: []
+        },
+        targets: {
+          ...data.targets,
+          programs: [] // Always empty since we removed program targeting
         }
       };
       
@@ -213,6 +213,10 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
                         <SelectItem value="Technical">Technical</SelectItem>
                         <SelectItem value="Social">Social</SelectItem>
                         <SelectItem value="Administrative">Administrative</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                        <SelectItem value="Triathlon">Triathlon</SelectItem>
+                        <SelectItem value="Placement">Placement</SelectItem>
+                        <SelectItem value="Committee">Committee</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -434,54 +438,6 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
                   )}
                 />
 
-                {/* Programs */}
-                <FormField
-                  control={form.control}
-                  name="targets.programs"
-                  render={({ field }) => (
-                    <FormItem className="mt-4">
-                      <FormLabel>Target Programs (Optional - empty means all programs)</FormLabel>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {field.value.map((program, index) => (
-                          <Badge key={index} variant="outline" className="flex items-center gap-1">
-                            {program}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-0 ml-1"
-                              onClick={() => {
-                                const newPrograms = field.value.filter((_, i) => i !== index);
-                                field.onChange(newPrograms);
-                              }}
-                              data-testid={`button-remove-program-${index}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <Select
-                        onValueChange={(value) => {
-                          if (!field.value.includes(value)) {
-                            field.onChange([...field.value, value]);
-                          }
-                        }}
-                      >
-                        <SelectTrigger data-testid="select-program">
-                          <SelectValue placeholder="Add program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {programs.map((program) => (
-                            <SelectItem key={program} value={program}>
-                              {program}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
               </div>
             </div>
 
