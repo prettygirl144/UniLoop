@@ -598,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startsAt,
         endsAt,
         targets,
-        authorId: userId,
+        createdBy: userId, // Fixed: changed from authorId to createdBy to match schema
         rsvpRequired: req.body.rsvpRequired || false
       };
 
