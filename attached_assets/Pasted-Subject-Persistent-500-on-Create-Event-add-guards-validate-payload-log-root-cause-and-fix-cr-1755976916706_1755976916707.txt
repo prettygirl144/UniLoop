@@ -1,0 +1,150 @@
+Subject: Persistent 500 on “Create Event” — add guards, validate payload, log root cause, and fix create flow end-to-end
+
+Context
+- POST /api/events returns 500 “failed to create event” after multiple fixes.
+- Add Event page was recently refactored to use targets.batches + targets.sectionsByBatch.
+- Likely causes: bad payload shape, null/undefined access server-side, DB constraint errors, or attendance bootstrap running with undefined eventId.
+
+Goal
+- Make event creation succeed reliably.
+- If input is invalid, return 400 with a clear message (not 500).
+- Add structured logs to pinpoint the exact failure.
+- Ensure attendance bootstrap runs only after the event is created and in a transaction.
+
+Implement exactly
+
+1) Add structured error logging with requestId
+- Create a small logger wrapper; include reqId on every log. On server start, print NODE_ENV and DB URL (sans secrets).
+- In POST /api/events, wrap the entire handler with try/catch and return JSON errors:
+  try { ... } catch (err) {
+    log.error({ reqId, err: String(err), stack: err?.stack }, 'EVENT_CREATE_FAILED');
+    return res.status(500).json({ error: 'internal_error', message: 'Failed to create event' });
+  }
+
+2) Validate and coerce payload; return 400 on bad input (do not throw)
+- Before touching DB, validate:
+  - title: non-empty string
+  - startsAt/endsAt: ISO strings, startsAt < endsAt
+  - targets: object with arrays
+  - targets.batches: non-empty array of strings
+  - targets.sectionsByBatch: object; keys subset of targets.batches
+  - Each sectionsByBatch[batch] must be an array of strings (can be empty to denote all)
+- If invalid, return 400 with detailed reason:
+  return res.status(400).json({ error: 'invalid_payload', details: { field: 'targets.batches', reason: 'must not be empty' } });
+
+Coercion helpers:
+- normArr(a): dedupe/trim/sort string array; returns []
+- normMap(m, batches): ensure object; keep only keys in batches; ensure values are arrays; coerce each via normArr
+
+3) Canonicalize targets
+- After validation:
+  const batches = normArr(req.body?.targets?.batches);
+  const sectionsByBatch = normMap(req.body?.targets?.sectionsByBatch, batches);
+  const programs = normArr(req.body?.targets?.programs);
+  const targets = { batches, sectionsByBatch, programs };
+
+- Log a safe preview:
+  log.info({ reqId, preview: { batches, keys: Object.keys(sectionsByBatch) } }, 'EVENT_CREATE_TARGETS');
+
+4) Create event and bootstrap attendance in a single transaction
+- Use a DB transaction; pseudo:
+  const tx = db.begin();
+  const event = await tx.events.insert({ title, description, startsAt, endsAt, targets, meta, createdBy, tenantId, createdAt: now(), updatedAt: now() });
+  // Attendance container (one per event)
+  await tx.attendanceContainers.insert({ eventId: event.id, createdAt: now(), updatedAt: now(), summary: { total: 0, present: 0, absent: 0, late: 0, excused: 0 } });
+
+  // Build sheets per batch→sections
+  for (const batch of targets.batches) {
+    const sectionList = (targets.sectionsByBatch[batch] ?? []); // empty => all sections for this batch
+    const sections = sectionList.length ? sectionList : await directory.getSectionsForBatch(batch);
+    for (const section of sections) {
+      await tx.attendanceSheets.insert({ eventId: event.id, batch, section, counts: { total: 0, present: 0, absent: 0, late: 0, excused: 0 } });
+      const students = await directory.getStudents(batch, section);
+      for (const s of students) {
+        await tx.attendanceRecords.insert({
+          eventId: event.id,
+          sheetId: /* id of above sheet */,
+          userId: s.id,
+          email: s.emailL,
+          rollNumber: s.rollNumberU,
+          batch,
+          section,
+          status: 'UNMARKED',
+          updatedAt: now(),
+        });
+      }
+      // update sheet counts total
+    }
+  }
+  // update container summary total from sum of sheets
+  await tx.commit();
+
+- Guard against undefined event.id (this is a common 500 source). Only build attendance after the event insert returns a valid id.
+
+5) Enforce unique constraints to avoid 500s from DB
+- Add indexes:
+  - attendanceContainers: eventId unique
+  - attendanceSheets: unique (eventId, batch, section)
+  - attendanceRecords: unique (eventId, email)
+- On constraint violation, catch the DB error code; return 409 with a clear message instead of 500.
+
+6) Fix common backend null crashes
+- directory.getSectionsForBatch(batch) must return [] (not null) when no sections exist.
+- directory.getStudents(batch, section) must return [] (not null).
+- Everywhere you use Object.keys or .map, wrap with defaults:
+  Object.keys(sectionsByBatch || {})
+  (sections || []).map(...)
+
+7) Frontend: send the correct payload and prevent undefined values
+- Initialize form targets:
+  { batches: [], sectionsByBatch: {}, programs: [] }
+- On submit:
+  - Ensure targets.sectionsByBatch has a key for every selected batch (value [] allowed).
+  - Strip any keys for batches that aren’t selected.
+  - Never send undefined; always arrays/objects.
+
+Payload example:
+{
+  title, description, location,
+  startsAt, endsAt,
+  targets: {
+    batches: ["MBA 2025-27","MBA 2024-26"],
+    sectionsByBatch: {
+      "MBA 2025-27": [],            // all sections in this batch
+      "MBA 2024-26": ["A","B"]      // only A and B for this batch
+    },
+    programs: []
+  },
+  meta: { mandatory: false, tags: [] }
+}
+
+8) Return 201 with normalized event + summaries
+- On success, respond with the created event and attendance summary counts so the UI can render without refetch.
+
+9) Add a diagnostics endpoint (temporary)
+- GET /api/admin/events/_create-dry-run
+  - Accepts the same body as POST /api/events
+  - Validates and returns what would be inserted (targets preview, sections resolved per batch, estimated counts) without touching DB
+- Use to confirm payload correctness before actual POST.
+
+10) Service worker and caching
+- Ensure POST /api/events bypasses SW caching.
+- For metadata fetch (directory batches/sections), use network-first and fallback to cache if needed.
+
+11) Re-run with visibility
+- Attempt to create an event; capture:
+  - The 400/409 with details if validation fails or constraint conflicts.
+  - If 500 still happens, the EVENT_CREATE_FAILED log will now include err + stack and the last successful step. Share the top stack frame.
+
+Acceptance checklist
+- Creating an event with at least one batch succeeds (201).
+- Attendance container and sheets are created; total counts match directory data.
+- Invalid payloads return 400 with a clear field-specific message.
+- Duplicate sheet/record attempts return 409 (not 500).
+- Frontend navigates to the new event and shows correct targets and zero/initial attendance.
+
+Please implement all steps above, then try creating:
+1) Batch-only event (no sections) → success, sheets for all sections in that batch.
+2) Multi-batch with per-batch sections → success, correct sheets per combo.
+3) A deliberate bad payload (no batches) → 400 invalid_payload.
+If any 500 persists, post the latest EVENT_CREATE_FAILED log (reqId, message, stack, last step).
