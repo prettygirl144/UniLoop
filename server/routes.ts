@@ -969,6 +969,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all sections
+  app.get('/api/sections', checkAuth, async (req: any, res) => {
+    try {
+      const sections = await storage.getAllSections();
+      res.json(sections);
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      res.status(500).json({ message: 'Failed to fetch sections' });
+    }
+  });
+
   // Event RSVP routes
   app.post('/api/events/:id/rsvp', checkAuth, async (req: any, res) => {
     try {

@@ -86,7 +86,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, sql, inArray, isNotNull, ne } from "drizzle-orm";
 import crypto from "crypto";
 import { isEligible, adaptLegacyTargets, normalizeTargets, type EligibilityTargets } from "./lib/eligibility";
 
@@ -1560,6 +1560,29 @@ export class DatabaseStorage implements IStorage {
       .orderBy(batchSections.batch);
     
     return results.map(r => r.batch);
+  }
+
+  async getAllSections(): Promise<string[]> {
+    const results = await db
+      .selectDistinct({ section: studentDirectory.section })
+      .from(studentDirectory)
+      .where(and(
+        isNotNull(studentDirectory.section),
+        ne(studentDirectory.section, '')
+      ));
+    
+    // Extract section names from "batch::section" format
+    const sections = results
+      .map(r => {
+        if (r.section?.includes('::')) {
+          return r.section.split('::')[1];
+        }
+        return r.section;
+      })
+      .filter((section, index, array) => section && array.indexOf(section) === index) // Remove duplicates and nulls
+      .sort();
+    
+    return sections;
   }
 
   // Triathlon methods
