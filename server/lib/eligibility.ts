@@ -1,36 +1,43 @@
 /**
- * CANONICAL ELIGIBILITY HELPER - Single source of truth
- * Implements the exact specification from the requirements
+ * NEW BATCH-SCOPED ELIGIBILITY HELPER - Single source of truth
+ * Implements the exact specification from the requirements with sectionsByBatch
  */
-export function isEligible(user: { batch?: string | null; section?: string | null; email?: string | null; program?: string | null; role?: string }, targets: { batches?: string[]; sections?: string[]; programs?: string[] }): boolean {
-  const batches = targets?.batches ?? [];
-  const sections = targets?.sections ?? [];
-  const programs = targets?.programs ?? [];
+export function isEligible(user: { batch?: string | null; section?: string | null; email?: string | null; program?: string | null; role?: string }, targets: { batches?: string[]; sectionsByBatch?: Record<string, string[]>; sections?: string[]; programs?: string[] }): boolean {
+  const batches = Array.isArray(targets?.batches) ? targets.batches : [];
+  if (batches.length === 0) return false; // explicit targeting required
+  if (!batches.includes(user.batch || '')) return false;
   
-  // If no batches specified, event is not open to anyone
-  if (batches.length === 0) return false;
+  // Check batch-scoped sections
+  const sectionsByBatch = targets?.sectionsByBatch || {};
+  const userBatch = user.batch || '';
+  const scoped = sectionsByBatch[userBatch];
   
-  // Check batch eligibility - user batch must be in target batches
-  const batchOK = batches.includes(user.batch || '');
+  // If no entry or empty array for batch => all sections eligible in that batch
+  if (scoped === undefined || scoped.length === 0) {
+    // But also check legacy sections for backward compatibility
+    const legacySections = targets?.sections ?? [];
+    if (legacySections.length > 0) {
+      return legacySections.includes(user.section || '');
+    }
+    return true; // All sections eligible in that batch
+  }
   
-  // Check section eligibility
-  // sections empty ⇒ all sections in selected batches are eligible
-  // sections specified ⇒ user section must be in target sections
-  const sectionOK = sections.length === 0 || sections.includes(user.section || '');
+  // Must be in the specific sections for this batch
+  const sectionOK = scoped.includes(user.section || '');
   
   // Check program eligibility  
-  // programs empty ⇒ all programs are eligible
-  // programs specified ⇒ user program must be in target programs
+  const programs = targets?.programs ?? [];
   const programOK = programs.length === 0 || programs.includes(user.program || '');
   
-  return batchOK && sectionOK && programOK;
+  return sectionOK && programOK;
 }
 
 export interface EligibilityTargets {
   batches: string[];
-  sections: string[];
+  sectionsByBatch: Record<string, string[]>;
+  sections?: string[]; // Legacy support
   programs: string[];
-  rollEmailAttendees: string[];
+  rollEmailAttendees?: string[];
 }
 
 export interface EligibleUser {
@@ -47,9 +54,84 @@ export function normalizeTargets(targets: any): EligibilityTargets {
   
   return {
     batches: norm(targets?.batches),
-    sections: norm(targets?.sections),
+    sectionsByBatch: targets?.sectionsByBatch || {},
+    sections: norm(targets?.sections), // Legacy support
     programs: norm(targets?.programs),
     rollEmailAttendees: norm(targets?.rollEmailAttendees),
+  };
+}
+
+// NEW: Normalize legacy payload to new batch-scoped structure
+export function normalizeToBatchScoped(payload: any): { batches: string[]; sectionsByBatch: Record<string, string[]>; programs: string[] } {
+  const norm = (arr: any): string[] => Array.from(new Set((arr || []).map((x: any) => String(x).trim()))).filter(Boolean).sort() as string[];
+  
+  let batches: string[] = [];
+  let sectionsByBatch: Record<string, string[]> = {};
+  
+  // Handle new format: targets.batches and targets.sectionsByBatch
+  if (payload?.targets?.sectionsByBatch && typeof payload.targets.sectionsByBatch === 'object') {
+    batches = norm(payload.targets.batches);
+    sectionsByBatch = payload.targets.sectionsByBatch;
+  }
+  // Handle new format: direct batches and sectionsByBatch
+  else if (payload?.sectionsByBatch && typeof payload.sectionsByBatch === 'object') {
+    batches = norm(payload.batches);
+    sectionsByBatch = payload.sectionsByBatch;
+  }
+  // Handle legacy: targetBatchSections format like ["MBA 2024-26::A","MBA 2025-27::C"]
+  else if (payload?.targetBatchSections?.length) {
+    const batchSet = new Set<string>();
+    sectionsByBatch = {};
+    
+    for (const batchSection of payload.targetBatchSections) {
+      if (batchSection.includes('::')) {
+        const [batch, section] = batchSection.split('::');
+        batchSet.add(batch.trim());
+        if (!sectionsByBatch[batch.trim()]) {
+          sectionsByBatch[batch.trim()] = [];
+        }
+        if (!sectionsByBatch[batch.trim()].includes(section.trim())) {
+          sectionsByBatch[batch.trim()].push(section.trim());
+        }
+      }
+    }
+    batches = Array.from(batchSet).sort();
+  }
+  // Handle mixed legacy: batches + sections (global)
+  else if (payload?.batches?.length && payload?.sections?.length) {
+    batches = norm(payload.batches);
+    // Convert global sections to per-batch sections
+    const globalSections = norm(payload.sections);
+    for (const batch of batches) {
+      sectionsByBatch[batch] = globalSections;
+    }
+  }
+  // Handle targets.batches + targets.sections (global)
+  else if (payload?.targets?.batches?.length && payload?.targets?.sections?.length) {
+    batches = norm(payload.targets.batches);
+    const globalSections = norm(payload.targets.sections);
+    for (const batch of batches) {
+      sectionsByBatch[batch] = globalSections;
+    }
+  }
+  // Handle just batches (all sections)
+  else if (payload?.batches?.length || payload?.targets?.batches?.length) {
+    batches = norm(payload.batches || payload.targets?.batches);
+    // Empty sectionsByBatch means all sections for each batch
+    for (const batch of batches) {
+      sectionsByBatch[batch] = [];
+    }
+  }
+  
+  // Sort sections within each batch
+  for (const batch in sectionsByBatch) {
+    sectionsByBatch[batch] = sectionsByBatch[batch].sort();
+  }
+  
+  return {
+    batches: batches.sort(),
+    sectionsByBatch,
+    programs: norm(payload?.programs || payload?.targets?.programs || [])
   };
 }
 

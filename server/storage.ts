@@ -88,7 +88,7 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { eq, desc, and, gte, lte, or, sql, inArray, isNotNull, ne } from "drizzle-orm";
 import crypto from "crypto";
-import { isEligible, adaptLegacyTargets, normalizeTargets, type EligibilityTargets } from "./lib/eligibility";
+import { isEligible, adaptLegacyTargets, normalizeTargets, normalizeToBatchScoped, type EligibilityTargets } from "./lib/eligibility";
 
 // Normalize utility exactly as specified - same as in routes.ts
 function norm(arr: any): string[] {
@@ -414,9 +414,14 @@ export class DatabaseStorage implements IStorage {
     console.log(`🔧 [DB-WRITE] Creating event - RequestID: ${requestId}`);
     console.log(`📝 [DB-WRITE] Event payload:`, JSON.stringify({ title: event.title, date: event.date, location: event.location, authorId: event.authorId }, null, 2));
     
+    // NEW: Normalize payload to batch-scoped structure
+    const normalizedTargets = normalizeToBatchScoped(event);
+    
     // Convert mediaUrls properly for JSONB field
     const eventData: any = {
       ...event,
+      // Replace targets with normalized batch-scoped structure
+      targets: normalizedTargets,
     };
     // Handle mediaUrls as JSONB array
     if (event.mediaUrls) {
@@ -425,7 +430,19 @@ export class DatabaseStorage implements IStorage {
       eventData.mediaUrls = [];
     }
 
-    // NEW: Convert legacy targeting to canonical targets format
+    // Log the normalization for debugging
+    console.log(`BATCH_SCOPED_NORMALIZATION: ${JSON.stringify({
+      eventId: 'creating',
+      originalPayload: { 
+        targetBatches: event.targetBatches,
+        targetSections: event.targetSections, 
+        targetBatchSections: event.targetBatchSections 
+      },
+      normalizedTargets,
+      requestId
+    })}`);
+    
+    // Legacy support - still create canonical targets for backward compatibility
     if (event.targetBatches || event.targetSections || event.targetBatchSections || event.rollNumberAttendees) {
       const canonicalTargets = adaptLegacyTargets({
         targetBatches: event.targetBatches || [],
@@ -433,7 +450,6 @@ export class DatabaseStorage implements IStorage {
         targetBatchSections: event.targetBatchSections || [],
         rollNumberAttendees: (event.rollNumberAttendees as string[]) || []
       });
-      eventData.targets = canonicalTargets;
       
       // ATTENDANCE_ROSTER_BUILD log as specified
       console.log(`ATTENDANCE_ROSTER_BUILD: ${JSON.stringify({
@@ -453,16 +469,18 @@ export class DatabaseStorage implements IStorage {
     console.log(`✅ [DB-WRITE] Event created successfully - ID: ${created.id}, RequestID: ${requestId}`);
     console.log(`📊 [DB-WRITE] Created event details:`, { id: created.id, title: created.title, date: created.date });
 
-    // Auto-create attendance sheets based on new canonical targeting
+    // Auto-create attendance sheets based on new batch-scoped targeting
     if (created && created.targets) {
-      const targets = created.targets as { batches: string[]; sections: string[]; programs: string[]; rollEmailAttendees: string[] };
+      const targets = created.targets as { batches: string[]; sectionsByBatch: Record<string, string[]>; programs: string[]; rollEmailAttendees?: string[] };
       
       if (targets.batches && targets.batches.length > 0) {
-        // Create attendance sheets for each batch-section combination
-        const sections = targets.sections.length > 0 ? targets.sections : [''];
-        
+        // NEW: Create attendance sheets respecting batch-scoped sections
         for (const batch of targets.batches) {
-          for (const section of sections) {
+          const batchSections = targets.sectionsByBatch[batch] || [];
+          // Empty array means all sections for this batch
+          const sectionsToProcess = batchSections.length > 0 ? batchSections : await this.getSectionsForBatch(batch);
+          
+          for (const section of sectionsToProcess) {
             try {
               // Check if attendance sheet already exists for this specific batch-section (idempotent)
               const existingSheets = await db
@@ -540,11 +558,29 @@ export class DatabaseStorage implements IStorage {
         }
       });
 
+      // NEW: Normalize update payload to batch-scoped structure
+      const normalizedTargets = normalizeToBatchScoped(eventData);
+      
       // ATOMIC REPLACEMENT of target arrays
       const updateData: any = {
         ...eventData,
+        // Replace targets with normalized batch-scoped structure
+        targets: normalizedTargets,
         updatedAt: new Date(),
       };
+      
+      // Log the normalization for debugging
+      console.log(`BATCH_SCOPED_UPDATE_NORMALIZATION: ${JSON.stringify({
+        eventId: id,
+        originalPayload: { 
+          targetBatches: eventData.targetBatches,
+          targetSections: eventData.targetSections, 
+          targetBatchSections: eventData.targetBatchSections 
+        },
+        normalizedTargets,
+        requestId: reqId
+      })}`);
+      
       
       // For PATCH: do not recreate sheet; keep existing sheet by eventId as specified
       // If sheet missing, create it once (upsert by unique eventId)
@@ -1580,6 +1616,35 @@ export class DatabaseStorage implements IStorage {
         return r.section;
       })
       .filter((section, index, array) => section && array.indexOf(section) === index) // Remove duplicates and nulls
+      .sort();
+    
+    return sections;
+  }
+
+  async getSectionsForBatch(batch: string): Promise<string[]> {
+    const results = await db
+      .selectDistinct({ section: studentDirectory.section })
+      .from(studentDirectory)
+      .where(and(
+        isNotNull(studentDirectory.section),
+        ne(studentDirectory.section, ''),
+        or(
+          eq(studentDirectory.batch, batch), // Direct match
+          sql`${studentDirectory.section} LIKE ${batch + '::%'}` // Handle "batch::section" format
+        )
+      ));
+    
+    // Extract section names from "batch::section" format or use direct section
+    const sections = results
+      .map(r => {
+        if (r.section?.includes('::')) {
+          const [batchPart, sectionPart] = r.section.split('::');
+          return batchPart === batch ? sectionPart : null;
+        }
+        return r.section;
+      })
+      .filter((section): section is string => section !== null)
+      .filter((section, index, array) => array.indexOf(section) === index) // Remove duplicates
       .sort();
     
     return sections;

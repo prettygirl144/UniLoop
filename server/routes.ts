@@ -980,6 +980,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Get sections for a specific batch (needed for waterfall UX)
+  app.get('/api/batches/:batch/sections', checkAuth, async (req: any, res) => {
+    try {
+      const batch = decodeURIComponent(req.params.batch);
+      const sections = await storage.getSectionsForBatch(batch);
+      res.json(sections);
+    } catch (error) {
+      console.error('Error fetching sections for batch:', error);
+      res.status(500).json({ message: 'Failed to fetch sections for batch' });
+    }
+  });
+
   // Event RSVP routes
   app.post('/api/events/:id/rsvp', checkAuth, async (req: any, res) => {
     try {

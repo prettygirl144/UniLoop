@@ -104,9 +104,11 @@ export const events = pgTable("events", {
   // Canonical targeting structure (primary)
   targets: jsonb("targets").$type<{
     batches: string[];
-    sections: string[];
+    sectionsByBatch: Record<string, string[]>;
     programs: string[];
-  }>().default({ batches: [], sections: [], programs: [] }),
+    // Legacy fields for migration
+    sections?: string[];
+  }>().default({ batches: [], sectionsByBatch: {}, programs: [] }),
   
   // Metadata
   meta: jsonb("meta").$type<{

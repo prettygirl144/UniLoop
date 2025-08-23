@@ -32,7 +32,7 @@ const canonicalEventSchema = z.object({
   mandatory: z.boolean().default(false),
   targets: z.object({
     batches: z.array(z.string()).min(1, 'At least one batch must be selected'),
-    sections: z.array(z.string()).default([]),
+    sectionsByBatch: z.record(z.array(z.string())).default({}),
     programs: z.array(z.string()).default([])
   })
 }).refine((data) => {
@@ -66,19 +66,37 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeBatch, setActiveBatch] = useState<string | null>(null);
+
+  // Watch selected batches to manage active batch
+  const selectedBatches = form.watch('targets.batches');
+  const sectionsByBatch = form.watch('targets.sectionsByBatch');
+
+  // Set active batch to first selected batch if none selected
+  React.useEffect(() => {
+    if (selectedBatches.length > 0 && !activeBatch) {
+      setActiveBatch(selectedBatches[0]);
+    } else if (selectedBatches.length === 0) {
+      setActiveBatch(null);
+    } else if (activeBatch && !selectedBatches.includes(activeBatch)) {
+      setActiveBatch(selectedBatches[0] || null);
+    }
+  }, [selectedBatches, activeBatch]);
 
   // Check permissions
   const canManageEvents = user?.permissions?.['events.manage'] || user?.role === 'admin' || user?.role === 'events_manager';
 
-  // Fetch available batches and sections
+  // Fetch available batches
   const { data: batches = [] } = useQuery<string[]>({
     queryKey: ['/api/batches'],
     enabled: canManageEvents,
   });
 
-  const { data: sections = [] } = useQuery<string[]>({
-    queryKey: ['/api/sections'],
-    enabled: canManageEvents,
+  // Fetch sections for the active batch (waterfall UX)
+  const { data: activeBatchSections = [] } = useQuery<string[]>({
+    queryKey: ['/api/batches', activeBatch, 'sections'],
+    queryFn: () => activeBatch ? fetch(`/api/batches/${encodeURIComponent(activeBatch)}/sections`).then(r => r.json()) : [],
+    enabled: canManageEvents && !!activeBatch,
   });
 
 
@@ -97,7 +115,7 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
       mandatory: event?.meta?.mandatory || false,
       targets: {
         batches: event?.targets?.batches || [],
-        sections: event?.targets?.sections || [],
+        sectionsByBatch: event?.targets?.sectionsByBatch || {},
         programs: []
       }
     }
@@ -389,54 +407,133 @@ export default function CanonicalEventForm({ event, onSuccess, onCancel }: Canon
                   )}
                 />
 
-                {/* Sections */}
-                <FormField
-                  control={form.control}
-                  name="targets.sections"
-                  render={({ field }) => (
-                    <FormItem className="mt-4">
-                      <FormLabel>Target Sections (Optional - empty means all sections)</FormLabel>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {field.value.map((section, index) => (
-                          <Badge key={index} variant="outline" className="flex items-center gap-1">
-                            {section}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-0 ml-1"
-                              onClick={() => {
-                                const newSections = field.value.filter((_, i) => i !== index);
-                                field.onChange(newSections);
-                              }}
-                              data-testid={`button-remove-section-${index}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <Select
-                        onValueChange={(value) => {
-                          if (!field.value.includes(value)) {
-                            field.onChange([...field.value, value]);
-                          }
+                {/* NEW WATERFALL UX: Active Batch Selector + Sections */}
+                {selectedBatches.length > 0 && (
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Configure Sections per Batch</Label>
+                    </div>
+                    
+                    {/* Active Batch Tabs */}
+                    <div className="flex flex-wrap gap-2">
+                      {selectedBatches.map((batch) => (
+                        <Button
+                          key={batch}
+                          type="button"
+                          variant={activeBatch === batch ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setActiveBatch(batch)}
+                          data-testid={`batch-tab-${batch}`}
+                          className="text-xs"
+                        >
+                          {batch}
+                          {sectionsByBatch[batch]?.length === 0 ? (
+                            <span className="ml-1 text-xs opacity-70">(All)</span>
+                          ) : sectionsByBatch[batch]?.length ? (
+                            <span className="ml-1 text-xs opacity-70">({sectionsByBatch[batch].length})</span>
+                          ) : null}
+                        </Button>
+                      ))}
+                    </div>
+
+                    {/* Sections for Active Batch */}
+                    {activeBatch && (
+                      <FormField
+                        control={form.control}
+                        name="targets.sectionsByBatch"
+                        render={({ field }) => {
+                          const currentBatchSections = field.value[activeBatch] || [];
+                          const isAllSections = currentBatchSections.length === 0;
+                          
+                          const updateSections = (sections: string[]) => {
+                            field.onChange({
+                              ...field.value,
+                              [activeBatch]: sections
+                            });
+                          };
+
+                          const selectAll = () => updateSections([]);
+                          const clearAll = () => updateSections(activeBatchSections);
+                          const toggleSection = (section: string) => {
+                            if (isAllSections) {
+                              // If "all" selected, start with all sections then remove this one
+                              updateSections(activeBatchSections.filter(s => s !== section));
+                            } else {
+                              if (currentBatchSections.includes(section)) {
+                                updateSections(currentBatchSections.filter(s => s !== section));
+                              } else {
+                                updateSections([...currentBatchSections, section]);
+                              }
+                            }
+                          };
+
+                          return (
+                            <div className="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                              <div className="flex items-center justify-between mb-3">
+                                <Label className="text-sm font-medium">
+                                  Sections for {activeBatch}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="xs"
+                                    onClick={selectAll}
+                                    disabled={isAllSections}
+                                    data-testid={`select-all-${activeBatch}`}
+                                  >
+                                    Select All
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="xs"
+                                    onClick={clearAll}
+                                    disabled={currentBatchSections.length === activeBatchSections.length}
+                                    data-testid={`clear-${activeBatch}`}
+                                  >
+                                    Clear
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {isAllSections && (
+                                <div className="text-sm text-blue-600 dark:text-blue-400 mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                                  ✓ All sections in {activeBatch} are eligible
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap gap-2">
+                                {activeBatchSections.map((section) => {
+                                  const isSelected = isAllSections || currentBatchSections.includes(section);
+                                  return (
+                                    <Button
+                                      key={section}
+                                      type="button"
+                                      variant={isSelected ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => toggleSection(section)}
+                                      data-testid={`section-${activeBatch}-${section}`}
+                                      className="text-xs"
+                                    >
+                                      {section}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+
+                              {activeBatchSections.length === 0 && (
+                                <div className="text-sm text-gray-500 mt-2">
+                                  No sections found for {activeBatch}
+                                </div>
+                              )}
+                            </div>
+                          );
                         }}
-                      >
-                        <SelectTrigger data-testid="select-section">
-                          <SelectValue placeholder="Add section" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sections.map((section) => (
-                            <SelectItem key={section} value={section}>
-                              {section}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
+                      />
+                    )}
+                  </div>
+                )}
 
               </div>
             </div>
