@@ -597,6 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: req.body.location,
         startsAt,
         endsAt,
+        date: startsAt, // Legacy field - set to same value as startsAt for backward compatibility
         targets,
         createdBy: userId, // Fixed: changed from authorId to createdBy to match schema
         rsvpRequired: req.body.rsvpRequired || false
