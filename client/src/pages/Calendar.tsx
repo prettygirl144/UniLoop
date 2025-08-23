@@ -554,27 +554,40 @@ export default function Calendar() {
 
   const updateEventMutation = useMutation({
     mutationFn: async (data: CreateEventForm & { id: number }) => {
-      // Generate batch-section pairs from batch-specific selections
+      // Generate batch-section pairs from batch-specific selections - COMPLETE REPLACEMENT
       const batchSectionPairs: string[] = [];
-      Object.entries(data.batchSections).forEach(([batch, sections]) => {
+      Object.entries(data.batchSections || {}).forEach(([batch, sections]) => {
         sections.forEach(section => {
           batchSectionPairs.push(`${batch}::${section}`);
         });
       });
 
-      await apiRequest('PUT', `/api/events/${data.id}`, {
+      // Send complete replacement arrays, not diffs or partial updates
+      const requestData = {
         ...data,
         date: new Date(data.date).toISOString(),
-        targetBatches: data.targetBatches,
-        targetSections: [], // Legacy field, keep empty
-        targetBatchSections: batchSectionPairs,
+        targetBatches: Array.from(data.targetBatches || []), // Complete replacement
+        targetSections: [], // Legacy field, always empty
+        targetBatchSections: batchSectionPairs, // Complete replacement
+        rollNumberAttendees: rollNumberAttendees.map(attendee => attendee.email), // Complete replacement
+      };
+
+      await apiRequest('PUT', `/api/events/${data.id}`, requestData, {
+        headers: {
+          'x-request-id': `evt_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }
       });
     },
     onSuccess: () => {
+      // Invalidate all relevant caches as specified
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', 'adminList'] });
+      queryClient.invalidateQueries({ queryKey: ['events', 'userFeed'] });
       setShowEditDialog(false);
       setShowEventDetails(false);
       form.reset();
+      setRollNumberAttendees([]);
       toast({
         title: 'Success',
         description: 'Event updated successfully!',

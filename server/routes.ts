@@ -34,8 +34,50 @@ import fs from "fs";
 import { db } from "./db";
 import { studentDirectory } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
+import { randomUUID } from 'crypto';
+import assert from 'assert';
 
 // Configure multer for file uploads
+// Utility functions for event target normalization
+function normalizeArray(arr: any): string[] {
+  const normalized = (arr || []).map((x: any) => String(x).trim()).filter(Boolean);
+  return Array.from(new Set(normalized)).sort();
+}
+
+// Enhanced logging utility
+function logOperation(level: 'info' | 'warn' | 'error', data: any, message: string) {
+  const timestamp = new Date().toISOString();
+  console.log(`${timestamp} [${level.toUpperCase()}] ${message}`, JSON.stringify(data, null, 2));
+}
+
+// Eligibility check utility
+function isUserEligibleForEvent(user: any, event: any): boolean {
+  // Admins see all events
+  if (user?.role === 'admin') return true;
+  
+  // Event creators see their own events
+  if (event.authorId === user?.id) return true;
+  
+  // Check if user is in rollNumberAttendees
+  if (event.rollNumberAttendees?.includes(user?.email)) return true;
+  
+  // Check batch-section targeting
+  if (event.targetBatchSections?.length > 0) {
+    const userBatchSection = `${user?.batch}::${user?.section}`;
+    if (event.targetBatchSections.includes(userBatchSection)) return true;
+  }
+  
+  // If no targeting specified, event is visible to all
+  if ((!event.targetBatches || event.targetBatches.length === 0) && 
+      (!event.targetSections || event.targetSections.length === 0) &&
+      (!event.targetBatchSections || event.targetBatchSections.length === 0) &&
+      (!event.rollNumberAttendees || event.rollNumberAttendees.length === 0)) {
+    return true;
+  }
+  
+  return false;
+}
+
 const multerStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Ensure uploads directory exists
@@ -332,82 +374,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Events routes
   app.get('/api/events', checkAuth, async (req: any, res) => {
     try {
-      const { tag, limit } = req.query;
-      const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      console.log(`🔍 [EVENTS-GET] Fetching events - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, RequestID: ${requestId}`);
-      
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
       
+      if (!user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const { tag, limit } = req.query;
+      const requestId = req.headers['x-request-id'] || `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      logOperation('info', { 
+        tag: tag || 'none', 
+        limit: limit || 'none', 
+        requestId,
+        userId: user.id,
+        userRole: user.role,
+        userBatch: user.batch,
+        userSection: user.section
+      }, 'EVENTS_GET_REQUEST');
+
       const events = await storage.getEvents();
       
-      // Filter events by user eligibility (if user exists)
+      // Filter events by user eligibility
       let userEligibleEvents = events;
-      if (user) {
-        userEligibleEvents = events.filter(event => {
-          // Admin users can see all events
-          if (user.role === 'admin') {
-            return true;
-          }
-          
-          // Event creator can see their own events
-          if (event.authorId === user.id) {
-            return true;
-          }
-          
-          // Check if user's email is in roll number attendees
-          if (event.rollNumberAttendees?.includes(user.email || '')) {
-            return true;
-          }
-          
-          // If no targeting specified, event is for everyone
-          if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
-            return true;
-          }
-          
-          const userBatch = user.batch;
-          const userSection = user.section;
-          
-          // Check targetBatchSections (format: "batch::section")
-          if (event.targetBatchSections?.length) {
-            const isInTargetBatchSection = event.targetBatchSections.some(batchSection => {
-              const [targetBatch, targetSection] = batchSection.split('::');
-              return userBatch === targetBatch && userSection === targetSection;
-            });
-            if (isInTargetBatchSection) {
-              return true;
-            }
-          }
-          
-          // Check targetBatches (if user's batch is in the list)
-          if (event.targetBatches?.length && userBatch && event.targetBatches.includes(userBatch)) {
-            return true;
-          }
-          
-          // Check targetSections (if user's section is in the list)
-          if (event.targetSections?.length && userSection && event.targetSections.includes(userSection)) {
-            return true;
-          }
-          
-          // If targeting is specified but user doesn't match, they're not eligible
-          return false;
-        });
-        
-        console.log(`👤 [EVENTS-GET] Filtered ${events.length} -> ${userEligibleEvents.length} events for user eligibility, RequestID: ${requestId}`);
+      if (user.role !== 'admin') {
+        userEligibleEvents = events.filter(event => isUserEligibleForEvent(user, event));
       }
-      
-      let filteredEvents = userEligibleEvents;
-      
-      // Filter by tag (case-insensitive) - check both category and any future tags field
+
+      // Add eligibility flag to each event for frontend
+      const eventsWithEligibility = userEligibleEvents.map(event => ({
+        ...event,
+        eligible: isUserEligibleForEvent(user, event)
+      }));
+
+      // Filter by tag if specified
+      let filteredEvents = eventsWithEligibility;
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = userEligibleEvents.filter(event => 
+        filteredEvents = eventsWithEligibility.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
-        console.log(`🏷️ [EVENTS-GET] Filtered ${userEligibleEvents.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
       }
       
       // Apply limit if specified
@@ -415,14 +424,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const limitNum = parseInt(limit as string, 10);
         if (!isNaN(limitNum) && limitNum > 0) {
           filteredEvents = filteredEvents.slice(0, limitNum);
-          console.log(`📏 [EVENTS-GET] Limited to ${limitNum} events, RequestID: ${requestId}`);
         }
       }
+
+      logOperation('info', {
+        requestId,
+        totalEvents: events.length,
+        eligibleEvents: userEligibleEvents.length,
+        finalEvents: filteredEvents.length,
+        userRole: user.role
+      }, 'EVENTS_GET_RESPONSE');
       
-      console.log(`✅ [EVENTS-GET] Returning ${filteredEvents.length} events, RequestID: ${requestId}`);
       res.json(filteredEvents);
     } catch (error) {
-      console.error("Error fetching events:", error);
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENTS_GET_ERROR');
       res.status(500).json({ message: "Failed to fetch events" });
     }
   });
@@ -489,21 +504,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
+      const requestId = req.headers['x-request-id'] || `evt_create_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user?.permissions?.calendar && user?.role !== 'admin') {
         return res.status(403).json({ message: "No permission to create events" });
       }
 
+      // Normalize target arrays - replace, don't append
+      const normalizedTargets = {
+        targetBatches: normalizeArray(req.body.targetBatches),
+        targetSections: normalizeArray(req.body.targetSections),
+        targetBatchSections: normalizeArray(req.body.targetBatchSections),
+        rollNumberAttendees: normalizeArray(req.body.rollNumberAttendees)
+      };
+
+      logOperation('info', {
+        requestId,
+        userId,
+        targets: normalizedTargets,
+        eventTitle: req.body.title
+      }, 'EVENT_CREATE_TARGETS');
+
       const eventData = insertEventSchema.parse({
         ...req.body,
+        ...normalizedTargets,
         authorId: userId,
         date: new Date(req.body.date),
       });
       
       const event = await storage.createEvent(eventData);
+      
+      // Create attendance sheet for the event
+      try {
+        await storage.createEventAttendanceSheets(event.id, normalizedTargets.targetBatchSections, userId);
+        logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_ATTENDANCE_SHEET');
+      } catch (sheetError) {
+        logOperation('warn', { requestId, eventId: event.id, error: sheetError instanceof Error ? sheetError.message : String(sheetError) }, 'EVENT_CREATE_ATTENDANCE_SHEET_FAILED');
+      }
+      
+      // Verify targets were saved correctly
+      const savedEvent = await storage.getEventById(event.id);
+      if (savedEvent) {
+        try {
+          assert.deepStrictEqual(savedEvent.targetBatches, normalizedTargets.targetBatches, 'Target batches must match exactly');
+          assert.deepStrictEqual(savedEvent.targetBatchSections, normalizedTargets.targetBatchSections, 'Target batch sections must match exactly');
+          logOperation('info', { requestId, eventId: event.id }, 'EVENT_CREATE_TARGETS_VERIFIED');
+        } catch (assertError) {
+          logOperation('error', { requestId, eventId: event.id, error: assertError instanceof Error ? assertError.message : String(assertError) }, 'EVENT_CREATE_TARGETS_MISMATCH');
+        }
+      }
+      
       res.json(event);
     } catch (error) {
-      console.error("Error creating event:", error);
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_CREATE_ERROR');
       res.status(500).json({ message: "Failed to create event" });
     }
   });
@@ -514,6 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
+      const requestId = req.headers['x-request-id'] || `evt_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -531,16 +585,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
+      // Store previous targets for logging
+      const previousTargets = {
+        targetBatches: existingEvent.targetBatches || [],
+        targetSections: existingEvent.targetSections || [],
+        targetBatchSections: existingEvent.targetBatchSections || [],
+        rollNumberAttendees: existingEvent.rollNumberAttendees || []
+      };
+
+      // Normalize target arrays - replace completely, don't append
+      const normalizedTargets = {
+        targetBatches: normalizeArray(req.body.targetBatches),
+        targetSections: normalizeArray(req.body.targetSections),
+        targetBatchSections: normalizeArray(req.body.targetBatchSections),
+        rollNumberAttendees: normalizeArray(req.body.rollNumberAttendees)
+      };
+
+      logOperation('info', {
+        requestId,
+        eventId,
+        userId,
+        before: previousTargets,
+        after: normalizedTargets
+      }, 'EVENT_PATCH_TARGETS');
+
       const eventData = insertEventSchema.parse({
         ...req.body,
+        ...normalizedTargets,
         authorId: existingEvent.authorId, // Keep the original author
         date: new Date(req.body.date),
       });
       
       const updatedEvent = await storage.updateEvent(eventId, eventData);
+      
+      // Verify targets were replaced correctly
+      const savedEvent = await storage.getEventById(eventId);
+      if (savedEvent) {
+        try {
+          assert.deepStrictEqual(savedEvent.targetBatches, normalizedTargets.targetBatches, 'Target batches must match exactly');
+          assert.deepStrictEqual(savedEvent.targetBatchSections, normalizedTargets.targetBatchSections, 'Target batch sections must match exactly');
+          logOperation('info', { requestId, eventId }, 'EVENT_PATCH_TARGETS_VERIFIED');
+        } catch (assertError) {
+          logOperation('error', { requestId, eventId, error: assertError instanceof Error ? assertError.message : String(assertError) }, 'EVENT_PATCH_TARGETS_MISMATCH');
+        }
+      }
+      
       res.json(updatedEvent);
     } catch (error) {
-      console.error('Error updating event:', error);
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_UPDATE_ERROR');
       res.status(500).json({ message: 'Failed to update event' });
     }
   });
@@ -551,6 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
+      const requestId = req.headers['x-request-id'] || `evt_delete_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -567,12 +660,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.role !== 'admin' && existingEvent.authorId !== userId) {
         return res.status(403).json({ message: 'You can only delete events you created' });
       }
+
+      logOperation('info', {
+        requestId,
+        eventId,
+        userId,
+        eventTitle: existingEvent.title
+      }, 'EVENT_DELETE_REQUEST');
       
-      await storage.deleteEvent(eventId);
-      res.json({ message: 'Event deleted successfully' });
+      // Delete event with proper cascade (implemented in storage)
+      const deleteResult = await storage.deleteEventWithCascade(eventId);
+      
+      logOperation('info', {
+        requestId,
+        eventId,
+        sheetFound: deleteResult.sheetFound,
+        rowsDeleted: deleteResult.rowsDeleted
+      }, 'EVENT_DELETE_CASCADE');
+      
+      res.json({ message: 'Event deleted successfully', ...deleteResult });
     } catch (error) {
-      console.error('Error deleting event:', error);
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_DELETE_ERROR');
       res.status(500).json({ message: 'Failed to delete event' });
+    }
+  });
+
+  // Admin repair endpoint for missing attendance sheets
+  app.post('/api/admin/repair-attendance-sheets', requireAdmin, async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      const userId = userInfo?.id;
+      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      logOperation('info', { requestId, userId }, 'REPAIR_ATTENDANCE_SHEETS_START');
+
+      const allEvents = await storage.getEvents();
+      let repairedCount = 0;
+
+      for (const event of allEvents) {
+        if (event.targetBatchSections && event.targetBatchSections.length > 0) {
+          // Check if attendance sheets exist
+          const existingSheets = await storage.getAttendanceSheetsByEventId(event.id);
+          const existingBatchSections = existingSheets.map(sheet => `${sheet.batch}::${sheet.section}`);
+          
+          const missingBatchSections = event.targetBatchSections.filter(
+            batchSection => !existingBatchSections.includes(batchSection)
+          );
+
+          if (missingBatchSections.length > 0) {
+            await storage.createEventAttendanceSheets(event.id, missingBatchSections, userId);
+            repairedCount++;
+            logOperation('warn', { 
+              requestId, 
+              eventId: event.id, 
+              missingSheets: missingBatchSections.length,
+              eventTitle: event.title
+            }, 'REPAIRED_MISSING_SHEET');
+          }
+        }
+      }
+
+      logOperation('info', { requestId, totalEvents: allEvents.length, repairedCount }, 'REPAIR_ATTENDANCE_SHEETS_COMPLETE');
+
+      res.json({ 
+        message: `Repair completed. Fixed ${repairedCount} events with missing attendance sheets.`,
+        totalEvents: allEvents.length,
+        repairedCount
+      });
+    } catch (error) {
+      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'REPAIR_ATTENDANCE_SHEETS_ERROR');
+      res.status(500).json({ message: 'Failed to repair attendance sheets' });
     }
   });
 

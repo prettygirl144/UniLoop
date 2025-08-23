@@ -475,6 +475,63 @@ export class DatabaseStorage implements IStorage {
     await db.delete(events).where(eq(events.id, id));
   }
 
+  async deleteEventWithCascade(id: number): Promise<{ sheetFound: boolean, rowsDeleted: number }> {
+    return await db.transaction(async (tx) => {
+      // Get all attendance sheets for this event
+      const eventAttendanceSheets = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+      
+      let totalRowsDeleted = 0;
+      
+      // Delete attendance records for each sheet
+      for (const sheet of eventAttendanceSheets) {
+        const recordsToDelete = await tx.select().from(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
+        totalRowsDeleted += recordsToDelete.length;
+        await tx.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
+      }
+      
+      // Delete attendance sheets
+      await tx.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+      
+      // Delete related RSVPs
+      await tx.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+      
+      // Finally delete the event
+      await tx.delete(events).where(eq(events.id, id));
+      
+      return {
+        sheetFound: eventAttendanceSheets.length > 0,
+        rowsDeleted: totalRowsDeleted
+      };
+    });
+  }
+
+  async createEventAttendanceSheets(eventId: number, targetBatchSections: string[], createdBy: string): Promise<void> {
+    if (!targetBatchSections || targetBatchSections.length === 0) {
+      return; // No targeting, no sheets to create
+    }
+
+    for (const batchSection of targetBatchSections) {
+      const [batch, section] = batchSection.split('::');
+      if (batch && section) {
+        try {
+          // Try to insert, ignore if already exists (upsert behavior)
+          await db.insert(attendanceSheets).values({
+            eventId,
+            batch,
+            section,
+            createdBy
+          }).onConflictDoNothing();
+        } catch (error) {
+          console.log(`Attendance sheet already exists for event ${eventId}, batch ${batch}, section ${section}`);
+        }
+      }
+    }
+  }
+
+  async getAttendanceSheetsByEventId(eventId: number): Promise<AttendanceSheet[]> {
+    return await db.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, eventId));
+  }
+
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
     const [created] = await db
       .insert(eventRsvps)
