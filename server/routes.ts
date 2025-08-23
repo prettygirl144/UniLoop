@@ -36,13 +36,14 @@ import { studentDirectory } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { randomUUID } from 'crypto';
 import assert from 'assert';
+import { isEligible, adaptLegacyTargets, normalizeTargets } from './lib/eligibility';
 
 // Configure multer for file uploads
 // Normalize utility exactly as specified
 function norm(arr: any): string[] {
-  return [...new Set((arr || []).map((x: any) => String(x).trim()))]
+  return Array.from(new Set((arr || []).map((x: any) => String(x).trim())))
     .filter(Boolean)
-    .sort();
+    .sort() as string[];
 }
 
 // Enhanced logging utility
@@ -51,31 +52,7 @@ function logOperation(level: 'info' | 'warn' | 'error', data: any, message: stri
   console.log(`${timestamp} [${level.toUpperCase()}] ${message}`, JSON.stringify(data, null, 2));
 }
 
-// Correct eligibility predicate exactly as specified (no "open to all" by default)
-function isEligible(user: any, targets: any): boolean {
-  if (!targets) return false;
-  const batches = Array.isArray(targets.batches) ? targets.batches : [];
-  const sections = Array.isArray(targets.sections) ? targets.sections : [];
-  const programs = Array.isArray(targets.programs) ? targets.programs : [];
-
-  // Require explicit batch match; empty batches → not eligible
-  if (batches.length === 0) return false;
-
-  const batchOK = batches.includes(user.batch);
-  const sectionOK = sections.length === 0 || sections.includes(user.section);
-  const programOK = programs.length === 0 || programs.includes(user.program);
-
-  return batchOK && sectionOK && programOK;
-}
-
-// Helper to adapt current schema to targets format for eligibility check
-function adaptEventToTargets(event: any) {
-  return {
-    batches: event.targetBatches || [],
-    sections: event.targetSections || [],
-    programs: [] // Not used in current schema but needed for compatibility
-  };
-}
+// REMOVED: Use imported helper instead - Single source of truth
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -454,10 +431,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      // Adapt current schema to targets format for eligibility check
-      const targets = adaptEventToTargets(event);
+      // Adapt legacy event data to new canonical targets format
+      const targets = adaptLegacyTargets({
+        targetBatches: event.targetBatches || [],
+        targetSections: event.targetSections || [],
+        targetBatchSections: event.targetBatchSections || [],
+        rollNumberAttendees: event.rollNumberAttendees || []
+      });
       
-      // Include eligible computed by the same helper as specified
+      // Include eligible computed by the same helper as specified  
       const eligible = isEligible(user, targets);
 
       // Add temporary debug log as specified

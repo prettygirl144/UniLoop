@@ -84,50 +84,13 @@ import {
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
-
-// SINGLE SOURCE OF TRUTH: Eligibility computation
-export function isEligible(user: { batch?: string | null; section?: string | null; email?: string }, targets: { 
-  targetBatches?: string[]; 
-  targetSections?: string[]; 
-  targetBatchSections?: string[];
-  rollNumberAttendees?: string[];
-}): boolean {
-  if (!targets || !user) return false;
-  
-  // Check if user is explicitly included by email
-  if (targets.rollNumberAttendees?.length && user.email && targets.rollNumberAttendees.includes(user.email)) {
-    return true;
-  }
-  
-  // If no targeting (open event), everyone is eligible
-  const hasBatchTargeting = targets.targetBatches?.length > 0;
-  const hasBatchSectionTargeting = targets.targetBatchSections?.length > 0;
-  
-  if (!hasBatchTargeting && !hasBatchSectionTargeting) {
-    return true;
-  }
-  
-  // Check batch targeting
-  if (hasBatchTargeting && user.batch) {
-    const inBatch = targets.targetBatches.includes(user.batch);
-    if (!inBatch) return false;
-  }
-  
-  // Check batch-section targeting (more specific)
-  if (hasBatchSectionTargeting && user.batch && user.section) {
-    const userBatchSection = `${user.batch}::${user.section}`;
-    const inBatchSection = targets.targetBatchSections.includes(userBatchSection);
-    if (!inBatchSection) return false;
-  }
-  
-  return true;
-}
+import { isEligible, adaptLegacyTargets, normalizeTargets, type EligibilityTargets } from "./lib/eligibility";
 
 // Normalize utility exactly as specified - same as in routes.ts
 function norm(arr: any): string[] {
-  return [...new Set((arr || []).map((x: any) => String(x).trim()))]
+  return Array.from(new Set((arr || []).map((x: any) => String(x).trim())))
     .filter(Boolean)
-    .sort();
+    .sort() as string[];
 }
 
 export interface IStorage {
@@ -402,8 +365,8 @@ export class DatabaseStorage implements IStorage {
       .orderBy(events.date);
   }
 
-  // Events with eligibility computation for user feed - CORRECT ELIGIBILITY as specified
-  async getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string; role?: string }): Promise<(Event & { eligible?: boolean })[]> {
+  // Events with eligibility computation for user feed - SINGLE SOURCE OF TRUTH
+  async getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string | null; role?: string; program?: string | null }): Promise<(Event & { eligible?: boolean })[]> {
     const events = await this.getEvents();
     
     if (!user) {
@@ -411,48 +374,36 @@ export class DatabaseStorage implements IStorage {
     }
 
     return events.map(event => {
-      // Adapt current schema to targets format for eligibility check
-      const targets = {
-        batches: event.targetBatches || [],
-        sections: event.targetSections || [],
-        programs: [] // Not used in current schema but needed for compatibility
-      };
+      // Adapt legacy event data to new canonical targets format
+      const targets = adaptLegacyTargets({
+        targetBatches: event.targetBatches || [],
+        targetSections: event.targetSections || [],
+        targetBatchSections: event.targetBatchSections || [],
+        rollNumberAttendees: event.rollNumberAttendees || []
+      });
 
-      // Use correct eligibility predicate as specified (no "open to all" by default)
-      const eligible = this.isEligible(user, targets);
+      // Use the single source of truth eligibility helper
+      const eligible = isEligible(user, targets);
 
-      // Add temporary debug log as specified
-      console.log(JSON.stringify({ 
+      // ELIGIBILITY_EVAL log as specified in requirements
+      console.log(`ELIGIBILITY_EVAL: ${JSON.stringify({ 
         user: { 
           batch: user.batch, 
           section: user.section, 
-          program: user.program || null 
+          program: user.program || null,
+          email: user.email,
+          role: user.role
         }, 
         eventId: event.id, 
         targets: targets, 
-        eligible: eligible 
-      }));
+        eligible: eligible,
+        requestId: `eval-${Date.now()}` 
+      })}`);
 
       return { ...event, eligible };
     });
   }
 
-  // Correct eligibility predicate exactly as specified (no "open to all" by default)
-  private isEligible(user: any, targets: any): boolean {
-    if (!targets) return false;
-    const batches = Array.isArray(targets.batches) ? targets.batches : [];
-    const sections = Array.isArray(targets.sections) ? targets.sections : [];
-    const programs = Array.isArray(targets.programs) ? targets.programs : [];
-
-    // Require explicit batch match; empty batches → not eligible
-    if (batches.length === 0) return false;
-
-    const batchOK = batches.includes(user.batch);
-    const sectionOK = sections.length === 0 || sections.includes(user.section);
-    const programOK = programs.length === 0 || programs.includes(user.program);
-
-    return batchOK && sectionOK && programOK;
-  }
 
   async createEvent(event: InsertEvent): Promise<Event> {
     const requestId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -469,6 +420,26 @@ export class DatabaseStorage implements IStorage {
     } else {
       eventData.mediaUrls = [];
     }
+
+    // NEW: Convert legacy targeting to canonical targets format
+    if (event.targetBatches || event.targetSections || event.targetBatchSections || event.rollNumberAttendees) {
+      const canonicalTargets = adaptLegacyTargets({
+        targetBatches: event.targetBatches || [],
+        targetSections: event.targetSections || [],
+        targetBatchSections: event.targetBatchSections || [],
+        rollNumberAttendees: event.rollNumberAttendees || []
+      });
+      eventData.targets = canonicalTargets;
+      
+      // ATTENDANCE_ROSTER_BUILD log as specified
+      console.log(`ATTENDANCE_ROSTER_BUILD: ${JSON.stringify({
+        eventId: 'creating',
+        targetBatches: canonicalTargets.batches,
+        targetSections: canonicalTargets.sections,
+        rosterCount: canonicalTargets.batches.length * (canonicalTargets.sections.length || 1),
+        requestId
+      })}`);
+    }
     
     const [created] = await db
       .insert(events)
@@ -478,24 +449,28 @@ export class DatabaseStorage implements IStorage {
     console.log(`✅ [DB-WRITE] Event created successfully - ID: ${created.id}, RequestID: ${requestId}`);
     console.log(`📊 [DB-WRITE] Created event details:`, { id: created.id, title: created.title, date: created.date });
 
-    // Auto-create attendance sheet if event has batch-section targeting
-    if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {
-      // For each batch-section pair, create an attendance sheet
-      for (const batchSection of event.targetBatchSections) {
-        const [batch, section] = batchSection.split('::');
-        if (batch && section) {
-          try {
-            // Check if attendance sheet already exists for this specific batch-section (idempotent)
-            const existingSheets = await db
-              .select()
-              .from(attendanceSheets)
-              .where(and(
-                eq(attendanceSheets.eventId, created.id),
-                eq(attendanceSheets.batch, batch),
-                eq(attendanceSheets.section, section)
-              ));
-              
-            if (existingSheets.length === 0) {
+    // Auto-create attendance sheets based on new canonical targeting
+    if (created && created.targets) {
+      const targets = created.targets as { batches: string[]; sections: string[]; programs: string[]; rollEmailAttendees: string[] };
+      
+      if (targets.batches && targets.batches.length > 0) {
+        // Create attendance sheets for each batch-section combination
+        const sections = targets.sections.length > 0 ? targets.sections : [''];
+        
+        for (const batch of targets.batches) {
+          for (const section of sections) {
+            try {
+              // Check if attendance sheet already exists for this specific batch-section (idempotent)
+              const existingSheets = await db
+                .select()
+                .from(attendanceSheets)
+                .where(and(
+                  eq(attendanceSheets.eventId, created.id),
+                  eq(attendanceSheets.batch, batch),
+                  eq(attendanceSheets.section, section || 'All')
+                ));
+                
+              if (existingSheets.length === 0) {
               // Create attendance sheet
               const sheet = await this.createAttendanceSheet({
                 eventId: created.id,
@@ -504,29 +479,33 @@ export class DatabaseStorage implements IStorage {
                 createdBy: event.authorId,
               });
 
-              // Get all students in this batch-section and create attendance records
-              // Note: studentDirectory stores section as "batch::section" format, so we need to match the full batchSection
-              const students = await db
-                .select()
-                .from(studentDirectory)
-                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
+                // Get all students in this batch-section and create attendance records
+                // Use normalized format for student lookup
+                const students = await db
+                  .select()
+                  .from(studentDirectory)
+                  .where(and(
+                    eq(studentDirectory.batch, batch), 
+                    section ? eq(studentDirectory.section, section) : sql`true`
+                  ));
 
-              if (students.length > 0) {
-                const attendanceRecords = students.map(student => ({
-                  sheetId: sheet.id,
-                  studentEmail: student.email,
-                  studentName: student.email.split('@')[0] || '', // Use email prefix as name
-                  rollNumber: student.rollNumber || null,
-                  status: 'UNMARKED' as const,
-                }));
+                if (students.length > 0) {
+                  const attendanceRecords = students.map(student => ({
+                    sheetId: sheet.id,
+                    studentEmail: student.email,
+                    studentName: student.email.split('@')[0] || '', // Use email prefix as name
+                    rollNumber: student.rollNumber || null,
+                    status: 'UNMARKED' as const,
+                  }));
 
-                await this.createAttendanceRecords(attendanceRecords);
-                console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section}`);
+                  await this.createAttendanceRecords(attendanceRecords);
+                  console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section || 'All'}`);
+                }
               }
+            } catch (error) {
+              console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
+              // Don't throw - event creation should succeed even if attendance sheet fails
             }
-          } catch (error) {
-            console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
-            // Don't throw - event creation should succeed even if attendance sheet fails
           }
         }
       }
@@ -568,7 +547,7 @@ export class DatabaseStorage implements IStorage {
       if (currentEvent) {
         try {
           const existingSheet = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id)).limit(1);
-          if (existingSheet.length === 0 && (currentEvent.targetBatchSections?.length > 0 || currentEvent.isMandatory)) {
+          if (existingSheet.length === 0 && ((currentEvent.targetBatchSections?.length || 0) > 0 || currentEvent.isMandatory)) {
             // Create missing attendance sheet - upsert by unique eventId
             await tx.insert(attendanceSheets).values({
               eventId: id,
@@ -726,7 +705,7 @@ export class DatabaseStorage implements IStorage {
       const existingSheet = await this.getAttendanceSheetByEventId(event.id);
       
       if (!existingSheet) {
-        await this.upsertAttendanceSheet(event.id, event.createdBy || event.authorId, 'repair_batch');
+        await this.upsertAttendanceSheet(event.id, event.authorId, 'repair_batch');
         repairedEventIds.push(event.id);
         console.log(`🔧 [REPAIRED_MISSING_SHEET] eventId: ${event.id}`);
       }

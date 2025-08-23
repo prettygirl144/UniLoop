@@ -69,6 +69,7 @@ export const users = pgTable("users", {
   batch: varchar("batch"), // From admin upload
   section: varchar("section"), // Sheet name from Excel
   rollNumber: varchar("roll_number"), // Optional secondary identifier for students
+  program: varchar("program"), // Academic program (MBA, PGP, etc.)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -99,6 +100,15 @@ export const events = pgTable("events", {
   category: varchar("category").notNull(),
   rsvpEnabled: boolean("rsvp_enabled").default(false),
   isMandatory: boolean("is_mandatory").default(false),
+  // New canonical targeting structure (preferred)
+  targets: jsonb("targets").$type<{
+    batches: string[];
+    sections: string[];
+    programs: string[];
+    rollEmailAttendees: string[];
+  }>().default({ batches: [], sections: [], programs: [], rollEmailAttendees: [] }),
+  
+  // Legacy targeting fields (for backward compatibility)
   targetBatches: text("target_batches").array().default([]), // Array of batches
   targetSections: text("target_sections").array().default([]), // Array of sections
   targetBatchSections: text("target_batch_sections").array().default([]), // Array of "batch::section" pairs
