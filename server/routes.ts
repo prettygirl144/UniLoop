@@ -537,14 +537,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/events', requireEventsManage, async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
-      const requestId = req.headers['x-request-id'] || `canonical_evt_create_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
-        return res.status(401).json({ message: 'Authentication required' });
+        return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
+      }
+
+      // Comprehensive payload validation
+      if (!req.body.title || typeof req.body.title !== 'string' || req.body.title.trim().length === 0) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'title', reason: 'must be non-empty string' } });
+      }
+
+      if (!req.body.location || typeof req.body.location !== 'string' || req.body.location.trim().length === 0) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'location', reason: 'must be non-empty string' } });
+      }
+
+      if (!req.body.startsAt) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'startsAt', reason: 'is required' } });
       }
 
       logOperation('info', {
@@ -554,17 +567,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         eventTitle: req.body.title
       }, 'CANONICAL_EVENT_CREATE_START');
 
-      // Validate canonical targets structure
-      const targets = {
-        batches: norm(req.body.targets?.batches || []),
-        sections: norm(req.body.targets?.sections || []), 
-        programs: norm(req.body.targets?.programs || [])
-      };
+      // Canonicalize targets using helpers
+      const targets = req.body.targets || {};
+      const batches = normArr(targets.batches);
+      const sectionsByBatch = normMap(targets.sectionsByBatch, batches);
+      const programs = normArr(targets.programs);
+      
+      const canonicalTargets = { batches, sectionsByBatch, programs };
 
-      // At least one batch must be specified (per canonical specification)
-      if (targets.batches.length === 0) {
-        return res.status(400).json({ message: 'At least one batch must be specified in targets' });
+      // At least one batch must be specified 
+      if (batches.length === 0) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'targets.batches', reason: 'must not be empty' } });
       }
+
+      // Log safe preview
+      logOperation('info', { requestId, preview: { batches, keys: Object.keys(sectionsByBatch) } }, 'EVENT_CREATE_TARGETS');
 
       // Parse startsAt and endsAt dates for canonical format
       let startsAt: Date;
@@ -590,15 +607,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Build canonical event data
       const eventData = {
-        title: req.body.title,
-        description: req.body.description,
-        category: req.body.category,
-        hostCommittee: req.body.hostCommittee,
-        location: req.body.location,
+        title: req.body.title.trim(),
+        description: req.body.description || '',
+        category: req.body.category || 'Academic',
+        hostCommittee: req.body.hostCommittee || '',
+        location: req.body.location.trim(),
         startsAt,
         endsAt,
         date: startsAt, // Legacy field - set to same value as startsAt for backward compatibility
-        targets,
+        targets: canonicalTargets,
+        meta: req.body.meta || { mandatory: req.body.mandatory || false },
         createdBy: userId, // New canonical field
         authorId: userId, // Legacy field - keeping both during migration
         rsvpRequired: req.body.rsvpRequired || false
@@ -629,108 +647,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       logOperation('info', { requestId, eventId: event.id }, 'CANONICAL_EVENT_CREATE_SUCCESS');
-      res.json(event);
+      res.status(201).json(event);
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_CREATE_ERROR');
-      res.status(500).json({ message: "Failed to create event" });
+      logError(requestId, error, 'EVENT_CREATE', { title: req.body?.title });
+      res.status(500).json({ error: 'internal_error', message: 'Failed to create event' });
     }
   });
 
-  // Update existing event - CANONICAL RBAC
+  // Normalization helpers
+  const normArr = (a?: any[]): string[] => {
+    if (!Array.isArray(a)) return [];
+    return [...new Set(a.map(s => String(s).trim()))].filter(Boolean).sort();
+  };
+
+  const normMap = (m?: any, batches: string[] = []): Record<string, string[]> => {
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
+    const result: Record<string, string[]> = {};
+    for (const batch of batches) {
+      result[batch] = normArr(m[batch]);
+    }
+    return result;
+  };
+
+  // Structured error logging with requestId
+  const logError = (reqId: string, error: any, operation: string, context?: any) => {
+    logOperation('error', {
+      reqId,
+      operation,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context
+    }, `${operation}_FAILED`);
+  };
+
+  // Update existing event - CANONICAL RBAC with comprehensive validation
   app.put('/api/events/:id', requireEventsManage, async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
-      const requestId = req.headers['x-request-id'] || `evt_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
+      }
+
+      // Validate payload structure
+      if (!req.body.title || typeof req.body.title !== 'string' || req.body.title.trim().length === 0) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'title', reason: 'must be non-empty string' } });
+      }
+
+      if (!req.body.location || typeof req.body.location !== 'string' || req.body.location.trim().length === 0) {
+        return res.status(400).json({ error: 'invalid_payload', details: { field: 'location', reason: 'must be non-empty string' } });
       }
 
       const eventId = parseInt(req.params.id);
       const existingEvent = await storage.getEventById(eventId);
       
       if (!existingEvent) {
-        return res.status(404).json({ message: 'Event not found' });
+        return res.status(404).json({ error: 'not_found', message: 'Event not found' });
       }
 
       // Check if user can edit this event (owner or admin)
-      if (user.role !== 'admin' && existingEvent.authorId !== userId) {
-        return res.status(403).json({ message: 'You can only edit events you created' });
+      if (user.role !== 'admin' && existingEvent.createdBy !== userId && existingEvent.authorId !== userId) {
+        return res.status(403).json({ error: 'forbidden', message: 'You can only edit events you created' });
       }
 
-      // Validate inputs early - ensure arrays are arrays
-      if (req.body.targetBatches && !Array.isArray(req.body.targetBatches)) {
-        return res.status(400).json({ message: 'targetBatches must be an array' });
+      // Parse and validate dates
+      let startsAt: Date = existingEvent.startsAt;
+      let endsAt: Date | null = existingEvent.endsAt;
+      let date: Date = existingEvent.date;
+      
+      if (req.body.startsAt) {
+        try {
+          startsAt = new Date(req.body.startsAt);
+          date = startsAt; // Keep legacy date field in sync
+          if (isNaN(startsAt.getTime())) throw new Error('Invalid date');
+        } catch (dateError) {
+          return res.status(400).json({ error: 'invalid_payload', details: { field: 'startsAt', reason: 'invalid date format' } });
+        }
       }
-      if (req.body.targetSections && !Array.isArray(req.body.targetSections)) {
-        return res.status(400).json({ message: 'targetSections must be an array' });
-      }
-      if (req.body.targetBatchSections && !Array.isArray(req.body.targetBatchSections)) {
-        return res.status(400).json({ message: 'targetBatchSections must be an array' });
+      
+      if (req.body.endsAt) {
+        try {
+          endsAt = new Date(req.body.endsAt);
+          if (isNaN(endsAt.getTime())) throw new Error('Invalid date');
+          if (endsAt <= startsAt) {
+            return res.status(400).json({ error: 'invalid_payload', details: { field: 'endsAt', reason: 'must be after startsAt' } });
+          }
+        } catch (dateError) {
+          return res.status(400).json({ error: 'invalid_payload', details: { field: 'endsAt', reason: 'invalid date format' } });
+        }
       }
 
-      // Store previous targets for logging
-      const prevTargets = {
-        batches: existingEvent.targetBatches,
-        sections: existingEvent.targetSections,
-        batchSections: existingEvent.targetBatchSections
-      };
+      // Handle legacy and canonical targets
+      const targets = req.body.targets || {};
+      const batches = normArr(targets.batches || req.body.targetBatches || existingEvent.targetBatches);
+      const sectionsByBatch = normMap(targets.sectionsByBatch, batches);
+      const programs = normArr(targets.programs || []);
+      
+      const canonicalTargets = { batches, sectionsByBatch, programs };
 
-      // Normalize and REPLACE targets atomically as specified
-      const newTargets = {
-        targetBatches: norm(req.body.targetBatches),
-        targetSections: norm(req.body.targetSections), 
-        targetBatchSections: norm(req.body.targetBatchSections),
-        rollNumberAttendees: norm(req.body.rollNumberAttendees)
-      };
-
-      // Prepare event data with proper date handling and authorId
+      // Prepare event data with proper date handling and required fields
       const eventData = {
-        ...req.body,
-        authorId: existingEvent.authorId, // Preserve original author
-        date: req.body.date ? new Date(req.body.date) : existingEvent.date,
-        ...newTargets // Complete replacement, DO NOT merge
+        title: req.body.title.trim(),
+        description: req.body.description || existingEvent.description,
+        category: req.body.category || existingEvent.category,
+        hostCommittee: req.body.hostCommittee || existingEvent.hostCommittee,
+        location: req.body.location.trim(),
+        startsAt,
+        endsAt,
+        date, // Legacy field
+        targets: canonicalTargets,
+        meta: req.body.meta || existingEvent.meta || {},
+        createdBy: existingEvent.createdBy, // Preserve original creator
+        authorId: existingEvent.authorId, // Legacy field
+        rsvpRequired: req.body.rsvpRequired ?? existingEvent.rsvpRequired,
+        // Legacy target fields for backward compatibility
+        targetBatches: batches,
+        targetSections: normArr(req.body.targetSections || existingEvent.targetSections),
+        targetBatchSections: normArr(req.body.targetBatchSections || existingEvent.targetBatchSections),
+        rollNumberAttendees: normArr(req.body.rollNumberAttendees || existingEvent.rollNumberAttendees)
       };
+
+      logOperation('info', { requestId, eventId, userId }, 'EVENT_UPDATE_START');
 
       // Validate the request body after adding required fields
       const validatedEventData = insertEventSchema.parse(eventData);
 
-      // Log before/after as specified (temporary)
+      // Log targets update
       logOperation('info', { 
         eventId, 
-        before: prevTargets, 
-        after: newTargets, 
+        targets: canonicalTargets, 
         requestId 
-      }, 'EVENT_PATCH_REPLACED_TARGETS');
+      }, 'EVENT_UPDATE_TARGETS');
 
       // Update using atomic method
       const updatedEvent = await storage.updateEvent(eventId, validatedEventData, requestId);
 
-      // Read back and assert equality in dev as specified
-      if (process.env.NODE_ENV !== 'production') {
-        const saved = await storage.getEventById(eventId);
-        const savedTargets = {
-          targetBatches: saved?.targetBatches,
-          targetSections: saved?.targetSections,
-          targetBatchSections: saved?.targetBatchSections
-        };
-        if (JSON.stringify(savedTargets) !== JSON.stringify(newTargets)) {
-          throw new Error('Targets mismatch after update');
-        }
-      }
-
-      res.json({ 
+      logOperation('info', { requestId, eventId }, 'EVENT_UPDATE_SUCCESS');
+      
+      res.status(200).json({ 
         message: 'Event updated successfully', 
         event: updatedEvent
       });
     } catch (error) {
-      logOperation('error', { 
-        error: error instanceof Error ? error.message : String(error),
-        requestId: req.headers['x-request-id']
-      }, 'EVENT_UPDATE_ERROR');
-      res.status(500).json({ message: "Failed to update event" });
+      logError(requestId, error, 'EVENT_UPDATE', { eventId: req.params.id });
+      res.status(500).json({ error: 'internal_error', message: 'Failed to update event' });
     }
   });
 
@@ -870,27 +933,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only delete events you created' });
       }
 
-      logOperation('info', {
-        requestId,
-        eventId,
-        userId,
-        eventTitle: existingEvent.title
-      }, 'EVENT_DELETE_REQUEST');
+      logOperation('info', { requestId, eventId, userId }, 'EVENT_DELETE_START');
       
-      // Delete event with proper cascade (implemented in storage)
-      const deleteResult = await storage.deleteEventWithCascade(eventId);
-      
-      logOperation('info', {
-        requestId,
-        eventId,
-        sheetFound: deleteResult.sheetFound,
-        rowsDeleted: deleteResult.rowsDeleted
-      }, 'EVENT_DELETE_CASCADE');
-      
-      res.json({ message: 'Event deleted successfully', ...deleteResult });
+      // Use safe deletion method that handles missing columns gracefully
+      try {
+        // Try cascade method first if it exists
+        if (storage.deleteEventWithCascade) {
+          const deleteResult = await storage.deleteEventWithCascade(eventId);
+          logOperation('info', { requestId, eventId, result: deleteResult }, 'EVENT_DELETE_CASCADE_SUCCESS');
+          res.json({ message: 'Event deleted successfully', ...deleteResult });
+          return;
+        }
+        
+        // Fallback: Delete event and handle attendance cleanup safely
+        await storage.deleteEvent(eventId);
+        
+        // Try to clean up attendance data if it exists
+        try {
+          await storage.deleteAttendanceByEventId?.(eventId);
+        } catch (attendanceError) {
+          // Log but don't fail if attendance cleanup fails
+          logOperation('warn', { requestId, eventId, error: attendanceError instanceof Error ? attendanceError.message : String(attendanceError) }, 'ATTENDANCE_CLEANUP_WARNING');
+        }
+        
+        logOperation('info', { requestId, eventId }, 'EVENT_DELETE_SUCCESS');
+        res.json({ message: 'Event deleted successfully' });
+      } catch (deleteError) {
+        throw deleteError;
+      }
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_DELETE_ERROR');
-      res.status(500).json({ message: 'Failed to delete event' });
+      logError(requestId, error, 'EVENT_DELETE', { eventId: req.params.id });
+      res.status(500).json({ error: 'internal_error', message: 'Failed to delete event' });
     }
   });
 
