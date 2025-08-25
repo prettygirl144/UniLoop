@@ -125,68 +125,6 @@ export const requireManageStudents: RequestHandler = (req: any, res, next) => {
   next();
 };
 
-// New RBAC middleware for events management
-export const requireEventsManage: RequestHandler = (req: any, res, next) => {
-  const user = extractUser(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  // Check if user has events.manage permission or is admin/events_manager role
-  const hasEventsManage = user.permissions?.['events.manage'] === true;
-  const hasRole = user.role === 'admin' || user.role === 'events_manager';
-  
-  if (!hasEventsManage && !hasRole) {
-    return res.status(403).json({ error: 'Events management permission required' });
-  }
-  
-  next();
-};
-
-// Generic role checker middleware
-export const requireAnyRole = (allowedRoles: string[]): RequestHandler => {
-  return (req: any, res, next) => {
-    const user = extractUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!allowedRoles.includes(user.role)) {
-      return res.status(403).json({ 
-        error: `Access denied. Requires one of: ${allowedRoles.join(', ')}` 
-      });
-    }
-    
-    next();
-  };
-};
-
-// Permission-based middleware
-export const requirePermission = (permission: string): RequestHandler => {
-  return (req: any, res, next) => {
-    const user = extractUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!user.permissions?.[permission]) {
-      return res.status(403).json({ 
-        error: `Permission required: ${permission}` 
-      });
-    }
-    
-    next();
-  };
-};
-
-// Helper function to check if user has events management access
-export const hasEventsManageAccess = (user: any): boolean => {
-  if (!user) return false;
-  return user.role === 'admin' || 
-         user.role === 'events_manager' || 
-         user.permissions?.['events.manage'] === true;
-};
-
 export default {
   checkAuth,
   checkAuth0Jwt,
@@ -194,8 +132,4 @@ export default {
   extractUser,
   requireAdmin,
   requireManageStudents,
-  requireEventsManage,
-  requireAnyRole,
-  requirePermission,
-  hasEventsManageAccess,
 };

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from 'ws';
 // Replit auth removed - using Auth0 only
-import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents, requireEventsManage, requireAnyRole } from "./auth0Config";
+import { checkAuth, handleAuthError, extractUser, requireAdmin, requireManageStudents } from "./auth0Config";
 import { registerGalleryRoutes } from "./routes/galleryRoutes";
 import healthRoutes from "./routes/health";
 import {
@@ -23,7 +23,6 @@ import {
   insertStudentUploadLogSchema,
   insertPushSubscriptionSchema,
   insertAttendanceRecordSchema,
-  insertAttendanceContainerSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
@@ -35,26 +34,8 @@ import fs from "fs";
 import { db } from "./db";
 import { studentDirectory } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
-import { randomUUID } from 'crypto';
-import assert from 'assert';
-import { isEligible, adaptLegacyTargets, normalizeTargets } from './lib/eligibility';
 
 // Configure multer for file uploads
-// Normalize utility exactly as specified
-function norm(arr: any): string[] {
-  return Array.from(new Set((arr || []).map((x: any) => String(x).trim())))
-    .filter(Boolean)
-    .sort() as string[];
-}
-
-// Enhanced logging utility
-function logOperation(level: 'info' | 'warn' | 'error', data: any, message: string) {
-  const timestamp = new Date().toISOString();
-  console.log(`${timestamp} [${level.toUpperCase()}] ${message}`, JSON.stringify(data, null, 2));
-}
-
-// REMOVED: Use imported helper instead - Single source of truth
-
 const multerStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Ensure uploads directory exists
@@ -348,67 +329,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Events routes - CANONICAL IMPLEMENTATION with RBAC
-  app.get('/api/events', checkAuth, async (req: any, res) => {
+  // Events routes
+  app.get('/api/events', async (req, res) => {
     try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-
       const { tag, limit } = req.query;
-      const requestId = req.headers['x-request-id'] || `canonical_events_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      logOperation('info', { 
-        tag: tag || 'none', 
-        limit: limit || 'none', 
-        requestId,
-        userId: user.id,
-        userRole: user.role,
-        userBatch: user.batch,
-        userSection: user.section
-      }, 'CANONICAL_EVENTS_GET_REQUEST');
-
-      // Get all events from database
-      const allEvents = await storage.getEvents();
+      const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Apply canonical eligibility filtering for each event
-      const eventsWithEligibility = allEvents.map(event => {
-        // Use canonical targets if available, otherwise adapt from legacy
-        let targets;
-        if (event.targets && (event.targets.batches?.length > 0 || event.targets.sections?.length > 0 || event.targets.programs?.length > 0)) {
-          targets = event.targets;
-        } else {
-          // Adapt from legacy fields
-          targets = adaptLegacyTargets({
-            targetBatches: event.targetBatches || [],
-            targetSections: event.targetSections || [],
-            targetBatchSections: event.targetBatchSections || [],
-            rollNumberAttendees: event.rollNumberAttendees || []
-          });
-        }
-        
-        const eligible = user.role === 'admin' || user.role === 'events_manager' || 
-                        isEligible(user, targets);
-        
-        return { ...event, eligible };
-      });
+      console.log(`🔍 [EVENTS-GET] Fetching events - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, RequestID: ${requestId}`);
       
-      // Filter by eligibility for non-admin users
-      let filteredEvents = user.role === 'admin' || user.role === 'events_manager' 
-        ? eventsWithEligibility
-        : eventsWithEligibility.filter(event => event.eligible);
-
-      // Filter by tag if specified
+      const events = await storage.getEvents();
+      
+      let filteredEvents = events;
+      
+      // Filter by tag (case-insensitive) - check both category and any future tags field
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = filteredEvents.filter(event => 
+        filteredEvents = events.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
+        console.log(`🏷️ [EVENTS-GET] Filtered ${events.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
       }
       
       // Apply limit if specified
@@ -416,66 +356,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const limitNum = parseInt(limit as string, 10);
         if (!isNaN(limitNum) && limitNum > 0) {
           filteredEvents = filteredEvents.slice(0, limitNum);
+          console.log(`📏 [EVENTS-GET] Limited to ${limitNum} events, RequestID: ${requestId}`);
         }
       }
-
-      logOperation('info', {
-        requestId,
-        totalEvents: allEvents.length,
-        eligibleEvents: filteredEvents.length,
-        userRole: user.role
-      }, 'CANONICAL_EVENTS_GET_RESPONSE');
       
+      console.log(`✅ [EVENTS-GET] Returning ${filteredEvents.length} events, RequestID: ${requestId}`);
       res.json(filteredEvents);
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'CANONICAL_EVENTS_GET_ERROR');
+      console.error("Error fetching events:", error);
       res.status(500).json({ message: "Failed to fetch events" });
-    }
-  });
-
-  // GET individual event with eligibility as specified
-  app.get('/api/events/:id', checkAuth, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-
-      const eventId = parseInt(req.params.id);
-      const event = await storage.getEventById(eventId);
-      
-      if (!event) {
-        return res.status(404).json({ message: 'Event not found' });
-      }
-
-      // Adapt legacy event data to new canonical targets format
-      const targets = adaptLegacyTargets({
-        targetBatches: event.targetBatches || [],
-        targetSections: event.targetSections || [],
-        targetBatchSections: event.targetBatchSections || [],
-        rollNumberAttendees: event.rollNumberAttendees || []
-      });
-      
-      // Include eligible computed by the same helper as specified  
-      const eligible = isEligible(user, targets);
-
-      // Add temporary debug log as specified
-      logOperation('info', { 
-        user: { batch: user.batch, section: user.section, program: user.program || null }, 
-        eventId: event.id, 
-        targets: targets, 
-        eligible: eligible 
-      }, 'ELIGIBILITY_EVAL');
-
-      const eventWithEligibility = { ...event, eligible };
-      
-      res.json(eventWithEligibility);
-    } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_GET_BY_ID_ERROR');
-      res.status(500).json({ message: "Failed to fetch event" });
     }
   });
 
@@ -536,295 +425,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', requireEventsManage, async (req: any, res) => {
-    const requestId = req.headers['x-request-id'] || `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  app.post('/api/events', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
       
-      if (!user) {
-        return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
+      if (!user?.permissions?.calendar && user?.role !== 'admin') {
+        return res.status(403).json({ message: "No permission to create events" });
       }
 
-      // Comprehensive payload validation
-      if (!req.body.title || typeof req.body.title !== 'string' || req.body.title.trim().length === 0) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'title', reason: 'must be non-empty string' } });
-      }
-
-      if (!req.body.location || typeof req.body.location !== 'string' || req.body.location.trim().length === 0) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'location', reason: 'must be non-empty string' } });
-      }
-
-      if (!req.body.startsAt) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'startsAt', reason: 'is required' } });
-      }
-
-      logOperation('info', {
-        requestId,
-        userId,
-        userRole: user.role,
-        eventTitle: req.body.title
-      }, 'CANONICAL_EVENT_CREATE_START');
-
-      // Canonicalize targets using helpers
-      const targets = req.body.targets || {};
-      const batches = normArr(targets.batches);
-      const sectionsByBatch = normMap(targets.sectionsByBatch, batches);
-      const programs = normArr(targets.programs);
-      
-      const canonicalTargets = { batches, sectionsByBatch, programs };
-
-      // At least one batch must be specified 
-      if (batches.length === 0) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'targets.batches', reason: 'must not be empty' } });
-      }
-
-      // Log safe preview
-      logOperation('info', { requestId, preview: { batches, keys: Object.keys(sectionsByBatch) } }, 'EVENT_CREATE_TARGETS');
-
-      // Parse startsAt and endsAt dates for canonical format
-      let startsAt: Date;
-      let endsAt: Date | null = null;
-      
-      try {
-        startsAt = new Date(req.body.startsAt);
-        if (req.body.endsAt) {
-          endsAt = new Date(req.body.endsAt);
-        }
-      } catch (dateError) {
-        return res.status(400).json({ message: 'Invalid date format for startsAt or endsAt' });
-      }
-
-      logOperation('info', {
-        requestId,
-        userId,
-        targets,
-        eventTitle: req.body.title,
-        startsAt: startsAt.toISOString(),
-        endsAt: endsAt?.toISOString()
-      }, 'CANONICAL_EVENT_CREATE_DATA');
-
-      // Build canonical event data
-      const eventData = {
-        title: req.body.title.trim(),
-        description: req.body.description || '',
-        category: req.body.category || 'Academic',
-        hostCommittee: req.body.hostCommittee || '',
-        location: req.body.location.trim(),
-        startsAt,
-        endsAt,
-        date: startsAt, // Legacy field - set to same value as startsAt for backward compatibility
-        targets: canonicalTargets,
-        meta: req.body.meta || { mandatory: req.body.mandatory || false },
-        createdBy: userId, // New canonical field
-        authorId: userId, // Legacy field - keeping both during migration
-        rsvpRequired: req.body.rsvpRequired || false
-      };
-
-      // Validate with insert schema
-      const validatedEvent = insertEventSchema.parse(eventData);
-      
-      // Create the event
-      const event = await storage.createEvent(validatedEvent);
-      
-      // Create AttendanceContainer for summary data
-      try {
-        const containerData = {
-          eventId: event.id,
-          totalStudents: 0, // Will be calculated when students are added
-          presentCount: 0,
-          absentCount: 0,
-          lateCount: 0,
-          unmarkedCount: 0,
-          excusedCount: 0
-        };
-        
-        const container = await storage.createAttendanceContainer(insertAttendanceContainerSchema.parse(containerData));
-        logOperation('info', { requestId, eventId: event.id, containerId: container.id }, 'CANONICAL_EVENT_CONTAINER_CREATED');
-      } catch (containerError) {
-        logOperation('warn', { requestId, eventId: event.id, error: containerError instanceof Error ? containerError.message : String(containerError) }, 'CANONICAL_EVENT_CONTAINER_FAILED');
-      }
-      
-      logOperation('info', { requestId, eventId: event.id }, 'CANONICAL_EVENT_CREATE_SUCCESS');
-      res.status(201).json(event);
-    } catch (error) {
-      logError(requestId, error, 'EVENT_CREATE', { title: req.body?.title });
-      res.status(500).json({ error: 'internal_error', message: 'Failed to create event' });
-    }
-  });
-
-  // Normalization helpers
-  const normArr = (a?: any[]): string[] => {
-    if (!Array.isArray(a)) return [];
-    return [...new Set(a.map(s => String(s).trim()))].filter(Boolean).sort();
-  };
-
-  const normMap = (m?: any, batches: string[] = []): Record<string, string[]> => {
-    if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
-    const result: Record<string, string[]> = {};
-    for (const batch of batches) {
-      result[batch] = normArr(m[batch]);
-    }
-    return result;
-  };
-
-  // Structured error logging with requestId
-  const logError = (reqId: string, error: any, operation: string, context?: any) => {
-    logOperation('error', {
-      reqId,
-      operation,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      context
-    }, `${operation}_FAILED`);
-  };
-
-  // Update existing event - CANONICAL RBAC with comprehensive validation
-  app.put('/api/events/:id', requireEventsManage, async (req: any, res) => {
-    const requestId = req.headers['x-request-id'] || `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
-      }
-
-      // Validate payload structure
-      if (!req.body.title || typeof req.body.title !== 'string' || req.body.title.trim().length === 0) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'title', reason: 'must be non-empty string' } });
-      }
-
-      if (!req.body.location || typeof req.body.location !== 'string' || req.body.location.trim().length === 0) {
-        return res.status(400).json({ error: 'invalid_payload', details: { field: 'location', reason: 'must be non-empty string' } });
-      }
-
-      const eventId = parseInt(req.params.id);
-      const existingEvent = await storage.getEventById(eventId);
-      
-      if (!existingEvent) {
-        return res.status(404).json({ error: 'not_found', message: 'Event not found' });
-      }
-
-      // Check if user can edit this event (owner or admin)
-      if (user.role !== 'admin' && existingEvent.createdBy !== userId && existingEvent.authorId !== userId) {
-        return res.status(403).json({ error: 'forbidden', message: 'You can only edit events you created' });
-      }
-
-      // Parse and validate dates
-      let startsAt: Date = existingEvent.startsAt;
-      let endsAt: Date | null = existingEvent.endsAt;
-      let date: Date = existingEvent.date;
-      
-      if (req.body.startsAt) {
-        try {
-          startsAt = new Date(req.body.startsAt);
-          date = startsAt; // Keep legacy date field in sync
-          if (isNaN(startsAt.getTime())) throw new Error('Invalid date');
-        } catch (dateError) {
-          return res.status(400).json({ error: 'invalid_payload', details: { field: 'startsAt', reason: 'invalid date format' } });
-        }
-      }
-      
-      if (req.body.endsAt) {
-        try {
-          endsAt = new Date(req.body.endsAt);
-          if (isNaN(endsAt.getTime())) throw new Error('Invalid date');
-          if (endsAt <= startsAt) {
-            return res.status(400).json({ error: 'invalid_payload', details: { field: 'endsAt', reason: 'must be after startsAt' } });
-          }
-        } catch (dateError) {
-          return res.status(400).json({ error: 'invalid_payload', details: { field: 'endsAt', reason: 'invalid date format' } });
-        }
-      }
-
-      // Handle legacy and canonical targets
-      const targets = req.body.targets || {};
-      const batches = normArr(targets.batches || req.body.targetBatches || existingEvent.targetBatches);
-      const sectionsByBatch = normMap(targets.sectionsByBatch, batches);
-      const programs = normArr(targets.programs || []);
-      
-      const canonicalTargets = { batches, sectionsByBatch, programs };
-
-      // Prepare event data with proper date handling and required fields
-      const eventData = {
-        title: req.body.title.trim(),
-        description: req.body.description || existingEvent.description,
-        category: req.body.category || existingEvent.category,
-        hostCommittee: req.body.hostCommittee || existingEvent.hostCommittee,
-        location: req.body.location.trim(),
-        startsAt,
-        endsAt,
-        date, // Legacy field
-        targets: canonicalTargets,
-        meta: req.body.meta || existingEvent.meta || {},
-        createdBy: existingEvent.createdBy, // Preserve original creator
-        authorId: existingEvent.authorId, // Legacy field
-        rsvpRequired: req.body.rsvpRequired ?? existingEvent.rsvpRequired,
-        // Legacy target fields for backward compatibility
-        targetBatches: batches,
-        targetSections: normArr(req.body.targetSections || existingEvent.targetSections),
-        targetBatchSections: normArr(req.body.targetBatchSections || existingEvent.targetBatchSections),
-        rollNumberAttendees: normArr(req.body.rollNumberAttendees || existingEvent.rollNumberAttendees)
-      };
-
-      logOperation('info', { requestId, eventId, userId }, 'EVENT_UPDATE_START');
-
-      // Validate the request body after adding required fields
-      const validatedEventData = insertEventSchema.parse(eventData);
-
-      // Log targets update
-      logOperation('info', { 
-        eventId, 
-        targets: canonicalTargets, 
-        requestId 
-      }, 'EVENT_UPDATE_TARGETS');
-
-      // Update using atomic method
-      const updatedEvent = await storage.updateEvent(eventId, validatedEventData, requestId);
-
-      logOperation('info', { requestId, eventId }, 'EVENT_UPDATE_SUCCESS');
-      
-      res.status(200).json({ 
-        message: 'Event updated successfully', 
-        event: updatedEvent
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        authorId: userId,
+        date: new Date(req.body.date),
       });
+      
+      const event = await storage.createEvent(eventData);
+      res.json(event);
     } catch (error) {
-      logError(requestId, error, 'EVENT_UPDATE', { eventId: req.params.id });
-      res.status(500).json({ error: 'internal_error', message: 'Failed to update event' });
+      console.error("Error creating event:", error);
+      res.status(500).json({ message: "Failed to create event" });
     }
   });
 
-  // Admin repair endpoint for missing attendance sheets  
-  app.post('/api/admin/events/repair-sheets', requireAdmin, async (req: any, res) => {
-    try {
-      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      console.log(`🔧 [REPAIR_SHEETS] Starting repair - RequestID: ${requestId}`);
-      
-      const repairResult = await storage.repairMissingAttendanceSheets();
-      
-      console.log(`✅ [REPAIR_SHEETS] Completed - RequestID: ${requestId}`, repairResult);
-      
-      res.json({
-        message: `Repaired ${repairResult.repaired} events with missing attendance sheets`,
-        ...repairResult
-      });
-    } catch (error) {
-      console.error('🚨 [REPAIR_SHEETS] Error:', error);
-      res.status(500).json({ message: 'Failed to repair attendance sheets' });
-    }
-  });
-
-  // Delete event
-  app.delete('/api/events/:id', checkAuth, async (req: any, res) => {
+  // Update existing event
+  app.put('/api/events/:id', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
-      const requestId = req.headers['x-request-id'] || `evt_delete_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -837,75 +467,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      // Check if user can delete this event (owner or admin)  
+      // Check if user can edit this event (owner or admin)
       if (user.role !== 'admin' && existingEvent.authorId !== userId) {
-        return res.status(403).json({ message: 'You can only delete events you created' });
+        return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
-      logOperation('info', { requestId, eventId, userId }, 'EVENT_DELETE_START');
-
-      // Use existing delete method (already has cascade implemented)
-      const deleteResult = await storage.deleteEventWithCascade(eventId);
-
-      logOperation('info', {
-        requestId,
-        eventId,
-        sheetFound: deleteResult.sheetFound,
-        rowsDeleted: deleteResult.rowsDeleted
-      }, 'EVENT_DELETE_CASCADE');
-      
-      res.json({ message: 'Event deleted successfully', ...deleteResult });
-    } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'EVENT_DELETE_ERROR');
-      res.status(500).json({ message: 'Failed to delete event' });
-    }
-  });
-
-  // Admin repair endpoint for missing attendance sheets
-  app.post('/api/admin/repair-attendance-sheets', requireAdmin, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      logOperation('info', { requestId, userId }, 'REPAIR_ATTENDANCE_SHEETS_START');
-
-      const allEvents = await storage.getEvents();
-      let repairedCount = 0;
-
-      for (const event of allEvents) {
-        if (event.targetBatchSections && event.targetBatchSections.length > 0) {
-          // Check if attendance sheets exist
-          const existingSheets = await storage.getAttendanceSheetsByEventId(event.id);
-          const existingBatchSections = existingSheets.map(sheet => `${sheet.batch}::${sheet.section}`);
-          
-          const missingBatchSections = event.targetBatchSections.filter(
-            batchSection => !existingBatchSections.includes(batchSection)
-          );
-
-          if (missingBatchSections.length > 0) {
-            await storage.createEventAttendanceSheets(event.id, missingBatchSections, userId);
-            repairedCount++;
-            logOperation('warn', { 
-              requestId, 
-              eventId: event.id, 
-              missingSheets: missingBatchSections.length,
-              eventTitle: event.title
-            }, 'REPAIRED_MISSING_SHEET');
-          }
-        }
-      }
-
-      logOperation('info', { requestId, totalEvents: allEvents.length, repairedCount }, 'REPAIR_ATTENDANCE_SHEETS_COMPLETE');
-
-      res.json({ 
-        message: `Repair completed. Fixed ${repairedCount} events with missing attendance sheets.`,
-        totalEvents: allEvents.length,
-        repairedCount
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        authorId: existingEvent.authorId, // Keep the original author
+        date: new Date(req.body.date),
       });
+      
+      const updatedEvent = await storage.updateEvent(eventId, eventData);
+      res.json(updatedEvent);
     } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'REPAIR_ATTENDANCE_SHEETS_ERROR');
-      res.status(500).json({ message: 'Failed to repair attendance sheets' });
+      console.error('Error updating event:', error);
+      res.status(500).json({ message: 'Failed to update event' });
     }
   });
 
@@ -915,7 +492,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userInfo = extractUser(req);
       const userId = userInfo?.id;
       const user = await storage.getUser(userId);
-      const requestId = req.headers['x-request-id'] || `evt_delete_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -932,86 +508,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.role !== 'admin' && existingEvent.authorId !== userId) {
         return res.status(403).json({ message: 'You can only delete events you created' });
       }
-
-      logOperation('info', { requestId, eventId, userId }, 'EVENT_DELETE_START');
       
-      // Use safe deletion method that handles missing columns gracefully
-      try {
-        // Try cascade method first if it exists
-        if (storage.deleteEventWithCascade) {
-          const deleteResult = await storage.deleteEventWithCascade(eventId);
-          logOperation('info', { requestId, eventId, result: deleteResult }, 'EVENT_DELETE_CASCADE_SUCCESS');
-          res.json({ message: 'Event deleted successfully', ...deleteResult });
-          return;
-        }
-        
-        // Fallback: Delete event and handle attendance cleanup safely
-        await storage.deleteEvent(eventId);
-        
-        // Try to clean up attendance data if it exists
-        try {
-          await storage.deleteAttendanceByEventId?.(eventId);
-        } catch (attendanceError) {
-          // Log but don't fail if attendance cleanup fails
-          logOperation('warn', { requestId, eventId, error: attendanceError instanceof Error ? attendanceError.message : String(attendanceError) }, 'ATTENDANCE_CLEANUP_WARNING');
-        }
-        
-        logOperation('info', { requestId, eventId }, 'EVENT_DELETE_SUCCESS');
-        res.json({ message: 'Event deleted successfully' });
-      } catch (deleteError) {
-        throw deleteError;
-      }
+      await storage.deleteEvent(eventId);
+      res.json({ message: 'Event deleted successfully' });
     } catch (error) {
-      logError(requestId, error, 'EVENT_DELETE', { eventId: req.params.id });
-      res.status(500).json({ error: 'internal_error', message: 'Failed to delete event' });
-    }
-  });
-
-  // Admin repair endpoint for missing attendance sheets
-  app.post('/api/admin/repair-attendance-sheets', requireAdmin, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const requestId = req.headers['x-request-id'] || `repair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      logOperation('info', { requestId, userId }, 'REPAIR_ATTENDANCE_SHEETS_START');
-
-      const allEvents = await storage.getEvents();
-      let repairedCount = 0;
-
-      for (const event of allEvents) {
-        if (event.targetBatchSections && event.targetBatchSections.length > 0) {
-          // Check if attendance sheets exist
-          const existingSheets = await storage.getAttendanceSheetsByEventId(event.id);
-          const existingBatchSections = existingSheets.map(sheet => `${sheet.batch}::${sheet.section}`);
-          
-          const missingBatchSections = event.targetBatchSections.filter(
-            batchSection => !existingBatchSections.includes(batchSection)
-          );
-
-          if (missingBatchSections.length > 0) {
-            await storage.createEventAttendanceSheets(event.id, missingBatchSections, userId);
-            repairedCount++;
-            logOperation('warn', { 
-              requestId, 
-              eventId: event.id, 
-              missingSheets: missingBatchSections.length,
-              eventTitle: event.title
-            }, 'REPAIRED_MISSING_SHEET');
-          }
-        }
-      }
-
-      logOperation('info', { requestId, totalEvents: allEvents.length, repairedCount }, 'REPAIR_ATTENDANCE_SHEETS_COMPLETE');
-
-      res.json({ 
-        message: `Repair completed. Fixed ${repairedCount} events with missing attendance sheets.`,
-        totalEvents: allEvents.length,
-        repairedCount
-      });
-    } catch (error) {
-      logOperation('error', { error: error instanceof Error ? error.message : String(error) }, 'REPAIR_ATTENDANCE_SHEETS_ERROR');
-      res.status(500).json({ message: 'Failed to repair attendance sheets' });
+      console.error('Error deleting event:', error);
+      res.status(500).json({ message: 'Failed to delete event' });
     }
   });
 
@@ -1041,29 +543,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching batches:', error);
       res.status(500).json({ message: 'Failed to fetch batches' });
-    }
-  });
-
-  // Get all sections
-  app.get('/api/sections', checkAuth, async (req: any, res) => {
-    try {
-      const sections = await storage.getAllSections();
-      res.json(sections);
-    } catch (error) {
-      console.error('Error fetching sections:', error);
-      res.status(500).json({ message: 'Failed to fetch sections' });
-    }
-  });
-
-  // NEW: Get sections for a specific batch (needed for waterfall UX)
-  app.get('/api/batches/:batch/sections', checkAuth, async (req: any, res) => {
-    try {
-      const batch = decodeURIComponent(req.params.batch);
-      const sections = await storage.getSectionsForBatch(batch);
-      res.json(sections);
-    } catch (error) {
-      console.error('Error fetching sections for batch:', error);
-      res.status(500).json({ message: 'Failed to fetch sections for batch' });
     }
   });
 
@@ -1098,67 +577,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ======== CANONICAL ATTENDANCE MANAGEMENT APIs ========
-  
-  // Get attendance summary and records for an event (managers/admin only)
-  app.get('/api/events/:id/attendance', requireEventsManage, async (req: any, res) => {
+  // Attendance Management Routes
+  // Get attendance sheet for an event
+  app.get('/api/events/:id/attendance', checkAuth, async (req: any, res) => {
     try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
+      const eventId = parseInt(req.params.id);
+      const userId = req.session.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
-        return res.status(401).json({ message: 'Authentication required' });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const eventId = parseInt(req.params.id);
-      const requestId = req.headers['x-request-id'] || `att_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Verify event exists
-      const event = await storage.getEventById(eventId);
-      if (!event) {
-        return res.status(404).json({ message: 'Event not found' });
+      // Check if user has permission to view attendance (admin or attendance permission)
+      if (user.role !== 'admin' && !user.permissions?.attendance) {
+        return res.status(403).json({ message: "No permission to view attendance" });
       }
 
-      logOperation('info', {
-        requestId,
-        eventId,
-        userId,
-        userRole: user.role
-      }, 'CANONICAL_ATTENDANCE_GET_REQUEST');
+      const attendanceSheet = await storage.getAttendanceSheetByEventId(eventId);
+      if (!attendanceSheet) {
+        return res.status(404).json({ message: "No attendance sheet found for this event" });
+      }
 
-      // Get attendance container for summary stats
-      const container = await storage.getAttendanceContainer(eventId);
-      
-      // Get all attendance records for this event
-      const records = await storage.getAttendanceRecords(eventId);
-      
-      // Get attendance sheets if they exist
-      const sheets = await storage.getAttendanceSheetsByEventId(eventId);
-      
-      const response = {
-        eventId,
-        eventTitle: event.title,
-        container,
-        records,
-        sheets,
-        totalRecords: records.length
-      };
-      
-      logOperation('info', {
-        requestId,
-        eventId,
-        recordCount: records.length,
-        containerExists: !!container
-      }, 'CANONICAL_ATTENDANCE_GET_RESPONSE');
-      
-      res.json(response);
+      const records = await storage.getAttendanceRecordsBySheetId(attendanceSheet.id);
+      res.json({
+        sheet: attendanceSheet,
+        records: records,
+      });
     } catch (error) {
-      logOperation('error', {
-        error: error instanceof Error ? error.message : String(error),
-        eventId: req.params.id
-      }, 'CANONICAL_ATTENDANCE_GET_ERROR');
-      res.status(500).json({ message: 'Failed to get attendance data' });
+      console.error("Error fetching attendance sheet:", error);
+      res.status(500).json({ message: "Failed to fetch attendance sheet" });
     }
   });
 
@@ -1233,182 +681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mark attendance for students (bulk or individual) - managers/admin only
-  app.post('/api/events/:id/attendance/mark', requireEventsManage, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(401).json({ message: 'Authentication required' });
-      }
-
-      const eventId = parseInt(req.params.id);
-      const requestId = req.headers['x-request-id'] || `att_mark_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Verify event exists
-      const event = await storage.getEventById(eventId);
-      if (!event) {
-        return res.status(404).json({ message: 'Event not found' });
-      }
-
-      const { records, bulkAction } = req.body;
-      
-      logOperation('info', {
-        requestId,
-        eventId,
-        userId,
-        recordCount: records?.length || 0,
-        bulkAction: bulkAction || 'none'
-      }, 'CANONICAL_ATTENDANCE_MARK_REQUEST');
-
-      let updatedRecords = [];
-      
-      if (bulkAction) {
-        // Handle bulk actions: mark-all-present, mark-all-absent, clear-all
-        const allowedBulkActions = ['mark-all-present', 'mark-all-absent', 'clear-all'];
-        if (!allowedBulkActions.includes(bulkAction)) {
-          return res.status(400).json({ message: 'Invalid bulk action' });
-        }
-        
-        const bulkResult = await storage.bulkUpdateAttendance(eventId, bulkAction, userId);
-        updatedRecords = bulkResult.updatedRecords || [];
-        
-        logOperation('info', {
-          requestId,
-          eventId,
-          bulkAction,
-          updatedCount: updatedRecords.length
-        }, 'CANONICAL_ATTENDANCE_BULK_ACTION');
-      } else if (records && Array.isArray(records)) {
-        // Handle individual record updates
-        for (const recordData of records) {
-          const validatedRecord = {
-            ...recordData,
-            eventId,
-            markedBy: userId,
-            markedAt: new Date()
-          };
-          
-          const updatedRecord = await storage.updateAttendanceRecord(validatedRecord);
-          if (updatedRecord) {
-            updatedRecords.push(updatedRecord);
-          }
-        }
-        
-        logOperation('info', {
-          requestId,
-          eventId,
-          individualUpdates: updatedRecords.length
-        }, 'CANONICAL_ATTENDANCE_INDIVIDUAL_UPDATES');
-      }
-
-      // Update attendance container summary stats
-      await storage.updateAttendanceContainerStats(eventId);
-      
-      // Get updated container stats
-      const updatedContainer = await storage.getAttendanceContainer(eventId);
-      
-      res.json({
-        message: 'Attendance updated successfully',
-        updatedRecords,
-        container: updatedContainer,
-        totalUpdated: updatedRecords.length
-      });
-    } catch (error) {
-      logOperation('error', {
-        error: error instanceof Error ? error.message : String(error),
-        eventId: req.params.id
-      }, 'CANONICAL_ATTENDANCE_MARK_ERROR');
-      res.status(500).json({ message: 'Failed to mark attendance' });
-    }
-  });
-
-  // Sync attendance roster with student directory - managers/admin only
-  app.post('/api/events/:id/attendance/sync', requireEventsManage, async (req: any, res) => {
-    try {
-      const userInfo = extractUser(req);
-      const userId = userInfo?.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(401).json({ message: 'Authentication required' });
-      }
-
-      const eventId = parseInt(req.params.id);
-      const requestId = req.headers['x-request-id'] || `att_sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Verify event exists
-      const event = await storage.getEventById(eventId);
-      if (!event) {
-        return res.status(404).json({ message: 'Event not found' });
-      }
-
-      logOperation('info', {
-        requestId,
-        eventId,
-        userId
-      }, 'CANONICAL_ATTENDANCE_SYNC_REQUEST');
-
-      // Get canonical targets or adapt from legacy
-      let targets;
-      if (event.targets && (event.targets.batches?.length > 0 || event.targets.sections?.length > 0 || event.targets.programs?.length > 0)) {
-        targets = event.targets;
-      } else {
-        targets = adaptLegacyTargets({
-          targetBatches: event.targetBatches || [],
-          targetSections: event.targetSections || [],
-          targetBatchSections: event.targetBatchSections || [],
-          rollNumberAttendees: event.rollNumberAttendees || []
-        });
-      }
-      
-      // Get all students from directory
-      const allStudents = await storage.getStudentDirectory();
-      
-      // Filter eligible students using canonical eligibility
-      const eligibleStudents = allStudents.filter(student => {
-        return isEligible({
-          batch: student.batch,
-          section: student.section,
-          program: student.program,
-          email: student.email,
-          role: 'student'
-        }, targets);
-      });
-      
-      // Sync attendance records
-      const syncResult = await storage.syncAttendanceRecords(eventId, eligibleStudents, userId);
-      
-      // Update container stats
-      await storage.updateAttendanceContainerStats(eventId);
-      const updatedContainer = await storage.getAttendanceContainer(eventId);
-      
-      logOperation('info', {
-        requestId,
-        eventId,
-        eligibleStudents: eligibleStudents.length,
-        syncResult
-      }, 'CANONICAL_ATTENDANCE_SYNC_SUCCESS');
-      
-      res.json({
-        message: 'Attendance roster synced successfully',
-        eligibleStudents: eligibleStudents.length,
-        syncResult,
-        container: updatedContainer
-      });
-    } catch (error) {
-      logOperation('error', {
-        error: error instanceof Error ? error.message : String(error),
-        eventId: req.params.id
-      }, 'CANONICAL_ATTENDANCE_SYNC_ERROR');
-      res.status(500).json({ message: 'Failed to sync attendance roster' });
-    }
-  });
-
-  // Legacy Update a single attendance record (keep for compatibility)
-  app.put('/api/attendance/records/:id', requireEventsManage, async (req: any, res) => {
+  // Update a single attendance record
+  app.put('/api/attendance/records/:id', adminOnly(), async (req: any, res) => {
     try {
       const recordId = parseInt(req.params.id);
       const { status, note } = req.body;
@@ -3072,7 +2346,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Remove duplicate POST route - using the one with eligibility logic above
+  // Update other protected routes to use authorize middleware
+  app.post('/api/events', authorize('calendar'), async (req: any, res) => {
+    try {
+      const userId = req.session.user.id;
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        authorId: userId,
+      });
+      
+      const event = await storage.createEvent(eventData);
+      res.json(event);
+    } catch (error) {
+      console.error("Error creating event:", error);
+      res.status(500).json({ message: "Failed to create event" });
+    }
+  });
 
   app.post('/api/attendance', authorize('attendance'), async (req: any, res) => {
     try {

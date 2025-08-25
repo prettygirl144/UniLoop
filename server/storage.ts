@@ -14,7 +14,6 @@ import {
   attendance,
   attendanceSheets,
   attendanceRecords,
-  attendanceContainers,
   galleryFolders,
   amenitiesPermissions,
   studentDirectory,
@@ -64,8 +63,6 @@ import {
   type InsertAttendanceSheet,
   type AttendanceRecord,
   type InsertAttendanceRecord,
-  type AttendanceContainer,
-  type NewAttendanceContainer,
   batchSections,
   type BatchSection,
   type InsertBatchSection,
@@ -85,17 +82,8 @@ import {
   type InsertNotificationBatch,
 } from "@shared/schema";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
-import { eq, desc, and, gte, lte, or, sql, inArray, isNotNull, ne } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
-import { isEligible, adaptLegacyTargets, normalizeTargets, normalizeToBatchScoped, type EligibilityTargets } from "./lib/eligibility";
-
-// Normalize utility exactly as specified - same as in routes.ts
-function norm(arr: any): string[] {
-  return Array.from(new Set((arr || []).map((x: any) => String(x).trim())))
-    .filter(Boolean)
-    .sort() as string[];
-}
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -110,17 +98,10 @@ export interface IStorage {
 
   // Events
   getEvents(): Promise<Event[]>;
-  getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string }): Promise<(Event & { eligible?: boolean })[]>;
   createEvent(event: InsertEvent): Promise<Event>;
   getEventById(id: number): Promise<Event | undefined>;
-  updateEvent(id: number, eventData: Partial<InsertEvent>, requestId?: string): Promise<Event>;
-  deleteEvent(id: number): Promise<void>;
   rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp>;
   getUserRsvps(userId: string): Promise<EventRsvp[]>;
-  
-  // Attendance sheet management
-  upsertAttendanceSheet(eventId: number, createdBy: string, requestId?: string): Promise<AttendanceSheet>;
-  repairMissingAttendanceSheets(): Promise<{ repaired: number; eventIds: number[] }>;
 
   // Community Board (Section 1)
   getCommunityPosts(): Promise<CommunityPost[]>;
@@ -366,99 +347,23 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(events)
-      .orderBy(sql`COALESCE(${events.startsAt}, ${events.date}) DESC`);
+      .orderBy(events.date);
   }
-
-  // Events with eligibility computation for user feed - SINGLE SOURCE OF TRUTH
-  async getEventsWithEligibility(user?: { batch?: string | null; section?: string | null; email?: string | null; role?: string; program?: string | null }): Promise<(Event & { eligible?: boolean })[]> {
-    const events = await this.getEvents();
-    
-    if (!user) {
-      return events.map(event => ({ ...event, eligible: false }));
-    }
-
-    return events.map(event => {
-      // Adapt legacy event data to new canonical targets format
-      const targets = adaptLegacyTargets({
-        targetBatches: event.targetBatches || [],
-        targetSections: event.targetSections || [],
-        targetBatchSections: event.targetBatchSections || [],
-        rollNumberAttendees: event.rollNumberAttendees || []
-      });
-
-      // Use the single source of truth eligibility helper
-      const eligible = isEligible(user, targets);
-
-      // ELIGIBILITY_EVAL log as specified in requirements
-      console.log(`ELIGIBILITY_EVAL: ${JSON.stringify({ 
-        user: { 
-          batch: user.batch, 
-          section: user.section, 
-          program: user.program || null,
-          email: user.email,
-          role: user.role
-        }, 
-        eventId: event.id, 
-        targets: targets, 
-        eligible: eligible,
-        requestId: `eval-${Date.now()}` 
-      })}`);
-
-      return { ...event, eligible };
-    });
-  }
-
 
   async createEvent(event: InsertEvent): Promise<Event> {
     const requestId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`🔧 [DB-WRITE] Creating event - RequestID: ${requestId}`);
     console.log(`📝 [DB-WRITE] Event payload:`, JSON.stringify({ title: event.title, date: event.date, location: event.location, authorId: event.authorId }, null, 2));
     
-    // NEW: Normalize payload to batch-scoped structure
-    const normalizedTargets = normalizeToBatchScoped(event);
-    
     // Convert mediaUrls properly for JSONB field
     const eventData: any = {
       ...event,
-      // Replace targets with normalized batch-scoped structure
-      targets: normalizedTargets,
     };
     // Handle mediaUrls as JSONB array
     if (event.mediaUrls) {
       eventData.mediaUrls = Array.isArray(event.mediaUrls) ? event.mediaUrls : [];
     } else {
       eventData.mediaUrls = [];
-    }
-
-    // Log the normalization for debugging
-    console.log(`BATCH_SCOPED_NORMALIZATION: ${JSON.stringify({
-      eventId: 'creating',
-      originalPayload: { 
-        targetBatches: event.targetBatches,
-        targetSections: event.targetSections, 
-        targetBatchSections: event.targetBatchSections 
-      },
-      normalizedTargets,
-      requestId
-    })}`);
-    
-    // Legacy support - still create canonical targets for backward compatibility
-    if (event.targetBatches || event.targetSections || event.targetBatchSections || event.rollNumberAttendees) {
-      const canonicalTargets = adaptLegacyTargets({
-        targetBatches: event.targetBatches || [],
-        targetSections: event.targetSections || [],
-        targetBatchSections: event.targetBatchSections || [],
-        rollNumberAttendees: (event.rollNumberAttendees as string[]) || []
-      });
-      
-      // ATTENDANCE_ROSTER_BUILD log as specified
-      console.log(`ATTENDANCE_ROSTER_BUILD: ${JSON.stringify({
-        eventId: 'creating',
-        targetBatches: canonicalTargets.batches,
-        targetSections: canonicalTargets.sections,
-        rosterCount: canonicalTargets.batches.length * (canonicalTargets.sections.length || 1),
-        requestId
-      })}`);
     }
     
     const [created] = await db
@@ -469,30 +374,24 @@ export class DatabaseStorage implements IStorage {
     console.log(`✅ [DB-WRITE] Event created successfully - ID: ${created.id}, RequestID: ${requestId}`);
     console.log(`📊 [DB-WRITE] Created event details:`, { id: created.id, title: created.title, date: created.date });
 
-    // Auto-create attendance sheets based on new batch-scoped targeting
-    if (created && created.targets) {
-      const targets = created.targets as { batches: string[]; sectionsByBatch: Record<string, string[]>; programs: string[]; rollEmailAttendees?: string[] };
-      
-      if (targets.batches && targets.batches.length > 0) {
-        // NEW: Create attendance sheets respecting batch-scoped sections
-        for (const batch of targets.batches) {
-          const batchSections = targets.sectionsByBatch[batch] || [];
-          // Empty array means all sections for this batch
-          const sectionsToProcess = batchSections.length > 0 ? batchSections : await this.getSectionsForBatch(batch);
-          
-          for (const section of sectionsToProcess) {
-            try {
-              // Check if attendance sheet already exists for this specific batch-section (idempotent)
-              const existingSheets = await db
-                .select()
-                .from(attendanceSheets)
-                .where(and(
-                  eq(attendanceSheets.eventId, created.id),
-                  eq(attendanceSheets.batch, batch),
-                  eq(attendanceSheets.section, section || 'All')
-                ));
-                
-              if (existingSheets.length === 0) {
+    // Auto-create attendance sheet if event has batch-section targeting
+    if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {
+      // For each batch-section pair, create an attendance sheet
+      for (const batchSection of event.targetBatchSections) {
+        const [batch, section] = batchSection.split('::');
+        if (batch && section) {
+          try {
+            // Check if attendance sheet already exists for this specific batch-section (idempotent)
+            const existingSheets = await db
+              .select()
+              .from(attendanceSheets)
+              .where(and(
+                eq(attendanceSheets.eventId, created.id),
+                eq(attendanceSheets.batch, batch),
+                eq(attendanceSheets.section, section)
+              ));
+              
+            if (existingSheets.length === 0) {
               // Create attendance sheet
               const sheet = await this.createAttendanceSheet({
                 eventId: created.id,
@@ -501,33 +400,29 @@ export class DatabaseStorage implements IStorage {
                 createdBy: event.authorId,
               });
 
-                // Get all students in this batch-section and create attendance records
-                // Use normalized format for student lookup
-                const students = await db
-                  .select()
-                  .from(studentDirectory)
-                  .where(and(
-                    eq(studentDirectory.batch, batch), 
-                    section ? eq(studentDirectory.section, section) : sql`true`
-                  ));
+              // Get all students in this batch-section and create attendance records
+              // Note: studentDirectory stores section as "batch::section" format, so we need to match the full batchSection
+              const students = await db
+                .select()
+                .from(studentDirectory)
+                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
 
-                if (students.length > 0) {
-                  const attendanceRecords = students.map(student => ({
-                    sheetId: sheet.id,
-                    studentEmail: student.email,
-                    studentName: student.email.split('@')[0] || '', // Use email prefix as name
-                    rollNumber: student.rollNumber || null,
-                    status: 'UNMARKED' as const,
-                  }));
+              if (students.length > 0) {
+                const attendanceRecords = students.map(student => ({
+                  sheetId: sheet.id,
+                  studentEmail: student.email,
+                  studentName: student.email.split('@')[0] || '', // Use email prefix as name
+                  rollNumber: student.rollNumber || null,
+                  status: 'UNMARKED' as const,
+                }));
 
-                  await this.createAttendanceRecords(attendanceRecords);
-                  console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section || 'All'}`);
-                }
+                await this.createAttendanceRecords(attendanceRecords);
+                console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section}`);
               }
-            } catch (error) {
-              console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
-              // Don't throw - event creation should succeed even if attendance sheet fails
             }
+          } catch (error) {
+            console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
+            // Don't throw - event creation should succeed even if attendance sheet fails
           }
         }
       }
@@ -541,220 +436,28 @@ export class DatabaseStorage implements IStorage {
     return event;
   }
 
-  // ATTENDANCE SHEET ROBUSTNESS: wrap in transaction as specified
-  async updateEvent(id: number, eventData: Partial<InsertEvent>, requestId?: string): Promise<Event> {
-    const reqId = requestId || `evt_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return await db.transaction(async (tx) => {
-      // Get current event for before/after logging
-      const [currentEvent] = await tx.select().from(events).where(eq(events.id, id));
-      console.log(`🔧 [EVENT_PATCH_TARGETS] Before update - RequestID: ${reqId}`, {
-        eventId: id,
-        currentTargets: {
-          targetBatches: currentEvent?.targetBatches,
-          targetSections: currentEvent?.targetSections,
-          targetBatchSections: currentEvent?.targetBatchSections,
-          rollNumberAttendees: currentEvent?.rollNumberAttendees
-        }
-      });
-
-      // NEW: Normalize update payload to batch-scoped structure
-      const normalizedTargets = normalizeToBatchScoped(eventData);
-      
-      // ATOMIC REPLACEMENT of target arrays
-      const updateData: any = {
-        ...eventData,
-        // Replace targets with normalized batch-scoped structure
-        targets: normalizedTargets,
-        updatedAt: new Date(),
-      };
-      
-      // Log the normalization for debugging
-      console.log(`BATCH_SCOPED_UPDATE_NORMALIZATION: ${JSON.stringify({
-        eventId: id,
-        originalPayload: { 
-          targetBatches: eventData.targetBatches,
-          targetSections: eventData.targetSections, 
-          targetBatchSections: eventData.targetBatchSections 
-        },
-        normalizedTargets,
-        requestId: reqId
-      })}`);
-      
-      
-      // For PATCH: do not recreate sheet; keep existing sheet by eventId as specified
-      // If sheet missing, create it once (upsert by unique eventId)
-      if (currentEvent) {
-        try {
-          const existingSheet = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id)).limit(1);
-          if (existingSheet.length === 0 && ((currentEvent.targetBatchSections?.length || 0) > 0 || currentEvent.isMandatory)) {
-            // Create missing attendance sheet - upsert by unique eventId
-            await tx.insert(attendanceSheets).values({
-              eventId: id,
-              batch: 'Multiple', // For events with multiple batch-sections
-              section: 'Multiple',
-              createdBy: currentEvent.authorId,
-            }).onConflictDoNothing(); // Upsert behavior
-          }
-        } catch (error) {
-          console.warn(`[ATTENDANCE_SHEET_UPSERT] Non-critical error for event ${id}:`, error);
-          // Continue with event update even if attendance sheet fails
-        }
-      }
-
-      // Ensure mediaUrls is properly formatted for JSONB field
-      if (updateData.mediaUrls !== undefined) {
-        updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
-      }
-
-      // Perform the update
-      const [event] = await tx.update(events)
-        .set(updateData)
-        .where(eq(events.id, id))
-        .returning();
-
-      // Log after update for verification
-      console.log(`✅ [EVENT_PATCH_TARGETS] After update - RequestID: ${reqId}`, {
-        eventId: id,
-        newTargets: {
-          targetBatches: event.targetBatches,
-          targetSections: event.targetSections,
-          targetBatchSections: event.targetBatchSections,
-          rollNumberAttendees: event.rollNumberAttendees
-        }
-      });
-
-      return event;
-    });
-  }
-
-  // ROBUSTNESS: wrap in transaction and handle missing sheets as specified
-  async deleteEvent(id: number): Promise<void> {
-    await db.transaction(async (tx) => {
-      try {
-        // Get all attendance sheets for this event (missing sheet must not throw)
-        const eventAttendanceSheets = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-        
-        // Delete attendance records for each sheet (if any)
-        for (const sheet of eventAttendanceSheets) {
-          await tx.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
-        }
-        
-        // Delete attendance sheets (if any)
-        await tx.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-      } catch (error) {
-        console.warn(`[DELETE_EVENT] Non-critical attendance cleanup error for event ${id}:`, error);
-        // Continue with event deletion even if attendance cleanup fails
-      }
-      
-      // Delete related RSVPs
-      await tx.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
-      
-      // Finally delete the event
-      await tx.delete(events).where(eq(events.id, id));
-    });
-  }
-
-  async deleteEventWithCascade(id: number): Promise<{ sheetFound: boolean, rowsDeleted: number }> {
-    return await db.transaction(async (tx) => {
-      // Get all attendance sheets for this event
-      const eventAttendanceSheets = await tx.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-      
-      let totalRowsDeleted = 0;
-      
-      // Delete attendance records for each sheet
-      for (const sheet of eventAttendanceSheets) {
-        const recordsToDelete = await tx.select().from(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
-        totalRowsDeleted += recordsToDelete.length;
-        await tx.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
-      }
-      
-      // Delete attendance sheets
-      await tx.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
-      
-      // Delete related RSVPs
-      await tx.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
-      
-      // Finally delete the event
-      await tx.delete(events).where(eq(events.id, id));
-      
-      return {
-        sheetFound: eventAttendanceSheets.length > 0,
-        rowsDeleted: totalRowsDeleted
-      };
-    });
-  }
-
-  async createEventAttendanceSheets(eventId: number, targetBatchSections: string[], createdBy: string): Promise<void> {
-    if (!targetBatchSections || targetBatchSections.length === 0) {
-      return; // No targeting, no sheets to create
-    }
-
-    for (const batchSection of targetBatchSections) {
-      const [batch, section] = batchSection.split('::');
-      if (batch && section) {
-        try {
-          // Try to insert, ignore if already exists (upsert behavior)
-          await db.insert(attendanceSheets).values({
-            eventId,
-            batch,
-            section,
-            createdBy
-          }).onConflictDoNothing();
-        } catch (error) {
-          console.log(`Attendance sheet already exists for event ${eventId}, batch ${batch}, section ${section}`);
-        }
-      }
-    }
-  }
-
-  async getAttendanceSheetsByEventId(eventId: number): Promise<AttendanceSheet[]> {
-    return await db.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, eventId));
-  }
-
-  // ATTENDANCE SHEET UPSERT: Ensure every event has exactly one sheet
-  async upsertAttendanceSheet(eventId: number, createdBy: string, requestId?: string): Promise<AttendanceSheet> {
-    const reqId = requestId || `sheet_upsert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Check if sheet already exists
-    const existingSheet = await this.getAttendanceSheetByEventId(eventId);
-    
-    if (existingSheet) {
-      console.log(`📋 [SHEET_UPSERT] EXISTS for eventId ${eventId} - RequestID: ${reqId}`);
-      return existingSheet;
-    }
-    
-    // Create new sheet
-    const newSheet = await this.createAttendanceSheet({
-      eventId,
-      batch: '', // Will be populated based on event targeting
-      section: '', // Will be populated based on event targeting
-      createdBy
-    });
-    
-    console.log(`📋 [SHEET_UPSERT] CREATED for eventId ${eventId} - RequestID: ${reqId}`);
-    return newSheet;
-  }
-
-  // REPAIR: Create missing attendance sheets for existing events
-  async repairMissingAttendanceSheets(): Promise<{ repaired: number; eventIds: number[] }> {
-    const allEvents = await this.getEvents();
-    const repairedEventIds: number[] = [];
-    
-    for (const event of allEvents) {
-      const existingSheet = await this.getAttendanceSheetByEventId(event.id);
-      
-      if (!existingSheet) {
-        await this.upsertAttendanceSheet(event.id, event.authorId, 'repair_batch');
-        repairedEventIds.push(event.id);
-        console.log(`🔧 [REPAIRED_MISSING_SHEET] eventId: ${event.id}`);
-      }
-    }
-    
-    return {
-      repaired: repairedEventIds.length,
-      eventIds: repairedEventIds
+  async updateEvent(id: number, eventData: Partial<InsertEvent>): Promise<Event> {
+    const updateData: any = {
+      ...eventData,
+      updatedAt: new Date(),
     };
+    // Ensure mediaUrls is properly formatted for JSONB field
+    if (updateData.mediaUrls !== undefined) {
+      updateData.mediaUrls = Array.isArray(updateData.mediaUrls) ? updateData.mediaUrls : [];
+    }
+    const [event] = await db.update(events)
+      .set(updateData)
+      .where(eq(events.id, id))
+      .returning();
+    return event;
+  }
+
+  async deleteEvent(id: number): Promise<void> {
+    // First delete related RSVPs
+    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+    
+    // Then delete the event
+    await db.delete(events).where(eq(events.id, id));
   }
 
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
@@ -1598,58 +1301,6 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => r.batch);
   }
 
-  async getAllSections(): Promise<string[]> {
-    const results = await db
-      .selectDistinct({ section: studentDirectory.section })
-      .from(studentDirectory)
-      .where(and(
-        isNotNull(studentDirectory.section),
-        ne(studentDirectory.section, '')
-      ));
-    
-    // Extract section names from "batch::section" format
-    const sections = results
-      .map(r => {
-        if (r.section?.includes('::')) {
-          return r.section.split('::')[1];
-        }
-        return r.section;
-      })
-      .filter((section, index, array) => section && array.indexOf(section) === index) // Remove duplicates and nulls
-      .sort();
-    
-    return sections;
-  }
-
-  async getSectionsForBatch(batch: string): Promise<string[]> {
-    const results = await db
-      .selectDistinct({ section: studentDirectory.section })
-      .from(studentDirectory)
-      .where(and(
-        isNotNull(studentDirectory.section),
-        ne(studentDirectory.section, ''),
-        or(
-          eq(studentDirectory.batch, batch), // Direct match
-          sql`${studentDirectory.section} LIKE ${batch + '::%'}` // Handle "batch::section" format
-        )
-      ));
-    
-    // Extract section names from "batch::section" format or use direct section
-    const sections = results
-      .map(r => {
-        if (r.section?.includes('::')) {
-          const [batchPart, sectionPart] = r.section.split('::');
-          return batchPart === batch ? sectionPart : null;
-        }
-        return r.section;
-      })
-      .filter((section): section is string => section !== null)
-      .filter((section, index, array) => array.indexOf(section) === index) // Remove duplicates
-      .sort();
-    
-    return sections;
-  }
-
   // Triathlon methods
   async getTriathlonTeams(): Promise<(TriathlonTeam & { rank: number })[]> {
     const teams = await db
@@ -1808,12 +1459,7 @@ export class DatabaseStorage implements IStorage {
   async createSmartNotification(notification: InsertSmartNotification): Promise<SmartNotification> {
     const [created] = await db
       .insert(smartNotifications)
-      .values([{
-        ...notification,
-        contextualData: notification.contextualData || {},
-        deliveryChannels: (notification.deliveryChannels as string[]) || [],
-        metadata: notification.metadata || {}
-      }])
+      .values([notification])
       .returning();
     return created;
   }
@@ -1923,30 +1569,7 @@ export class DatabaseStorage implements IStorage {
   async setNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
     const [created] = await db
       .insert(notificationPreferences)
-      .values([{
-        ...preferences,
-        globalSettings: preferences.globalSettings || {
-          enabled: true,
-          quietHours: { start: "22:00", end: "08:00" },
-          maxDailyNotifications: 20,
-          batchDelay: 15
-        },
-        categoryPreferences: preferences.categoryPreferences || {
-          announcement: { enabled: true, priority: "high", channels: ["push", "in_app"] },
-          event: { enabled: true, priority: "high", channels: ["push", "in_app"] },
-          calendar: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
-          forum: { enabled: true, priority: "low", channels: ["in_app"] },
-          amenities: { enabled: true, priority: "medium", channels: ["push", "in_app"] },
-          system: { enabled: true, priority: "critical", channels: ["push", "in_app", "email"] }
-        },
-        contextualRules: preferences.contextualRules || {
-          academicHours: true,
-          locationBased: false,
-          roleSpecific: true,
-          eventProximity: true,
-          engagementBased: true
-        }
-      }])
+      .values([preferences])
       .onConflictDoUpdate({
         target: notificationPreferences.userId,
         set: {
@@ -1964,10 +1587,7 @@ export class DatabaseStorage implements IStorage {
   async trackNotificationEvent(analytics: InsertNotificationAnalytics): Promise<NotificationAnalytics> {
     const [created] = await db
       .insert(notificationAnalytics)
-      .values([{
-        ...analytics,
-        metadata: analytics.metadata || {}
-      }])
+      .values([analytics])
       .returning();
     return created;
   }
@@ -2163,135 +1783,6 @@ export class DatabaseStorage implements IStorage {
 
     // Return updated attendance records
     return await this.getAttendanceRecordsBySheetId(sheetId);
-  }
-
-  // ======== CANONICAL EVENT MANAGEMENT METHODS ========
-  
-  /**
-   * Update event with canonical fields (startsAt, endsAt, targets)
-   */
-  async updateEventCanonical(eventId: number, updates: {
-    startsAt?: Date;
-    endsAt?: Date | null;
-    targets?: { batches: string[]; sections: string[]; programs: string[] };
-  }): Promise<Event> {
-    const [updated] = await db
-      .update(events)
-      .set(updates)
-      .where(eq(events.id, eventId))
-      .returning();
-    
-    if (!updated) {
-      throw new Error(`Event ${eventId} not found for canonical update`);
-    }
-    
-    return updated;
-  }
-
-  // ======== ATTENDANCE CONTAINER METHODS ========
-  
-  /**
-   * Get attendance container for an event
-   */
-  async getAttendanceContainer(eventId: number): Promise<AttendanceContainer | undefined> {
-    const [container] = await db
-      .select()
-      .from(attendanceContainers)
-      .where(eq(attendanceContainers.eventId, eventId));
-    return container;
-  }
-  
-  /**
-   * Create attendance container for an event
-   */
-  async createAttendanceContainer(data: NewAttendanceContainer): Promise<AttendanceContainer> {
-    const [container] = await db
-      .insert(attendanceContainers)
-      .values(data)
-      .returning();
-    
-    if (!container) {
-      throw new Error('Failed to create attendance container');
-    }
-    
-    return container;
-  }
-  
-  /**
-   * Update attendance container statistics
-   */
-  async updateAttendanceContainerStats(eventId: number): Promise<AttendanceContainer> {
-    // Get all attendance records for this event
-    const sheets = await this.getAttendanceSheetsByEventId(eventId);
-    
-    if (sheets.length === 0) {
-      // No sheets, set all counts to 0
-      const [updated] = await db
-        .update(attendanceContainers)
-        .set({
-          totalStudents: 0,
-          presentCount: 0,
-          absentCount: 0,
-          lateCount: 0,
-          unmarkedCount: 0,
-          excusedCount: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(attendanceContainers.eventId, eventId))
-        .returning();
-      
-      return updated!;
-    }
-    
-    // Calculate statistics from all sheets
-    let totalStudents = 0;
-    let presentCount = 0;
-    let absentCount = 0;
-    let lateCount = 0;
-    let unmarkedCount = 0;
-    let excusedCount = 0;
-    
-    for (const sheet of sheets) {
-      const records = await this.getAttendanceRecordsBySheetId(sheet.id);
-      
-      totalStudents += records.length;
-      
-      for (const record of records) {
-        switch (record.status) {
-          case 'PRESENT':
-            presentCount++;
-            break;
-          case 'ABSENT':
-            absentCount++;
-            break;
-          case 'LATE':
-            lateCount++;
-            break;
-          case 'EXCUSED':
-            excusedCount++;
-            break;
-          default:
-            unmarkedCount++;
-        }
-      }
-    }
-    
-    // Update container with calculated stats
-    const [updated] = await db
-      .update(attendanceContainers)
-      .set({
-        totalStudents,
-        presentCount,
-        absentCount,
-        lateCount,
-        unmarkedCount,
-        excusedCount,
-        updatedAt: new Date()
-      })
-      .where(eq(attendanceContainers.eventId, eventId))
-      .returning();
-    
-    return updated!;
   }
 }
 

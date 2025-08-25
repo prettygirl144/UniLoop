@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useRouter } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuthContext } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
@@ -439,7 +439,6 @@ export default function Admin() {
         diningHostel: false,
         postCreation: true,
         triathlon: false,
-        manageStudents: false,
         sickFoodAccess: true,
         leaveApplicationAccess: true,
         grievanceAccess: true,
@@ -455,7 +454,6 @@ export default function Admin() {
         diningHostel: false,
         postCreation: false,
         triathlon: false,
-        manageStudents: false,
         sickFoodAccess: false,
         leaveApplicationAccess: false,
         grievanceAccess: false,
