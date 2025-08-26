@@ -491,54 +491,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedEvent = await storage.updateEvent(eventId, eventData);
       console.log(`✅ [EVENT-UPDATE] Event ${eventId} updated successfully with new batch-section targeting`);
       
-      // ✅ NEW: Create new attendance sheets based on updated batch-section selections
-      if (updatedEvent.targetBatchSections && updatedEvent.targetBatchSections.length > 0) {
-        console.log(`📋 [EVENT-UPDATE] Creating ${updatedEvent.targetBatchSections.length} new attendance sheets for updated event`);
-        
-        for (const batchSection of updatedEvent.targetBatchSections) {
-          const [batch, section] = batchSection.split('::');
-          if (batch && section) {
-            try {
-              // Create attendance sheet
-              const sheet = await storage.createAttendanceSheet({
-                eventId: eventId,
-                batch,
-                section,
-                createdBy: userId,
-              });
+      // ✅ NEW: Use the same robust method as event creation for attendance sheets
+      await storage.createAttendanceSheetsForEvent(updatedEvent);
+      console.log(`🏁 [EVENT-UPDATE] Completed creating new attendance sheets using robust event creation method`);
 
-              // Get students for this batch-section combination from student directory
-              const students = await db
-                .select()
-                .from(studentDirectory)
-                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
-              
-              // Create attendance records for all students
-              const attendanceRecords = students.map(student => ({
-                sheetId: sheet.id,
-                studentEmail: student.email,
-                studentName: student.email.split('@')[0] || '', // Use email prefix as name
-                rollNumber: student.rollNumber,
-                status: 'UNMARKED' as const,
-                note: null,
-                markedBy: null,
-                markedAt: null,
-              }));
-              
-              if (attendanceRecords.length > 0) {
-                await storage.createAttendanceRecords(attendanceRecords);
-              }
-              
-              console.log(`✅ [EVENT-UPDATE] Created attendance sheet for ${batch}::${section} with ${students.length} students`);
-            } catch (error) {
-              console.error(`❌ [EVENT-UPDATE] Failed to create attendance sheet for ${batch}::${section}:`, error);
-            }
-          }
-        }
-        console.log(`🏁 [EVENT-UPDATE] Completed creating new attendance sheets for event ${eventId}`);
+      // Re-query the updated event with any attendance changes
+      const finalEvent = await storage.getEventById(eventId);
+      if (finalEvent) {
+        res.json(finalEvent);
+      } else {
+        res.json(updatedEvent);
       }
-      
-      res.json(updatedEvent);
     } catch (error) {
       console.error('Error updating event:', error);
       res.status(500).json({ message: 'Failed to update event' });
