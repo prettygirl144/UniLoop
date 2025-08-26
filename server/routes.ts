@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ NEW: Update event with fresh batch-section selection (deletes existing attendance sheets)
+  // Update existing event
   app.put('/api/events/:id', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
@@ -472,16 +472,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
-      console.log(`🔄 [EVENT-UPDATE] Starting update for event ${eventId} by user ${userId}`);
-      
-      // ✅ NEW: Delete all existing attendance sheets for this event to allow fresh batch-section selection
-      const existingSheets = await storage.getAttendanceSheetsByEventId(eventId);
-      if (existingSheets && existingSheets.length > 0) {
-        console.log(`🗑️ [EVENT-UPDATE] Deleting ${existingSheets.length} existing attendance sheets for fresh batch-section selection`);
-        await storage.deleteAttendanceSheetsForEvent(eventId);
-        console.log(`🗑️ [EVENT-UPDATE] Successfully deleted all attendance sheets for event ${eventId}`);
-      }
-
       const eventData = insertEventSchema.parse({
         ...req.body,
         authorId: existingEvent.authorId, // Keep the original author
@@ -489,11 +479,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const updatedEvent = await storage.updateEvent(eventId, eventData);
-      console.log(`✅ [EVENT-UPDATE] Event ${eventId} updated successfully with new batch-section targeting`);
-      
-      // ✅ USE ROBUST METHOD: Create new attendance sheets using the same robust method as event creation
-      await storage.createAttendanceSheetsForEvent(updatedEvent);
-      
       res.json(updatedEvent);
     } catch (error) {
       console.error('Error updating event:', error);
