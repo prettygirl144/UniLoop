@@ -16,7 +16,6 @@ import {
   XCircle, 
   Clock, 
   Download, 
-  RefreshCw,
   Edit3,
   Save,
   X
@@ -141,27 +140,7 @@ export default function Attendance() {
     },
   });
 
-  // Sync students mutation
-  const syncStudentsMutation = useMutation({
-    mutationFn: async () => {
-      if (!attendanceData?.sheet) throw new Error('No attendance sheet found');
-      return await apiRequest('POST', `/api/attendance/sheets/${attendanceData.sheet.id}/sync`, { 
-        batch: attendanceData.sheet.batch, 
-        section: attendanceData.sheet.section 
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/events', eventId, 'attendance'] });
-      toast({ title: 'Student roster synced successfully' });
-    },
-    onError: (error: any) => {
-      toast({ 
-        variant: 'destructive',
-        title: 'Failed to sync students',
-        description: error.message || 'An error occurred'
-      });
-    },
-  });
+  // Sync students functionality removed per user request
 
   // Handle CSV export
   const handleExport = async () => {
@@ -378,17 +357,6 @@ export default function Attendance() {
         
         {isAdmin && (
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => syncStudentsMutation.mutate()}
-              disabled={syncStudentsMutation.isPending}
-              className="w-full sm:w-auto"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncStudentsMutation.isPending ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Sync Students</span>
-              <span className="sm:hidden">Sync</span>
-            </Button>
             <Button 
               variant="outline" 
               size="sm"
