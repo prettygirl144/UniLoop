@@ -2350,10 +2350,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events', authorize('calendar'), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
+      
+      // ✅ STEP 1: Log the exact payload received from frontend
+      console.log('🔍 [EVENTS-POST] === EXACT PAYLOAD ANALYSIS ===');
+      console.log('🔍 [EVENTS-POST] Full request body:', JSON.stringify(req.body, null, 2));
+      console.log('🔍 [EVENTS-POST] Target Batches:', req.body.targetBatches);
+      console.log('🔍 [EVENTS-POST] Target Sections:', req.body.targetSections);
+      console.log('🔍 [EVENTS-POST] Target Batch Sections:', req.body.targetBatchSections);
+      console.log('🔍 [EVENTS-POST] Target Batch Sections type:', typeof req.body.targetBatchSections);
+      console.log('🔍 [EVENTS-POST] Target Batch Sections length:', req.body.targetBatchSections?.length);
+      console.log('🔍 [EVENTS-POST] === END PAYLOAD ANALYSIS ===');
+      
       const eventData = insertEventSchema.parse({
         ...req.body,
         authorId: userId,
       });
+      
+      console.log('🔍 [EVENTS-POST] Parsed eventData targetBatchSections:', eventData.targetBatchSections);
       
       const event = await storage.createEvent(eventData);
       res.json(event);
@@ -3242,7 +3255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Debug endpoint to test attendance sheet creation
-  app.post('/api/debug/attendance/:eventId', requireAuth, async (req, res) => {
+  app.post('/api/debug/attendance/:eventId', checkAuth, async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
       const event = await storage.getEventById(eventId);
@@ -3250,10 +3263,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Event not found' });
       }
       
-      console.log(`🐛 [DEBUG] Manually triggering attendance sheet creation for event ${eventId}`);
+      console.log(`🐛 [DEBUG] === MANUAL ATTENDANCE SHEET TEST START ===`);
+      console.log(`🐛 [DEBUG] Event ID: ${eventId}, Title: "${event.title}"`);
+      console.log(`🐛 [DEBUG] Target batch sections: ${event.targetBatchSections?.length || 0} combinations`);
+      
       await storage.createAttendanceSheetsForEvent(event);
       
-      res.json({ success: true, message: `Attendance sheets processed for event ${eventId}` });
+      // Verify results
+      const createdSheets = await storage.getAttendanceSheetsByEventId(eventId);
+      console.log(`🐛 [DEBUG] Test complete - Created ${createdSheets.length} attendance sheets`);
+      
+      res.json({ 
+        success: true, 
+        message: `Attendance sheets processed for event ${eventId}`,
+        expected: event.targetBatchSections?.length || 0,
+        created: createdSheets.length,
+        sheets: createdSheets.map(s => ({ id: s.id, batch: s.batch, section: s.section }))
+      });
     } catch (error) {
       console.error('Debug attendance creation error:', error);
       res.status(500).json({ error: error.message });

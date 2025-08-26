@@ -1,0 +1,59 @@
+Context:
+In UniLoop, when creating an event, I select specific sections for multiple batches. However, attendance sheets are being generated for more batch-section pairs than I selected, or not matching the exact pairs I picked.
+I need detailed output about the entire process so that all issues can be fixed, and the backend logic only creates attendance sheets for the batch-section pairs I actually select.
+
+Instructions:
+
+Show the exact payload:
+
+In the POST /api/events call, print the full request payload (especially targetBatches, targetSections, targetBatchSections).
+
+Confirm what data is being sent when I select one section in the first batch and two in the second (should be three batch-section pairs only).
+
+Show backend logic:
+
+Print the code/function in the backend responsible for generating attendance sheets from targetBatchSections.
+
+Confirm whether it loops only over the selected targetBatchSections or over all batches/sections.
+
+Event & Sheet Database:
+
+After event creation, run:
+
+SELECT id, target_batch_sections FROM events ORDER BY id DESC LIMIT 1;
+
+SELECT * FROM attendance_sheets WHERE event_id = [id just created];
+
+Print the results and confirm the number and pairings.
+
+Print all console/debug logs:
+
+During attendance sheet creation, log: batch-section value, operation start, completion/success, and any error/exception with full message and stack trace for every attempt.
+
+Clearly identify the mismatch:
+
+If the code is producing extra, missing, or wrong attendance sheet pairs, explain why based on the input payload and loop code. Is it using the wrong variable/list? Is there an index or format mismatch?
+
+Implement a robust fix:
+
+Show me the correct code snippet so only the user-selected batch-section pairs (i.e., the exact entries in targetBatchSections) are used for attendance sheet creation.
+
+Clearly annotate any replaced logic and explain why it fixes the bug.
+
+Add error handling to ensure failed inserts for one pair do not abort others and all issues are logged.
+
+Test and verify:
+
+After fixing, test with a 1+2 section selection, and print the resulting event's target_batch_sections and all attendance_sheets records.
+
+Confirm output matches user selection and no extras/missing records exist.
+
+Format:
+
+Be exhaustive—print every query result, code snippet, and error in full.
+
+Step through as if teaching someone how to debug and patch this pattern securely for future extensibility.
+
+End Goal:
+After following these steps, the backend logic should create attendance sheets only for the batch-section pairs present in targetBatchSections[] (matching exactly what the user chose), with clear logs and proper error handling. Any cause of mismatch or over/under-creation should be revealed with evidence.
+
