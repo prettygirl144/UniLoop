@@ -93,6 +93,16 @@ export default function Attendance() {
   const availableSheets = multiAttendanceData?.sheets || [];
   const isMultiSection = availableSheets.length > 1;
 
+  // ✅ DEBUG: Log the data structure to console
+  console.log('🐛 [ATTENDANCE-DEBUG] multiAttendanceData:', {
+    totalSheets: multiAttendanceData?.totalSheets,
+    sheetsLength: multiAttendanceData?.sheets?.length,
+    availableSheetsLength: availableSheets.length,
+    isMultiSection,
+    selectedSheetIndex,
+    currentSheet: attendanceData?.sheet ? `${attendanceData.sheet.batch}::${attendanceData.sheet.section}` : 'none'
+  });
+
   // Update individual record mutation
   const updateRecordMutation = useMutation({
     mutationFn: async ({ recordId, status, note }: { recordId: number; status: AttendanceStatus; note?: string }) => {

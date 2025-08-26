@@ -612,16 +612,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       console.log(`📊 [ATTENDANCE-API] Event ${eventId}: Returning ${attendanceSheets.length} sheets with records`);
+      console.log(`📊 [ATTENDANCE-API] Sheets structure:`, sheetsWithRecords.map(s => ({
+        sheetId: s.sheet.id,
+        batch: s.sheet.batch,
+        section: s.sheet.section,
+        recordCount: s.records.length
+      })));
       
-      // ✅ FIXED: Return all sheets with records for frontend to handle
-      res.json({
+      const responseData = {
         eventId,
         totalSheets: attendanceSheets.length,
         sheets: sheetsWithRecords,
         // For backward compatibility, also include the first sheet as the default
         sheet: attendanceSheets[0],
         records: sheetsWithRecords[0]?.records || [],
-      });
+      };
+      
+      console.log(`📊 [ATTENDANCE-API] Response structure: totalSheets=${responseData.totalSheets}, sheetsArray length=${responseData.sheets.length}`);
+      
+      // ✅ FIXED: Return all sheets with records for frontend to handle
+      res.json(responseData);
     } catch (error) {
       console.error("Error fetching attendance sheets:", error);
       res.status(500).json({ message: "Failed to fetch attendance sheets" });
