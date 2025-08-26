@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update existing event
+  // ✅ NEW: Update event with fresh batch-section selection (deletes existing attendance sheets)
   app.put('/api/events/:id', checkAuth, async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
@@ -472,6 +472,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'You can only edit events you created' });
       }
 
+      console.log(`🔄 [EVENT-UPDATE] Starting update for event ${eventId} by user ${userId}`);
+      
+      // ✅ NEW: Delete all existing attendance sheets for this event to allow fresh batch-section selection
+      const existingSheets = await storage.getAttendanceSheetsByEventId(eventId);
+      if (existingSheets && existingSheets.length > 0) {
+        console.log(`🗑️ [EVENT-UPDATE] Deleting ${existingSheets.length} existing attendance sheets for fresh batch-section selection`);
+        await storage.deleteAttendanceSheetsForEvent(eventId);
+        console.log(`🗑️ [EVENT-UPDATE] Successfully deleted all attendance sheets for event ${eventId}`);
+      }
+
       const eventData = insertEventSchema.parse({
         ...req.body,
         authorId: existingEvent.authorId, // Keep the original author
@@ -479,6 +489,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const updatedEvent = await storage.updateEvent(eventId, eventData);
+      console.log(`✅ [EVENT-UPDATE] Event ${eventId} updated successfully with new batch-section targeting`);
+      
+      // ✅ NEW: Create new attendance sheets based on updated batch-section selections
+      if (updatedEvent.targetBatchSections && updatedEvent.targetBatchSections.length > 0) {
+        console.log(`📋 [EVENT-UPDATE] Creating ${updatedEvent.targetBatchSections.length} new attendance sheets for updated event`);
+        
+        for (const batchSection of updatedEvent.targetBatchSections) {
+          const [batch, section] = batchSection.split('::');
+          if (batch && section) {
+            try {
+              // Create attendance sheet
+              const sheet = await storage.createAttendanceSheet({
+                eventId: eventId,
+                batch,
+                section,
+                createdBy: userId,
+              });
+
+              // Get students for this batch-section combination
+              const students = await storage.getStudentsByBatchSection(batch, section);
+              
+              // Create attendance records for all students
+              const attendanceRecords = students.map(student => ({
+                sheetId: sheet.id,
+                studentEmail: student.email,
+                studentName: student.name || student.email.split('@')[0],
+                rollNumber: student.rollNumber,
+                status: 'UNMARKED' as const,
+                note: null,
+                markedBy: null,
+                markedAt: null,
+              }));
+              
+              await storage.createAttendanceRecords(attendanceRecords);
+              
+              console.log(`✅ [EVENT-UPDATE] Created attendance sheet for ${batch}::${section} with ${students.length} students`);
+            } catch (error) {
+              console.error(`❌ [EVENT-UPDATE] Failed to create attendance sheet for ${batch}::${section}:`, error);
+            }
+          }
+        }
+        console.log(`🏁 [EVENT-UPDATE] Completed creating new attendance sheets for event ${eventId}`);
+      }
+      
       res.json(updatedEvent);
     } catch (error) {
       console.error('Error updating event:', error);

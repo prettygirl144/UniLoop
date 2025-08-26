@@ -720,19 +720,8 @@ export default function Calendar() {
       return;
     }
 
-    // Populate form with existing event data
-    // Convert targetBatchSections back to batch-specific sections for editing
-    const batchSections: Record<string, string[]> = {};
-    if (event.targetBatchSections?.length) {
-      event.targetBatchSections.forEach(batchSection => {
-        const [batch, section] = batchSection.split('::');
-        if (batch && section) {
-          if (!batchSections[batch]) batchSections[batch] = [];
-          batchSections[batch].push(section);
-        }
-      });
-    }
-    
+    // ✅ NEW LOGIC: Preserve all event details EXCEPT batch-section targeting
+    // This allows fresh batch-section selection while keeping all other event information
     form.reset({
       title: event.title,
       description: event.description || '',
@@ -744,13 +733,21 @@ export default function Calendar() {
       category: event.category,
       rsvpEnabled: event.rsvpEnabled || false,
       isMandatory: event.isMandatory || false,
-      targetBatches: event.targetBatches || [],
-      batchSections,
+      // ✅ CLEAR batch-section targeting to allow fresh selection
+      targetBatches: [], // Clear existing batch selections
+      batchSections: {}, // Clear existing section selections
     });
 
     setSelectedEvent(event);
     setShowEventDetails(false);
     setShowEditDialog(true);
+
+    // Show notification about attendance sheets being reset
+    toast({
+      title: 'Edit Mode Active',
+      description: 'All attendance sheets will be recreated based on your new batch-section selections.',
+      variant: 'default',
+    });
   };
 
   const canCreateEvents = user?.permissions?.calendar || user?.role === 'admin';
