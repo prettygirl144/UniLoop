@@ -566,11 +566,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEvent(id: number): Promise<void> {
-    // First delete related RSVPs
-    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+    console.log(`🗑️ [DELETE] Starting deletion of event ${id} and all associated data...`);
     
-    // Then delete the event
+    // First, get all attendance sheets for this event
+    const eventAttendanceSheets = await db.select().from(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+    console.log(`🗑️ [DELETE] Found ${eventAttendanceSheets.length} attendance sheets to delete`);
+    
+    // Delete all attendance records for each sheet
+    for (const sheet of eventAttendanceSheets) {
+      const recordsDeleted = await db.delete(attendanceRecords).where(eq(attendanceRecords.sheetId, sheet.id));
+      console.log(`🗑️ [DELETE] Deleted attendance records for sheet ${sheet.id}`);
+    }
+    
+    // Delete all attendance sheets for this event
+    await db.delete(attendanceSheets).where(eq(attendanceSheets.eventId, id));
+    console.log(`🗑️ [DELETE] Deleted ${eventAttendanceSheets.length} attendance sheets`);
+    
+    // Delete related RSVPs
+    await db.delete(eventRsvps).where(eq(eventRsvps.eventId, id));
+    console.log(`🗑️ [DELETE] Deleted event RSVPs`);
+    
+    // Finally delete the event itself
     await db.delete(events).where(eq(events.id, id));
+    console.log(`🗑️ [DELETE] Successfully deleted event ${id} and all associated data`);
   }
 
   async rsvpToEvent(rsvp: InsertEventRsvp): Promise<EventRsvp> {
