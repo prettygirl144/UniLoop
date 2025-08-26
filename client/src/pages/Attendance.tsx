@@ -52,6 +52,16 @@ interface AttendanceData {
   records: AttendanceRecord[];
 }
 
+// ✅ NEW: Enhanced interface for multi-section attendance data
+interface MultiAttendanceData {
+  eventId: number;
+  totalSheets: number;
+  sheets: AttendanceData[];
+  // For backward compatibility
+  sheet: AttendanceSheet;
+  records: AttendanceRecord[];
+}
+
 export default function Attendance() {
   const { eventId } = useParams<{ eventId: string }>();
   const [, setLocation] = useLocation();
@@ -64,12 +74,24 @@ export default function Attendance() {
   const [editNote, setEditNote] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | 'ALL'>('ALL');
+  
+  // ✅ NEW: Track selected section for multi-section events
+  const [selectedSheetIndex, setSelectedSheetIndex] = useState(0);
 
-  // Fetch attendance data
-  const { data: attendanceData, isLoading, error } = useQuery<AttendanceData>({
+  // ✅ FIXED: Fetch ALL attendance data for the event
+  const { data: multiAttendanceData, isLoading, error } = useQuery<MultiAttendanceData>({
     queryKey: ['/api/events', eventId, 'attendance'],
     enabled: !!eventId,
   });
+
+  // ✅ NEW: Derived data for current selected sheet
+  const attendanceData = multiAttendanceData?.sheets?.[selectedSheetIndex] || {
+    sheet: multiAttendanceData?.sheet,
+    records: multiAttendanceData?.records || [],
+  };
+  
+  const availableSheets = multiAttendanceData?.sheets || [];
+  const isMultiSection = availableSheets.length > 1;
 
   // Update individual record mutation
   const updateRecordMutation = useMutation({
@@ -295,10 +317,54 @@ export default function Attendance() {
           <div className="flex-1">
             <h1 className="text-xl lg:text-2xl font-bold">Attendance Sheet</h1>
             <p className="text-sm lg:text-base text-muted-foreground">
-              {attendanceData.sheet.batch}::{attendanceData.sheet.section}
+              {attendanceData?.sheet?.batch}::{attendanceData?.sheet?.section}
+              {isMultiSection && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  {availableSheets.length} sections
+                </span>
+              )}
             </p>
           </div>
         </div>
+
+        {/* ✅ NEW: Multi-Section Selector */}
+        {isMultiSection && (
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">Select Section</label>
+                <Select 
+                  value={selectedSheetIndex.toString()} 
+                  onValueChange={(value) => setSelectedSheetIndex(parseInt(value))}
+                >
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder="Choose a section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSheets.map((sheetData, index) => (
+                      <SelectItem 
+                        key={`${sheetData.sheet.id}`} 
+                        value={index.toString()}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span>{sheetData.sheet.batch}::{sheetData.sheet.section}</span>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {sheetData.records.length} students
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <div className="text-xs text-muted-foreground">
+                  Viewing section {selectedSheetIndex + 1} of {availableSheets.length}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
         
         {isAdmin && (
           <div className="flex flex-col sm:flex-row gap-2">

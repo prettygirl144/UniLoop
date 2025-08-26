@@ -144,6 +144,7 @@ export interface IStorage {
   // Attendance Sheets Management
   createAttendanceSheet(sheet: InsertAttendanceSheet): Promise<AttendanceSheet>;
   getAttendanceSheetByEventId(eventId: number): Promise<AttendanceSheet | undefined>;
+  getAttendanceSheetsByEventId(eventId: number): Promise<AttendanceSheet[]>;
   getAttendanceSheetById(sheetId: number): Promise<AttendanceSheet | undefined>;
   getAttendanceRecordsBySheetId(sheetId: number): Promise<AttendanceRecord[]>;
   createAttendanceRecords(records: InsertAttendanceRecord[]): Promise<AttendanceRecord[]>;
@@ -1770,6 +1771,15 @@ export class DatabaseStorage implements IStorage {
       .from(attendanceSheets)
       .where(eq(attendanceSheets.eventId, eventId));
     return sheet;
+  }
+
+  // ✅ NEW: Get ALL attendance sheets for an event (for multi-section events)
+  async getAttendanceSheetsByEventId(eventId: number): Promise<AttendanceSheet[]> {
+    return await db
+      .select()
+      .from(attendanceSheets)
+      .where(eq(attendanceSheets.eventId, eventId))
+      .orderBy(attendanceSheets.batch, attendanceSheets.section);
   }
 
   async getAttendanceSheetById(sheetId: number): Promise<AttendanceSheet | undefined> {

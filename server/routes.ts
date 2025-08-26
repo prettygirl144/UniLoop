@@ -578,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Attendance Management Routes
-  // Get attendance sheet for an event
+  // ✅ FIXED: Get ALL attendance sheets for an event (supports multi-section events)
   app.get('/api/events/:id/attendance', checkAuth, async (req: any, res) => {
     try {
       const eventId = parseInt(req.params.id);
@@ -594,19 +594,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No permission to view attendance" });
       }
 
-      const attendanceSheet = await storage.getAttendanceSheetByEventId(eventId);
-      if (!attendanceSheet) {
-        return res.status(404).json({ message: "No attendance sheet found for this event" });
+      // ✅ FIXED: Get ALL attendance sheets for the event
+      const attendanceSheets = await storage.getAttendanceSheetsByEventId(eventId);
+      if (!attendanceSheets || attendanceSheets.length === 0) {
+        return res.status(404).json({ message: "No attendance sheets found for this event" });
       }
 
-      const records = await storage.getAttendanceRecordsBySheetId(attendanceSheet.id);
+      // ✅ FIXED: Get records for all sheets and return comprehensive data
+      const sheetsWithRecords = await Promise.all(
+        attendanceSheets.map(async (sheet) => {
+          const records = await storage.getAttendanceRecordsBySheetId(sheet.id);
+          return {
+            sheet,
+            records,
+          };
+        })
+      );
+
+      console.log(`📊 [ATTENDANCE-API] Event ${eventId}: Returning ${attendanceSheets.length} sheets with records`);
+      
+      // ✅ FIXED: Return all sheets with records for frontend to handle
       res.json({
-        sheet: attendanceSheet,
-        records: records,
+        eventId,
+        totalSheets: attendanceSheets.length,
+        sheets: sheetsWithRecords,
+        // For backward compatibility, also include the first sheet as the default
+        sheet: attendanceSheets[0],
+        records: sheetsWithRecords[0]?.records || [],
       });
     } catch (error) {
-      console.error("Error fetching attendance sheet:", error);
-      res.status(500).json({ message: "Failed to fetch attendance sheet" });
+      console.error("Error fetching attendance sheets:", error);
+      res.status(500).json({ message: "Failed to fetch attendance sheets" });
     }
   });
 
