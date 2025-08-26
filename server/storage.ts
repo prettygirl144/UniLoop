@@ -375,40 +375,57 @@ export class DatabaseStorage implements IStorage {
     console.log(`📊 [DB-WRITE] Created event details:`, { id: created.id, title: created.title, date: created.date });
 
     // Auto-create attendance sheet if event has batch-section targeting
-    if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {
-      console.log(`🎯 [ATTENDANCE] Processing ${event.targetBatchSections.length} batch-section combinations for event ${created.id}`);
+    await this.createAttendanceSheetsForEvent(created);
+    
+    return created;
+  }
+
+  async createAttendanceSheetsForEvent(event: Event): Promise<void> {
+    if (event && event.targetBatchSections && event.targetBatchSections.length > 0) {
+      console.log(`🎯 [ATTENDANCE] Processing ${event.targetBatchSections.length} batch-section combinations for event ${event.id}`);
+      console.log(`🎯 [ATTENDANCE] Target batch sections:`, JSON.stringify(event.targetBatchSections, null, 2));
       
       // For each batch-section pair, create an attendance sheet
       for (let i = 0; i < event.targetBatchSections.length; i++) {
         const batchSection = event.targetBatchSections[i];
-        console.log(`📋 [ATTENDANCE] Processing ${i + 1}/${event.targetBatchSections.length}: ${batchSection}`);
+        console.log(`📋 [ATTENDANCE] >> STARTING Processing ${i + 1}/${event.targetBatchSections.length}: ${batchSection}`);
         
         const [batch, section] = batchSection.split('::');
+        console.log(`📋 [ATTENDANCE] Parsed - batch: "${batch}", section: "${section}"`);
+        
         if (batch && section) {
           try {
+            console.log(`🔍 [ATTENDANCE] Checking for existing sheets...`);
+            
             // Check if attendance sheet already exists for this specific batch-section (idempotent)
             const existingSheets = await db
               .select()
               .from(attendanceSheets)
               .where(and(
-                eq(attendanceSheets.eventId, created.id),
+                eq(attendanceSheets.eventId, event.id),
                 eq(attendanceSheets.batch, batch),
                 eq(attendanceSheets.section, section)
               ));
               
+            console.log(`🔍 [ATTENDANCE] Found ${existingSheets.length} existing sheets`);
+              
             if (existingSheets.length === 0) {
-              console.log(`✨ [ATTENDANCE] Creating new sheet for batch: ${batch}, section: ${section}`);
+              console.log(`✨ [ATTENDANCE] Creating new sheet for batch: "${batch}", section: "${section}"`);
               
               // Create attendance sheet
               const sheet = await this.createAttendanceSheet({
-                eventId: created.id,
+                eventId: event.id,
                 batch,
                 section,
                 createdBy: event.authorId,
               });
 
+              console.log(`✅ [ATTENDANCE] Sheet created with ID: ${sheet.id}`);
+
               // Get all students in this batch-section and create attendance records
               // Note: studentDirectory stores section as the full "batch::section" format, so we match the entire batchSection string
+              console.log(`🔍 [ATTENDANCE] Searching for students with batch="${batch}" AND section="${batchSection}"`);
+              
               const students = await db
                 .select()
                 .from(studentDirectory)
@@ -417,6 +434,8 @@ export class DatabaseStorage implements IStorage {
               console.log(`👥 [ATTENDANCE] Found ${students.length} students for ${batchSection}`);
 
               if (students.length > 0) {
+                console.log(`📝 [ATTENDANCE] Creating ${students.length} attendance records...`);
+                
                 const attendanceRecords = students.map(student => ({
                   sheetId: sheet.id,
                   studentEmail: student.email,
@@ -425,27 +444,46 @@ export class DatabaseStorage implements IStorage {
                   status: 'UNMARKED' as const,
                 }));
 
-                await this.createAttendanceRecords(attendanceRecords);
-                console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${created.id} with ${students.length} students from ${batch}::${section}`);
+                const createdRecords = await this.createAttendanceRecords(attendanceRecords);
+                console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} students from ${batch}::${section}`);
               } else {
                 console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} - sheet created but empty`);
               }
             } else {
-              console.log(`ℹ️ [ATTENDANCE] Sheet already exists for ${batch}::${section}`);
+              console.log(`ℹ️ [ATTENDANCE] Sheet already exists for ${batch}::${section}, skipping`);
             }
+            
+            console.log(`📋 [ATTENDANCE] << COMPLETED Processing ${i + 1}/${event.targetBatchSections.length}: ${batchSection}`);
+            
           } catch (error) {
-            console.error(`❌ [ATTENDANCE] Failed to create attendance sheet for ${batchSection} in event ${created.id}:`, error);
+            console.error(`❌ [ATTENDANCE] CRITICAL ERROR for ${batchSection} in event ${event.id}:`, error);
+            console.error(`❌ [ATTENDANCE] Error type:`, typeof error);
+            console.error(`❌ [ATTENDANCE] Error name:`, error.name);
+            console.error(`❌ [ATTENDANCE] Error message:`, error.message);
+            console.error(`❌ [ATTENDANCE] Error stack:`, error.stack);
+            
+            if (error.code) {
+              console.error(`❌ [ATTENDANCE] Database error code:`, error.code);
+            }
+            
+            // Log state before failure
+            console.error(`❌ [ATTENDANCE] Loop state: i=${i}, total=${event.targetBatchSections.length}`);
+            console.error(`❌ [ATTENDANCE] Failed batch-section: "${batchSection}"`);
+            console.error(`❌ [ATTENDANCE] Parsed batch: "${batch}", section: "${section}"`);
+            
             // Don't throw - event creation should succeed even if attendance sheet fails
+            // But log this as a critical error that needs investigation
+            console.error(`❌ [ATTENDANCE] CONTINUING DESPITE ERROR - This needs investigation!`);
           }
         } else {
-          console.error(`❌ [ATTENDANCE] Invalid batch-section format: ${batchSection}`);
+          console.error(`❌ [ATTENDANCE] Invalid batch-section format: ${batchSection} - batch: "${batch}", section: "${section}"`);
         }
       }
       
-      console.log(`🏁 [ATTENDANCE] Completed processing all batch-sections for event ${created.id}`);
+      console.log(`🏁 [ATTENDANCE] Completed processing all ${event.targetBatchSections.length} batch-sections for event ${event.id}`);
+    } else {
+      console.log(`ℹ️ [ATTENDANCE] No target batch sections for event ${event.id}, skipping attendance sheet creation`);
     }
-    
-    return created;
   }
 
   async getEventById(id: number): Promise<Event | undefined> {

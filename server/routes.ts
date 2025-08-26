@@ -3241,5 +3241,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Debug endpoint to test attendance sheet creation
+  app.post('/api/debug/attendance/:eventId', requireAuth, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+      
+      console.log(`🐛 [DEBUG] Manually triggering attendance sheet creation for event ${eventId}`);
+      await storage.createAttendanceSheetsForEvent(event);
+      
+      res.json({ success: true, message: `Attendance sheets processed for event ${eventId}` });
+    } catch (error) {
+      console.error('Debug attendance creation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
