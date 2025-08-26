@@ -1,0 +1,165 @@
+Problem Statement
+Issue: Event attendance sheets are only generating for the first section of each batch, not all sections that were selected when creating the event.
+
+Expected Behavior: When creating an event with multiple sections (e.g., Batch A - Sections 1, 2, 3), attendance sheets should be generated for all combinations (A-1, A-2, A-3).
+
+Actual Behavior: Only attendance sheet for the first section (A-1) is being generated.
+
+Context & Environment
+Application: UniLoop - University Management Platform
+
+Technology Stack: Node.js + Express, PostgreSQL + Drizzle ORM, React + TypeScript
+
+Module: Event Management & Attendance System
+
+Files Involved:
+
+server/routes.ts (events endpoints)
+
+client/src/pages/Calendar.tsx (event creation)
+
+client/src/pages/Attendance.tsx (attendance display)
+
+Database Schema Reference
+typescript
+events: {
+  targetBatches: text[]              // Array of batches ["CSE2021", "CSE2022"]
+  targetSections: text[]             // Array of sections ["A", "B", "C"]
+  targetBatchSections: text[]        // Array of "batch::section" ["CSE2021::A", "CSE2021::B"]
+}
+
+attendanceSheets: {
+  id: serial (primary key)
+  eventId: integer                   // Foreign key to events
+  batch, section: varchar            // Individual batch and section
+  createdBy: varchar
+}
+
+attendanceRecords: {
+  sheetId: integer                   // Foreign key to attendanceSheets
+  studentEmail, studentName: varchar
+  // ... other fields
+}
+Debugging Investigation Steps
+1. Data Verification
+Please check the following in order:
+
+A. Event Creation Data
+
+sql
+SELECT id, title, targetBatches, targetSections, targetBatchSections 
+FROM events 
+WHERE id = [EVENT_ID];
+B. Generated Attendance Sheets
+
+sql
+SELECT * FROM attendanceSheets WHERE eventId = [EVENT_ID];
+Expected vs Actual:
+
+If event targets "CSE2021" batch with sections ["A", "B", "C"]
+
+Should create 3 attendance sheets: (CSE2021,A), (CSE2021,B), (CSE2021,C)
+
+Currently creating only: (CSE2021,A)
+
+2. Code Analysis Points
+A. Event Creation Logic (server/routes.ts)
+
+Locate the POST /api/events endpoint
+
+Check how targetBatchSections array is being populated from frontend data
+
+Verify the attendance sheet generation logic after event insertion
+
+B. Frontend Event Form (client/src/pages/Calendar.tsx)
+
+Check how batch-section combinations are being collected from the form
+
+Verify the format of data being sent to the API
+
+C. Attendance Sheet Generation
+
+Look for the function that creates attendance sheets after event creation
+
+Check if it's iterating through ALL targetBatchSections or stopping after the first one
+
+3. Specific Code Locations to Debug
+typescript
+// In server/routes.ts - Look for this pattern:
+app.post('/api/events', async (req, res) => {
+  // 1. Check event insertion
+  const eventData = { /* ... */ };
+  
+  // 2. FOCUS HERE: Attendance sheet generation
+  // Look for loops like:
+  for (const batchSection of targetBatchSections) {
+    const [batch, section] = batchSection.split('::');
+    // Is this loop completing for ALL sections?
+  }
+});
+4. Debugging Questions
+Data Flow: Are all batch-section combinations correctly stored in the events.targetBatchSections field?
+
+Loop Logic: Is the attendance sheet generation loop breaking early or only processing the first iteration?
+
+Async Issues: Are there any async/await issues causing the loop to not complete?
+
+Error Handling: Are there silent errors preventing multiple sheets from being created?
+
+5. Testing Approach
+A. Console Logging
+Add strategic console.log statements:
+
+typescript
+console.log('targetBatchSections received:', targetBatchSections);
+console.log('Creating sheet for:', batch, section);
+console.log('Sheets created count:', createdSheets.length);
+B. Minimal Test Case
+Create a test event with:
+
+1 batch: "TEST2024"
+
+2 sections: ["A", "B"]
+
+Expected: 2 attendance sheets
+
+Actual: ? sheets
+
+6. Replit-Specific Debugging
+A. Database Console
+
+Use Replit's database viewer to inspect the data directly
+
+Check if the issue is in data storage or data retrieval
+
+B. Server Logs
+
+Check Replit console for any error messages during event creation
+
+Look for incomplete operations or silent failures
+
+C. Network Tab
+
+Use browser dev tools to inspect the API request/response
+
+Verify complete data is being sent and received
+
+Expected Output
+Please provide:
+
+SQL Results: From the data verification queries above
+
+Code Snippets: The relevant attendance sheet generation code
+
+Debug Logs: Console output showing the loop iteration
+
+Root Cause: Specific line/logic causing the issue
+
+Proposed Fix: Code changes needed to resolve the problem
+
+Success Criteria
+All targeted batch-section combinations create individual attendance sheets
+
+Attendance records are properly linked to their respective sheets
+
+No data loss or duplication in the process

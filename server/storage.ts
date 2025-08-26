@@ -376,8 +376,13 @@ export class DatabaseStorage implements IStorage {
 
     // Auto-create attendance sheet if event has batch-section targeting
     if (created && event.targetBatchSections && event.targetBatchSections.length > 0) {
+      console.log(`🎯 [ATTENDANCE] Processing ${event.targetBatchSections.length} batch-section combinations for event ${created.id}`);
+      
       // For each batch-section pair, create an attendance sheet
-      for (const batchSection of event.targetBatchSections) {
+      for (let i = 0; i < event.targetBatchSections.length; i++) {
+        const batchSection = event.targetBatchSections[i];
+        console.log(`📋 [ATTENDANCE] Processing ${i + 1}/${event.targetBatchSections.length}: ${batchSection}`);
+        
         const [batch, section] = batchSection.split('::');
         if (batch && section) {
           try {
@@ -392,6 +397,8 @@ export class DatabaseStorage implements IStorage {
               ));
               
             if (existingSheets.length === 0) {
+              console.log(`✨ [ATTENDANCE] Creating new sheet for batch: ${batch}, section: ${section}`);
+              
               // Create attendance sheet
               const sheet = await this.createAttendanceSheet({
                 eventId: created.id,
@@ -401,11 +408,13 @@ export class DatabaseStorage implements IStorage {
               });
 
               // Get all students in this batch-section and create attendance records
-              // Note: studentDirectory stores section as "batch::section" format, so we need to match the full batchSection
+              // Note: studentDirectory stores section as the full "batch::section" format, so we match the entire batchSection string
               const students = await db
                 .select()
                 .from(studentDirectory)
                 .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
+
+              console.log(`👥 [ATTENDANCE] Found ${students.length} students for ${batchSection}`);
 
               if (students.length > 0) {
                 const attendanceRecords = students.map(student => ({
@@ -417,15 +426,23 @@ export class DatabaseStorage implements IStorage {
                 }));
 
                 await this.createAttendanceRecords(attendanceRecords);
-                console.log(`Created attendance sheet for event ${created.id} with ${students.length} students from ${batch}::${section}`);
+                console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${created.id} with ${students.length} students from ${batch}::${section}`);
+              } else {
+                console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} - sheet created but empty`);
               }
+            } else {
+              console.log(`ℹ️ [ATTENDANCE] Sheet already exists for ${batch}::${section}`);
             }
           } catch (error) {
-            console.error(`Failed to create attendance sheet for event ${created.id}:`, error);
+            console.error(`❌ [ATTENDANCE] Failed to create attendance sheet for ${batchSection} in event ${created.id}:`, error);
             // Don't throw - event creation should succeed even if attendance sheet fails
           }
+        } else {
+          console.error(`❌ [ATTENDANCE] Invalid batch-section format: ${batchSection}`);
         }
       }
+      
+      console.log(`🏁 [ATTENDANCE] Completed processing all batch-sections for event ${created.id}`);
     }
     
     return created;
