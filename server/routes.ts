@@ -507,14 +507,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 createdBy: userId,
               });
 
-              // Get students for this batch-section combination
-              const students = await storage.getStudentsByBatchSection(batch, section);
+              // Get students for this batch-section combination from student directory
+              const students = await db
+                .select()
+                .from(studentDirectory)
+                .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
               
               // Create attendance records for all students
               const attendanceRecords = students.map(student => ({
                 sheetId: sheet.id,
                 studentEmail: student.email,
-                studentName: student.name || student.email.split('@')[0],
+                studentName: student.email.split('@')[0] || '', // Use email prefix as name
                 rollNumber: student.rollNumber,
                 status: 'UNMARKED' as const,
                 note: null,
@@ -522,7 +525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 markedAt: null,
               }));
               
-              await storage.createAttendanceRecords(attendanceRecords);
+              if (attendanceRecords.length > 0) {
+                await storage.createAttendanceRecords(attendanceRecords);
+              }
               
               console.log(`✅ [EVENT-UPDATE] Created attendance sheet for ${batch}::${section} with ${students.length} students`);
             } catch (error) {
