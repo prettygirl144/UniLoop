@@ -444,12 +444,12 @@ export class DatabaseStorage implements IStorage {
             console.log(`✅ [ATTENDANCE] Sheet created with ID: ${sheet.id}`);
 
             // ✅ FIXED: Get students with better error handling
-            console.log(`🔍 [ATTENDANCE] Searching for students with batch="${batch}" AND section="${batchSection}"`);
+            console.log(`🔍 [ATTENDANCE] Searching for students with batch="${batch}" AND section="${section}"`);
             
             const students = await db
               .select()
               .from(studentDirectory)
-              .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
+              .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, section)));
 
             console.log(`👥 [ATTENDANCE] Found ${students.length} students for ${batchSection}`);
 
