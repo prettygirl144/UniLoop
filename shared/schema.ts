@@ -9,6 +9,7 @@ import {
   boolean,
   integer,
   unique,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -614,13 +615,13 @@ export const triathlonTeams = pgTable("triathlon_teams", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
   logoUrl: text("logo_url"), // URL to team logo image
-  academicPoints: integer("academic_points").default(0).notNull(),
-  culturalPoints: integer("cultural_points").default(0).notNull(),
-  sportsPoints: integer("sports_points").default(0).notNull(),
-  surprisePoints: integer("surprise_points").default(0).notNull(),
-  penaltyPoints: integer("penalty_points").default(0).notNull(),
-  totalPoints: integer("total_points").default(0).notNull(), // Computed field
-  rank: integer("rank").default(0).notNull(), // Computed field
+  academicPoints: numeric("academic_points", { precision: 10, scale: 2 }).default("0").notNull(),
+  culturalPoints: numeric("cultural_points", { precision: 10, scale: 2 }).default("0").notNull(),
+  sportsPoints: numeric("sports_points", { precision: 10, scale: 2 }).default("0").notNull(),
+  surprisePoints: numeric("surprise_points", { precision: 10, scale: 2 }).default("0").notNull(),
+  penaltyPoints: numeric("penalty_points", { precision: 10, scale: 2 }).default("0").notNull(),
+  totalPoints: numeric("total_points", { precision: 10, scale: 2 }).default("0").notNull(), // Computed field
+  rank: integer("rank").default(0).notNull(), // Computed field - keep as integer for ranking
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -630,9 +631,9 @@ export const triathlonPointHistory = pgTable("triathlon_point_history", {
   id: serial("id").primaryKey(),
   teamId: integer("team_id").notNull().references(() => triathlonTeams.id, { onDelete: "cascade" }),
   category: varchar("category", { length: 20 }).notNull(), // academic, cultural, sports, surprise, penalty
-  pointChange: integer("point_change").notNull(), // Can be positive or negative
-  previousPoints: integer("previous_points").notNull(),
-  newPoints: integer("new_points").notNull(),
+  pointChange: numeric("point_change", { precision: 10, scale: 2 }).notNull(), // Can be positive or negative
+  previousPoints: numeric("previous_points", { precision: 10, scale: 2 }).notNull(),
+  newPoints: numeric("new_points", { precision: 10, scale: 2 }).notNull(),
   reason: text("reason"), // Optional description of why points were changed
   changedBy: varchar("changed_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

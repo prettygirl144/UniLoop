@@ -1494,16 +1494,16 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Team not found');
     }
 
-    // Calculate new points
-    const currentPoints = team[`${category}Points` as keyof TriathlonTeam] as number;
+    // Calculate new points (convert string numeric to number for calculations)
+    const currentPoints = parseFloat(team[`${category}Points` as keyof TriathlonTeam] as string);
     const newPoints = Math.max(0, currentPoints + pointChange);
     
-    // Calculate new total: academic + cultural + sports + surprise - penalty
-    let newAcademic = team.academicPoints;
-    let newCultural = team.culturalPoints;
-    let newSports = team.sportsPoints;
-    let newSurprise = team.surprisePoints;
-    let newPenalty = team.penaltyPoints;
+    // Calculate new total: academic + cultural + sports + surprise - penalty (all as numbers)
+    let newAcademic = parseFloat(team.academicPoints as string);
+    let newCultural = parseFloat(team.culturalPoints as string);
+    let newSports = parseFloat(team.sportsPoints as string);
+    let newSurprise = parseFloat(team.surprisePoints as string);
+    let newPenalty = parseFloat(team.penaltyPoints as string);
     
     // Update the specific category
     if (category === 'academic') newAcademic = newPoints;
@@ -1514,26 +1514,26 @@ export class DatabaseStorage implements IStorage {
     
     const newTotal = newAcademic + newCultural + newSports + newSurprise - newPenalty;
 
-    // Update team points
+    // Update team points (convert numbers back to strings for database)
     const [updatedTeam] = await db
       .update(triathlonTeams)
       .set({
-        [`${category}Points`]: newPoints,
-        totalPoints: newTotal,
+        [`${category}Points`]: newPoints.toString(),
+        totalPoints: newTotal.toString(),
         updatedAt: new Date()
       })
       .where(eq(triathlonTeams.id, teamId))
       .returning();
 
-    // Record point history
+    // Record point history (convert numbers to strings for database)
     await db
       .insert(triathlonPointHistory)
       .values({
         teamId,
         category,
-        pointChange,
-        previousPoints: currentPoints,
-        newPoints,
+        pointChange: pointChange.toString(),
+        previousPoints: currentPoints.toString(),
+        newPoints: newPoints.toString(),
         reason: reason || null,
         changedBy
       });
