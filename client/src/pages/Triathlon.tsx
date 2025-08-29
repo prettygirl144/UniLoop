@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -285,6 +285,7 @@ export default function Triathlon() {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Team</DialogTitle>
+                <DialogDescription>Create a new team for the triathlon competition.</DialogDescription>
               </DialogHeader>
               <Form {...teamForm}>
                 <form onSubmit={teamForm.handleSubmit(onCreateTeam)} className="space-y-4">
@@ -615,6 +616,7 @@ export default function Triathlon() {
               <DialogTitle>
                 Edit Points - {selectedTeam?.name}
               </DialogTitle>
+              <DialogDescription>Update the points for this team in any category.</DialogDescription>
             </DialogHeader>
             <Form {...pointsForm}>
               <form onSubmit={pointsForm.handleSubmit(onUpdatePoints)} className="space-y-4">
@@ -732,6 +734,7 @@ export default function Triathlon() {
               <DialogTitle>
                 Point History - {selectedTeam?.name}
               </DialogTitle>
+              <DialogDescription>View all point changes and updates for this team.</DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-96">
               {Array.isArray(pointHistory) && pointHistory.length === 0 ? (
@@ -781,6 +784,7 @@ export default function Triathlon() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Edit Team - {selectedTeam?.name}</DialogTitle>
+              <DialogDescription>Update the team name and logo.</DialogDescription>
             </DialogHeader>
             <Form {...teamForm}>
               <form onSubmit={teamForm.handleSubmit(onUpdateTeam)} className="space-y-4">
