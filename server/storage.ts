@@ -1479,7 +1479,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTriathlonPoints(
     teamId: number, 
-    category: 'academic' | 'cultural' | 'sports' | 'surprise', 
+    category: 'academic' | 'cultural' | 'sports' | 'surprise' | 'penalty', 
     pointChange: number,
     reason: string | undefined,
     changedBy: string
@@ -1497,8 +1497,22 @@ export class DatabaseStorage implements IStorage {
     // Calculate new points
     const currentPoints = team[`${category}Points` as keyof TriathlonTeam] as number;
     const newPoints = Math.max(0, currentPoints + pointChange);
-    const newTotal = team.academicPoints + team.culturalPoints + team.sportsPoints + team.surprisePoints 
-      - currentPoints + newPoints;
+    
+    // Calculate new total: academic + cultural + sports + surprise - penalty
+    let newAcademic = team.academicPoints;
+    let newCultural = team.culturalPoints;
+    let newSports = team.sportsPoints;
+    let newSurprise = team.surprisePoints;
+    let newPenalty = team.penaltyPoints;
+    
+    // Update the specific category
+    if (category === 'academic') newAcademic = newPoints;
+    else if (category === 'cultural') newCultural = newPoints;
+    else if (category === 'sports') newSports = newPoints;
+    else if (category === 'surprise') newSurprise = newPoints;
+    else if (category === 'penalty') newPenalty = newPoints;
+    
+    const newTotal = newAcademic + newCultural + newSports + newSurprise - newPenalty;
 
     // Update team points
     const [updatedTeam] = await db

@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon, MessageSquare } from 'lucide-react';
+import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon, MessageSquare, AlertTriangle } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 import TriathlonNews from '@/components/TriathlonNews';
@@ -30,8 +30,8 @@ const teamSchema = z.object({
 });
 
 const pointsSchema = z.object({
-  category: z.enum(['academic', 'cultural', 'sports', 'surprise']),
-  pointChange: z.number().int().min(-1000, 'Point change too low').max(1000, 'Point change too high'),
+  category: z.enum(['academic', 'cultural', 'sports', 'surprise', 'penalty']),
+  pointChange: z.number().min(-1000, 'Point change too low').max(1000, 'Point change too high'),
   reason: z.string().optional(),
 });
 
@@ -179,6 +179,7 @@ export default function Triathlon() {
       case 'cultural': return <Palette className="h-4 w-4" />;
       case 'sports': return <Target className="h-4 w-4" />;
       case 'surprise': return <Zap className="h-4 w-4" />;
+      case 'penalty': return <AlertTriangle className="h-4 w-4" />;
       default: return <Star className="h-4 w-4" />;
     }
   };
@@ -189,6 +190,7 @@ export default function Triathlon() {
       case 'cultural': return 'bg-purple-100 text-purple-800';
       case 'sports': return 'bg-green-100 text-green-800';
       case 'surprise': return 'bg-orange-100 text-orange-800';
+      case 'penalty': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -480,6 +482,12 @@ export default function Triathlon() {
                         <span className="sm:hidden">Surp</span>
                       </div>
                     </th>
+                    <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[100px]">
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="hidden sm:inline">Penalty</span>
+                        <span className="sm:hidden">Pen</span>
+                      </div>
+                    </th>
                     <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[100px]">Total</th>
                     {hasTriathlonPermission && <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[120px]">Actions</th>}
                   </tr>
@@ -524,6 +532,11 @@ export default function Triathlon() {
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-orange-100 text-orange-800">
                           {team.surprisePoints}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-center">
+                        <Badge variant="secondary" className="bg-red-100 text-red-800">
+                          {team.penaltyPoints || 0}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
@@ -642,6 +655,12 @@ export default function Triathlon() {
                               <span>Surprise</span>
                             </div>
                           </SelectItem>
+                          <SelectItem value="penalty">
+                            <div className="flex items-center space-x-2">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Penalty</span>
+                            </div>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -657,9 +676,10 @@ export default function Triathlon() {
                       <FormControl>
                         <Input 
                           type="number" 
+                          step="0.01"
                           placeholder="Enter points (+ or -)"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />

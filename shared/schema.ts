@@ -618,6 +618,7 @@ export const triathlonTeams = pgTable("triathlon_teams", {
   culturalPoints: integer("cultural_points").default(0).notNull(),
   sportsPoints: integer("sports_points").default(0).notNull(),
   surprisePoints: integer("surprise_points").default(0).notNull(),
+  penaltyPoints: integer("penalty_points").default(0).notNull(),
   totalPoints: integer("total_points").default(0).notNull(), // Computed field
   rank: integer("rank").default(0).notNull(), // Computed field
   createdBy: varchar("created_by").notNull().references(() => users.id),
@@ -628,7 +629,7 @@ export const triathlonTeams = pgTable("triathlon_teams", {
 export const triathlonPointHistory = pgTable("triathlon_point_history", {
   id: serial("id").primaryKey(),
   teamId: integer("team_id").notNull().references(() => triathlonTeams.id, { onDelete: "cascade" }),
-  category: varchar("category", { length: 20 }).notNull(), // academic, cultural, sports, surprise
+  category: varchar("category", { length: 20 }).notNull(), // academic, cultural, sports, surprise, penalty
   pointChange: integer("point_change").notNull(), // Can be positive or negative
   previousPoints: integer("previous_points").notNull(),
   newPoints: integer("new_points").notNull(),
