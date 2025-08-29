@@ -195,6 +195,13 @@ export default function Triathlon() {
     }
   };
 
+  const formatPoints = (points: string | number | null | undefined): string => {
+    if (points === null || points === undefined) return '0.00';
+    const num = typeof points === 'string' ? parseFloat(points) : points;
+    if (isNaN(num)) return '0.00';
+    return num.toFixed(2);
+  };
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1: return <Trophy className="h-5 w-5 text-yellow-500" />;
@@ -517,32 +524,32 @@ export default function Triathlon() {
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                          {team.academicPoints}
+                          {formatPoints(team.academicPoints)}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                          {team.culturalPoints}
+                          {formatPoints(team.culturalPoints)}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          {team.sportsPoints}
+                          {formatPoints(team.sportsPoints)}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                          {team.surprisePoints}
+                          {formatPoints(team.surprisePoints)}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="secondary" className="bg-red-100 text-red-800">
-                          {team.penaltyPoints || 0}
+                          {formatPoints(team.penaltyPoints)}
                         </Badge>
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="default" className="font-medium">
-                          {team.totalPoints}
+                          {formatPoints(team.totalPoints)}
                         </Badge>
                       </td>
                       {hasTriathlonPermission && (
