@@ -1494,46 +1494,70 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Team not found');
     }
 
-    // Calculate new points (convert string numeric to number for calculations)
-    const currentPoints = parseFloat(team[`${category}Points` as keyof TriathlonTeam] as string);
+    // Calculate new points (handle numeric database values)
+    const getCategoryPoints = (team: TriathlonTeam, category: string): number => {
+      switch (category) {
+        case 'academic': return parseFloat(team.academicPoints as string) || 0;
+        case 'cultural': return parseFloat(team.culturalPoints as string) || 0;
+        case 'sports': return parseFloat(team.sportsPoints as string) || 0;
+        case 'surprise': return parseFloat(team.surprisePoints as string) || 0;
+        case 'penalty': return parseFloat(team.penaltyPoints as string) || 0;
+        default: return 0;
+      }
+    };
+
+    const currentPoints = getCategoryPoints(team, category);
     const newPoints = Math.max(0, currentPoints + pointChange);
     
-    // Calculate new total: academic + cultural + sports + surprise - penalty (all as numbers)
-    let newAcademic = parseFloat(team.academicPoints as string);
-    let newCultural = parseFloat(team.culturalPoints as string);
-    let newSports = parseFloat(team.sportsPoints as string);
-    let newSurprise = parseFloat(team.surprisePoints as string);
-    let newPenalty = parseFloat(team.penaltyPoints as string);
+    // Calculate new total: academic + cultural + sports + surprise - penalty
+    let newAcademic = parseFloat(team.academicPoints as string) || 0;
+    let newCultural = parseFloat(team.culturalPoints as string) || 0;
+    let newSports = parseFloat(team.sportsPoints as string) || 0;
+    let newSurprise = parseFloat(team.surprisePoints as string) || 0;
+    let newPenalty = parseFloat(team.penaltyPoints as string) || 0;
     
     // Update the specific category
-    if (category === 'academic') newAcademic = newPoints;
-    else if (category === 'cultural') newCultural = newPoints;
-    else if (category === 'sports') newSports = newPoints;
-    else if (category === 'surprise') newSurprise = newPoints;
-    else if (category === 'penalty') newPenalty = newPoints;
+    switch (category) {
+      case 'academic': newAcademic = newPoints; break;
+      case 'cultural': newCultural = newPoints; break;
+      case 'sports': newSports = newPoints; break;
+      case 'surprise': newSurprise = newPoints; break;
+      case 'penalty': newPenalty = newPoints; break;
+    }
     
     const newTotal = newAcademic + newCultural + newSports + newSurprise - newPenalty;
 
-    // Update team points (convert numbers back to strings for database)
+    // Prepare update object with proper column mapping
+    const updateData: any = {
+      totalPoints: newTotal.toFixed(2),
+      updatedAt: new Date()
+    };
+
+    // Set the specific category column
+    switch (category) {
+      case 'academic': updateData.academicPoints = newPoints.toFixed(2); break;
+      case 'cultural': updateData.culturalPoints = newPoints.toFixed(2); break;
+      case 'sports': updateData.sportsPoints = newPoints.toFixed(2); break;
+      case 'surprise': updateData.surprisePoints = newPoints.toFixed(2); break;
+      case 'penalty': updateData.penaltyPoints = newPoints.toFixed(2); break;
+    }
+
+    // Update team points
     const [updatedTeam] = await db
       .update(triathlonTeams)
-      .set({
-        [`${category}Points`]: newPoints.toString(),
-        totalPoints: newTotal.toString(),
-        updatedAt: new Date()
-      })
+      .set(updateData)
       .where(eq(triathlonTeams.id, teamId))
       .returning();
 
-    // Record point history (convert numbers to strings for database)
+    // Record point history
     await db
       .insert(triathlonPointHistory)
       .values({
         teamId,
         category,
-        pointChange: pointChange.toString(),
-        previousPoints: currentPoints.toString(),
-        newPoints: newPoints.toString(),
+        pointChange: pointChange.toFixed(2),
+        previousPoints: currentPoints.toFixed(2),
+        newPoints: newPoints.toFixed(2),
         reason: reason || null,
         changedBy
       });

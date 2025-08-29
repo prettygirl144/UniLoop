@@ -31,7 +31,7 @@ const teamSchema = z.object({
 
 const pointsSchema = z.object({
   category: z.enum(['academic', 'cultural', 'sports', 'surprise', 'penalty']),
-  pointChange: z.number().min(-1000, 'Point change too low').max(1000, 'Point change too high'),
+  pointChange: z.number().min(-10000, 'Point change too low').max(10000, 'Point change too high'),
   reason: z.string().optional(),
 });
 
@@ -686,9 +686,15 @@ export default function Triathlon() {
                         <Input 
                           type="number" 
                           step="0.01"
+                          min="-10000"
+                          max="10000"
                           placeholder="Enter points (+ or -)"
                           {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow empty input, otherwise parse as float
+                            field.onChange(value === '' ? 0 : parseFloat(value) || 0);
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
