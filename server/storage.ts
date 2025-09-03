@@ -520,12 +520,9 @@ export class DatabaseStorage implements IStorage {
 
             console.log(`👥 [ATTENDANCE] Found ${students.length} students for ${batchSection}`);
 
-            // Create attendance records for batch-section students
-            let totalRecordsCreated = 0;
-            const allAttendanceRecords = [];
-
+            // ✅ FIXED: Create attendance records ONLY for batch-section students (no roll number attendees here)
             if (students.length > 0) {
-              console.log(`📝 [ATTENDANCE] Creating ${students.length} attendance records for batch-section students...`);
+              console.log(`📝 [ATTENDANCE] Creating ${students.length} attendance records for batch-section students only...`);
               
               const batchSectionRecords = students.map(student => ({
                 sheetId: sheet.id,
@@ -535,59 +532,17 @@ export class DatabaseStorage implements IStorage {
                 status: 'UNMARKED' as const,
               }));
 
-              allAttendanceRecords.push(...batchSectionRecords);
-              totalRecordsCreated += students.length;
-            }
-
-            // ✅ NEW: Add roll number attendees to this sheet
-            if (event.rollNumberAttendees && Array.isArray(event.rollNumberAttendees) && event.rollNumberAttendees.length > 0) {
-              console.log(`📝 [ATTENDANCE] Adding ${event.rollNumberAttendees.length} roll number attendees to sheet...`);
-              
-              for (const email of event.rollNumberAttendees) {
-                // Check if this email is already in the batch-section records to avoid duplicates
-                const existsInBatchSection = allAttendanceRecords.some(record => 
-                  record.studentEmail.toLowerCase() === email.toLowerCase()
-                );
-
-                if (!existsInBatchSection) {
-                  // Try to get additional info from student directory
-                  const studentInfo = await db
-                    .select()
-                    .from(studentDirectory)
-                    .where(eq(studentDirectory.email, email))
-                    .limit(1);
-
-                  const rollNumberRecord = {
-                    sheetId: sheet.id,
-                    studentEmail: email,
-                    studentName: studentInfo.length > 0 ? 
-                      (studentInfo[0].email.split('@')[0] || '') : 
-                      email.split('@')[0] || '',
-                    rollNumber: studentInfo.length > 0 ? studentInfo[0].rollNumber : null,
-                    status: 'UNMARKED' as const,
-                  };
-
-                  allAttendanceRecords.push(rollNumberRecord);
-                  totalRecordsCreated++;
-                  console.log(`📝 [ATTENDANCE] Added roll number attendee: ${email}`);
-                } else {
-                  console.log(`📝 [ATTENDANCE] Roll number attendee ${email} already in batch-section records, skipping duplicate`);
-                }
-              }
-            }
-
-            if (allAttendanceRecords.length > 0) {
-              const createdRecords = await this.createAttendanceRecords(allAttendanceRecords);
-              console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} total students (${students.length} from ${batch}::${section}${event.rollNumberAttendees?.length ? `, ${event.rollNumberAttendees.length} roll number attendees` : ''})`);
+              const createdRecords = await this.createAttendanceRecords(batchSectionRecords);
+              console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} students from ${batch}::${section}`);
               
               results.push({
                 batchSection,
                 status: 'success',
-                message: `Created sheet ${sheet.id} with ${createdRecords.length} total students (${students.length} from batch-section, ${totalRecordsCreated - students.length} roll number attendees)`
+                message: `Created sheet ${sheet.id} with ${createdRecords.length} students from batch-section`
               });
               successCount++;
             } else {
-              console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} and no roll number attendees - sheet created but empty`);
+              console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} - sheet created but empty`);
               results.push({
                 batchSection,
                 status: 'success',
@@ -637,6 +592,98 @@ export class DatabaseStorage implements IStorage {
         if (i < batchSections.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
         }
+      }
+      
+      // ✅ NEW: After creating all batch-section sheets, handle roll number attendees separately
+      if (hasRollNumberAttendees) {
+        console.log(`🎯 [ATTENDANCE] === PROCESSING ROLL NUMBER ATTENDEES ===`);
+        
+        // Collect all students already included in batch-section sheets to avoid duplicates
+        const allBatchSectionStudents = new Set<string>();
+        
+        for (const batchSection of batchSections) {
+          const [batch, section] = batchSection.split('::');
+          if (batch && section) {
+            const students = await db
+              .select()
+              .from(studentDirectory)
+              .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
+            
+            students.forEach(student => {
+              allBatchSectionStudents.add(student.email.toLowerCase());
+            });
+          }
+        }
+        
+        console.log(`👥 [ATTENDANCE] Found ${allBatchSectionStudents.size} students in batch-sections`);
+        
+        // Filter roll number attendees to only include those NOT in any batch-section
+        const uniqueRollNumberAttendees = event.rollNumberAttendees.filter(email => 
+          !allBatchSectionStudents.has(email.toLowerCase())
+        );
+        
+        console.log(`📋 [ATTENDANCE] Roll number attendees: ${event.rollNumberAttendees.length} total, ${uniqueRollNumberAttendees.length} unique (not in batch-sections)`);
+        
+        // Create separate sheet for unique roll number attendees only if there are any
+        if (uniqueRollNumberAttendees.length > 0) {
+          try {
+            console.log(`✨ [ATTENDANCE] Creating separate sheet for ${uniqueRollNumberAttendees.length} unique roll number attendees`);
+            
+            const rollNumberSheet = await this.createAttendanceSheet({
+              eventId: event.id,
+              batch: 'Roll Number Upload',
+              section: 'Manual Selection',
+              createdBy: event.authorId,
+            });
+            
+            console.log(`✅ [ATTENDANCE] Roll number sheet created with ID: ${rollNumberSheet.id}`);
+            
+            // Create records for unique roll number attendees
+            const rollNumberRecords = [];
+            for (const email of uniqueRollNumberAttendees) {
+              // Try to get additional info from student directory
+              const studentInfo = await db
+                .select()
+                .from(studentDirectory)
+                .where(eq(studentDirectory.email, email))
+                .limit(1);
+
+              const rollNumberRecord = {
+                sheetId: rollNumberSheet.id,
+                studentEmail: email,
+                studentName: studentInfo.length > 0 ? 
+                  (studentInfo[0].email.split('@')[0] || '') : 
+                  email.split('@')[0] || '',
+                rollNumber: studentInfo.length > 0 ? studentInfo[0].rollNumber : null,
+                status: 'UNMARKED' as const,
+              };
+
+              rollNumberRecords.push(rollNumberRecord);
+            }
+
+            const createdRollNumberRecords = await this.createAttendanceRecords(rollNumberRecords);
+            console.log(`✅ [ATTENDANCE] Created ${createdRollNumberRecords.length} roll number attendance records`);
+            
+            results.push({
+              batchSection: 'Roll Number Upload::Manual Selection',
+              status: 'success',
+              message: `Created separate sheet ${rollNumberSheet.id} with ${createdRollNumberRecords.length} unique roll number attendees`
+            });
+            successCount++;
+          } catch (error: any) {
+            console.error(`❌ [ATTENDANCE] Failed to create roll number sheet:`, error);
+            results.push({
+              batchSection: 'Roll Number Upload::Manual Selection',
+              status: 'error',
+              message: `Failed to create roll number sheet: ${error.message}`
+            });
+            errorCount++;
+          }
+        } else {
+          console.log(`ℹ️ [ATTENDANCE] All roll number attendees are already in batch-sections, no separate sheet needed`);
+        }
+        
+        console.log(`🏁 [ATTENDANCE] === ROLL NUMBER PROCESSING COMPLETE ===`);
       }
       
       // ✅ FIXED: Comprehensive completion summary
