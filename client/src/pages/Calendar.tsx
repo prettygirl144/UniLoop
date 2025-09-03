@@ -1541,6 +1541,18 @@ export default function Calendar() {
         </div>
       </div>
 
+      {/* Temporary Notice */}
+      <Card className="border-amber-200 bg-amber-50">
+        <CardContent className="p-3">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-amber-800">
+              <span className="font-medium">Notice:</span> Event editing is temporarily unavailable. To make changes to an event, please delete and recreate it. Enhanced edit functionality coming soon!
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Content - List or Calendar View */}
       {viewMode === 'list' ? (
         <>
@@ -1589,8 +1601,8 @@ export default function Calendar() {
                         </div>
                       </div>
                       
-                      {/* Action buttons */}
-                      {(user?.role === 'admin' || event.authorId === user?.id) && (
+                      {/* Action buttons - Admin only */}
+                      {user?.role === 'admin' && (
                         <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
@@ -1694,8 +1706,8 @@ export default function Calendar() {
                           </div>
                         </div>
                         
-                        {/* Action buttons */}
-                        {(user?.role === 'admin' || event.authorId === user?.id) && (
+                        {/* Action buttons - Admin only */}
+                        {user?.role === 'admin' && (
                           <div className="flex gap-1 shrink-0">
                             <Button
                               variant="ghost"
