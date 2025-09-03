@@ -331,23 +331,7 @@ export default function Calendar() {
     queryKey: ['/api/events'],
   });
 
-  // Fetch user's student directory information for accurate eligibility checking
-  const { data: userStudentInfo, isLoading: studentInfoLoading } = useQuery<{
-    isAuthorized: boolean;
-    batch?: string;
-    section?: string;
-  }>({
-    queryKey: ['/api/student-check', user?.email],
-    enabled: !!user?.email,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  // Debug: Log the student info when it changes
-  useEffect(() => {
-    if (userStudentInfo) {
-      console.log('🔍 [DEBUG] User student info loaded:', userStudentInfo);
-    }
-  }, [userStudentInfo]);
+  // No longer using student directory for eligibility - will check attendance sheets per event
 
 
 
@@ -363,12 +347,9 @@ export default function Calendar() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Helper function to check if user is eligible for event based on batch/section or roll number attendance
+  // Helper function to check if user is eligible for event based on attendance records
   const isUserEligibleForEvent = (event: Event) => {
-    // Don't check eligibility if student info is still loading
-    if (studentInfoLoading || !userStudentInfo) {
-      return false;
-    }
+    if (!user?.email) return false;
     
     // Check if user's email is in roll number attendees (manually added attendees)
     if (event.rollNumberAttendees?.includes(user?.email || '')) {
@@ -380,23 +361,9 @@ export default function Calendar() {
       return true;
     }
     
-    // Use student directory data for accurate batch-section checking
-    if (!userStudentInfo?.isAuthorized || !user?.email) {
-      return false;
-    }
-    
-    // If batch-section pairs are specified, check them first (most specific)
-    if (event.targetBatchSections?.length) {
-      // Create user's batch-section format from student directory data
-      const userBatchSection = `${userStudentInfo.batch}::${userStudentInfo.section}`;
-      return event.targetBatchSections.includes(userBatchSection);
-    }
-    
-    // Fallback to legacy batch/section checks using student directory data
-    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userStudentInfo.batch || '');
-    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(userStudentInfo.section || '');
-    
-    return batchMatch && sectionMatch;
+    // For events with targeting, we need to check attendance records
+    // This will be handled by individual queries per event when needed
+    return false; // Default to not eligible until we can check attendance
   };
 
   // Fetch batches and sections for admin event creation
@@ -1683,7 +1650,59 @@ export default function Calendar() {
             <div className="space-y-3">
               {events.map((event) => {
                 const eventDate = new Date(event.date);
-                const isEligible = isUserEligibleForEvent(event);
+                
+                // Use React Query to check eligibility by fetching attendance data
+                const { data: isEligible = null } = useQuery({
+                  queryKey: ['/api/event-eligibility', event.id, user?.email],
+                  queryFn: async () => {
+                    if (!user?.email) return false;
+                    
+                    // Check if user's email is in roll number attendees (manually added attendees)
+                    if (event.rollNumberAttendees?.includes(user?.email || '')) {
+                      return true;
+                    }
+                    
+                    // If no targeting specified, event is for everyone
+                    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
+                      return true;
+                    }
+                    
+                    // For targeted events, check attendance records
+                    if (!event.targetBatchSections?.length) {
+                      return false; // No batch-sections targeted, user not eligible
+                    }
+                    
+                    try {
+                      const response = await fetch(`/api/events/${event.id}/attendance`);
+                      if (!response.ok) {
+                        return false; // Can't access attendance data
+                      }
+                      
+                      const attendanceData = await response.json();
+                      if (!attendanceData.sheets) {
+                        return false;
+                      }
+                      
+                      // Check if user's email exists in any attendance sheet for this event
+                      for (const sheetData of attendanceData.sheets) {
+                        if (sheetData.records) {
+                          const userExists = sheetData.records.some((record: any) => 
+                            record.studentEmail?.toLowerCase() === user.email?.toLowerCase()
+                          );
+                          if (userExists) {
+                            return true;
+                          }
+                        }
+                      }
+                      
+                      return false;
+                    } catch (error) {
+                      return false;
+                    }
+                  },
+                  enabled: !!user?.email,
+                  staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+                });
                 
                 return (
                   <div
@@ -1851,17 +1870,10 @@ export default function Calendar() {
 
               {/* Attendee Status */}
               <div className="p-3 rounded-lg border">
-                {isUserEligibleForEvent(selectedEvent) ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="w-4 h-4" />
-                    <span className="text-small">You are registered for this event</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Info className="w-4 h-4" />
-                    <span className="text-small">You are not registered for this event</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Info className="w-4 h-4" />
+                  <span className="text-small">Registration status will be checked based on attendance records</span>
+                </div>
               </div>
 
               {/* Attendance Management Button - Admin Only */}
