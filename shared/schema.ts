@@ -474,6 +474,15 @@ export const insertCommunityAnnouncementSchema = createInsertSchema(communityAnn
 export const insertSickFoodBookingSchema = createInsertSchema(sickFoodBookings).omit({
   id: true,
   createdAt: true,
+}).extend({
+  date: z.string()
+    .refine((dateStr) => {
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime());
+    }, {
+      message: "Invalid date format",
+    })
+    .transform((dateStr) => new Date(dateStr)),
 });
 
 export const insertHostelLeaveSchema = createInsertSchema(hostelLeave).omit({

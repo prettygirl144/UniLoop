@@ -1436,7 +1436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingData = insertSickFoodBookingSchema.parse({
         ...req.body,
         userId,
-        date: new Date(req.body.date),
       });
       
       // 4. BEFORE DB INSERT
