@@ -332,11 +332,22 @@ export default function Calendar() {
   });
 
   // Fetch user's student directory information for accurate eligibility checking
-  const { data: userStudentInfo } = useQuery({
+  const { data: userStudentInfo, isLoading: studentInfoLoading } = useQuery<{
+    isAuthorized: boolean;
+    batch?: string;
+    section?: string;
+  }>({
     queryKey: ['/api/student-check', user?.email],
     enabled: !!user?.email,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
+  // Debug: Log the student info when it changes
+  useEffect(() => {
+    if (userStudentInfo) {
+      console.log('🔍 [DEBUG] User student info loaded:', userStudentInfo);
+    }
+  }, [userStudentInfo]);
 
 
 
@@ -354,6 +365,11 @@ export default function Calendar() {
 
   // Helper function to check if user is eligible for event based on batch/section or roll number attendance
   const isUserEligibleForEvent = (event: Event) => {
+    // Don't check eligibility if student info is still loading
+    if (studentInfoLoading || !userStudentInfo) {
+      return false;
+    }
+    
     // Check if user's email is in roll number attendees (manually added attendees)
     if (event.rollNumberAttendees?.includes(user?.email || '')) {
       return true;
@@ -366,7 +382,6 @@ export default function Calendar() {
     
     // Use student directory data for accurate batch-section checking
     if (!userStudentInfo?.isAuthorized || !user?.email) {
-      // User is not in student directory, so not eligible for batch-section targeted events
       return false;
     }
     
