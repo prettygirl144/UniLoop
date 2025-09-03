@@ -382,20 +382,87 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAttendanceSheetsForEvent(event: Event): Promise<void> {
-    if (event && event.targetBatchSections && event.targetBatchSections.length > 0) {
+    // Create attendance sheets if event has batch-section targeting OR roll number attendees
+    const hasTargetBatchSections = event?.targetBatchSections && event.targetBatchSections.length > 0;
+    const hasRollNumberAttendees = event?.rollNumberAttendees && Array.isArray(event.rollNumberAttendees) && event.rollNumberAttendees.length > 0;
+    
+    if (event && (hasTargetBatchSections || hasRollNumberAttendees)) {
       console.log(`🎯 [ATTENDANCE] === ROBUST ATTENDANCE SHEET CREATION START ===`);
       console.log(`🎯 [ATTENDANCE] Event ID: ${event.id}, Title: "${event.title}"`);
-      console.log(`🎯 [ATTENDANCE] Processing ${event.targetBatchSections.length} batch-section combinations`);
-      console.log(`🎯 [ATTENDANCE] Target batch sections:`, JSON.stringify(event.targetBatchSections, null, 2));
+      console.log(`🎯 [ATTENDANCE] Has target batch-sections: ${hasTargetBatchSections}, Has roll number attendees: ${hasRollNumberAttendees}`);
+      
+      if (hasTargetBatchSections) {
+        console.log(`🎯 [ATTENDANCE] Processing ${event.targetBatchSections.length} batch-section combinations`);
+        console.log(`🎯 [ATTENDANCE] Target batch sections:`, JSON.stringify(event.targetBatchSections, null, 2));
+      }
+      
+      if (hasRollNumberAttendees) {
+        console.log(`🎯 [ATTENDANCE] Roll number attendees count: ${event.rollNumberAttendees.length}`);
+      }
       
       let successCount = 0;
       let errorCount = 0;
       const results: Array<{batchSection: string, status: 'success' | 'error' | 'skipped', message: string}> = [];
       
+      // ✅ Handle roll-number-only events (no batch-section targeting)
+      if (!hasTargetBatchSections && hasRollNumberAttendees) {
+        console.log(`📋 [ATTENDANCE] Creating generic attendance sheet for roll-number-only event`);
+        
+        try {
+          // Create a generic attendance sheet for roll number attendees
+          const sheet = await this.createAttendanceSheet({
+            eventId: event.id,
+            batch: 'Roll Number Upload',
+            section: 'Manual Selection',
+            createdBy: event.authorId,
+          });
+
+          console.log(`✅ [ATTENDANCE] Generic sheet created with ID: ${sheet.id}`);
+
+          // Add all roll number attendees to this sheet
+          const rollNumberRecords = [];
+          for (const email of event.rollNumberAttendees) {
+            // Try to get additional info from student directory
+            const studentInfo = await db
+              .select()
+              .from(studentDirectory)
+              .where(eq(studentDirectory.email, email))
+              .limit(1);
+
+            const rollNumberRecord = {
+              sheetId: sheet.id,
+              studentEmail: email,
+              studentName: studentInfo.length > 0 ? 
+                (studentInfo[0].email.split('@')[0] || '') : 
+                email.split('@')[0] || '',
+              rollNumber: studentInfo.length > 0 ? studentInfo[0].rollNumber : null,
+              status: 'UNMARKED' as const,
+            };
+
+            rollNumberRecords.push(rollNumberRecord);
+            console.log(`📝 [ATTENDANCE] Added roll number attendee: ${email}`);
+          }
+
+          if (rollNumberRecords.length > 0) {
+            const createdRecords = await this.createAttendanceRecords(rollNumberRecords);
+            console.log(`✅ [ATTENDANCE] Created generic attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} roll number attendees`);
+          }
+
+          console.log(`🏁 [ATTENDANCE] === ROLL-NUMBER-ONLY EVENT PROCESSING COMPLETE ===`);
+          console.log(`🏁 [ATTENDANCE] Event ${event.id}: Successfully created sheet with ${event.rollNumberAttendees.length} roll number attendees`);
+          return;
+        } catch (error: any) {
+          console.error(`❌ [ATTENDANCE] Failed to create generic attendance sheet for roll-number-only event ${event.id}:`, error);
+          console.log(`ℹ️ [ATTENDANCE] No attendance sheets created for event ${event.id}`);
+          return;
+        }
+      }
+
       // ✅ FIXED: Process each batch-section with comprehensive error handling
-      for (let i = 0; i < event.targetBatchSections.length; i++) {
-        const batchSection = event.targetBatchSections[i];
-        console.log(`📋 [ATTENDANCE] >> PROCESSING ${i + 1}/${event.targetBatchSections.length}: "${batchSection}"`);
+      const batchSections = event.targetBatchSections || [];
+      for (let i = 0; i < batchSections.length; i++) {
+        const batchSection = batchSections[i];
+        console.log(`📋 [ATTENDANCE] >> PROCESSING ${i + 1}/${batchSections.length}: "${batchSection}"`);
         
         try {
           // ✅ FIXED: Validate batch-section format before processing
@@ -567,7 +634,7 @@ export class DatabaseStorage implements IStorage {
         }
         
         // ✅ FIXED: Add small delay between processing to prevent resource issues
-        if (i < event.targetBatchSections.length - 1) {
+        if (i < batchSections.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
         }
       }
