@@ -331,6 +331,13 @@ export default function Calendar() {
     queryKey: ['/api/events'],
   });
 
+  // Fetch user's student directory information for accurate eligibility checking
+  const { data: userStudentInfo } = useQuery({
+    queryKey: ['/api/student-check', user?.email],
+    enabled: !!user?.email,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
 
 
   // Helper function to calculate event duration
@@ -357,7 +364,7 @@ export default function Calendar() {
       return true;
     }
     
-    // Check if user's email is in roll number attendees
+    // Check if user's email is in roll number attendees (manually added attendees)
     if (event.rollNumberAttendees?.includes(user?.email || '')) {
       return true;
     }
@@ -367,21 +374,22 @@ export default function Calendar() {
       return true;
     }
     
-    const userBatch = user?.batch;
-    const userSection = user?.section;
+    // Use student directory data for accurate batch-section checking
+    if (!userStudentInfo?.isAuthorized || !user?.email) {
+      // User is not in student directory, so not eligible for batch-section targeted events
+      return false;
+    }
     
     // If batch-section pairs are specified, check them first (most specific)
     if (event.targetBatchSections?.length) {
-      // User section is already in batch::section format, compare directly
-      return event.targetBatchSections.includes(userSection || '');
+      // Create user's batch-section format from student directory data
+      const userBatchSection = `${userStudentInfo.batch}::${userStudentInfo.section}`;
+      return event.targetBatchSections.includes(userBatchSection);
     }
     
-    // Fallback to legacy batch/section checks
-    // Extract just the section part from batch::section format for legacy comparison
-    const extractedSection = userSection?.includes('::') ? userSection.split('::')[1] : userSection;
-    
-    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userBatch || '');
-    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(extractedSection || '');
+    // Fallback to legacy batch/section checks using student directory data
+    const batchMatch = !event.targetBatches?.length || event.targetBatches?.includes(userStudentInfo.batch || '');
+    const sectionMatch = !event.targetSections?.length || event.targetSections?.includes(userStudentInfo.section || '');
     
     return batchMatch && sectionMatch;
   };
