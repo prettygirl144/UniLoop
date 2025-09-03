@@ -4,8 +4,8 @@ import { useParams, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
@@ -15,10 +15,7 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  Download, 
-  Edit3,
-  Save,
-  X
+  Download
 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
@@ -68,9 +65,6 @@ export default function Attendance() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [editingRecord, setEditingRecord] = useState<number | null>(null);
-  const [editStatus, setEditStatus] = useState<AttendanceStatus>('UNMARKED');
-  const [editNote, setEditNote] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | 'ALL'>('ALL');
   
@@ -109,7 +103,6 @@ export default function Attendance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/events', eventId, 'attendance'] });
-      setEditingRecord(null);
       toast({ title: 'Attendance updated successfully' });
     },
     onError: (error: any) => {
@@ -174,25 +167,14 @@ export default function Attendance() {
     }
   };
 
-  const handleEditRecord = (record: AttendanceRecord) => {
-    setEditingRecord(record.id);
-    setEditStatus(record.status);
-    setEditNote(record.note || '');
-  };
 
-  const handleSaveRecord = () => {
-    if (editingRecord === null) return;
+  // Handle direct status update via checkboxes
+  const handleStatusUpdate = (record: AttendanceRecord, newStatus: AttendanceStatus) => {
     updateRecordMutation.mutate({
-      recordId: editingRecord,
-      status: editStatus,
-      note: editNote,
+      recordId: record.id,
+      status: newStatus,
+      note: record.note || undefined,
     });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingRecord(null);
-    setEditStatus('UNMARKED');
-    setEditNote('');
   };
 
   // Filter records based on search and status
@@ -528,54 +510,62 @@ export default function Attendance() {
                     )}
                   </div>
                   
-                  {isAdmin && editingRecord === record.id ? (
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                      <Select value={editStatus} onValueChange={(value: AttendanceStatus) => setEditStatus(value)}>
-                        <SelectTrigger className="w-full sm:w-28">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PRESENT">Present</SelectItem>
-                          <SelectItem value="ABSENT">Absent</SelectItem>
-                          <SelectItem value="LATE">Late</SelectItem>
-                          <SelectItem value="UNMARKED">Unmarked</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder="Note..."
-                        value={editNote}
-                        onChange={(e) => setEditNote(e.target.value)}
-                        className="w-full sm:w-28 text-xs"
-                      />
-                      <div className="flex gap-1">
-                        <Button 
-                          size="sm" 
-                          onClick={handleSaveRecord}
-                          disabled={updateRecordMutation.isPending}
-                          className="flex-1 sm:flex-none"
-                        >
-                          <Save className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={handleCancelEdit}
-                          className="flex-1 sm:flex-none"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                  {isAdmin ? (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {/* Status Checkboxes */}
+                      <div className="flex gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`present-${record.id}`}
+                            checked={record.status === 'PRESENT'}
+                            onCheckedChange={(checked) => {
+                              if (checked) handleStatusUpdate(record, 'PRESENT');
+                            }}
+                            disabled={updateRecordMutation.isPending}
+                          />
+                          <label
+                            htmlFor={`present-${record.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-green-700"
+                          >
+                            Present
+                          </label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`absent-${record.id}`}
+                            checked={record.status === 'ABSENT'}
+                            onCheckedChange={(checked) => {
+                              if (checked) handleStatusUpdate(record, 'ABSENT');
+                            }}
+                            disabled={updateRecordMutation.isPending}
+                          />
+                          <label
+                            htmlFor={`absent-${record.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-red-700"
+                          >
+                            Absent
+                          </label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`late-${record.id}`}
+                            checked={record.status === 'LATE'}
+                            onCheckedChange={(checked) => {
+                              if (checked) handleStatusUpdate(record, 'LATE');
+                            }}
+                            disabled={updateRecordMutation.isPending}
+                          />
+                          <label
+                            htmlFor={`late-${record.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-orange-700"
+                          >
+                            Late
+                          </label>
+                        </div>
                       </div>
                     </div>
-                  ) : isAdmin ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditRecord(record)}
-                      className="w-full sm:w-auto"
-                    >
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
                   ) : null}
                 </div>
               </div>
