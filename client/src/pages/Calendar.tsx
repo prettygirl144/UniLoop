@@ -347,23 +347,80 @@ export default function Calendar() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Helper function to check if user is eligible for event based on attendance records
-  const isUserEligibleForEvent = (event: Event) => {
-    if (!user?.email) return false;
-    
-    // Check if user's email is in roll number attendees (manually added attendees)
-    if (event.rollNumberAttendees?.includes(user?.email || '')) {
-      return true;
+  // Component to handle individual event eligibility checking
+  const EventEligibilityBadge = ({ event }: { event: Event }) => {
+    const { data: isEligible = null } = useQuery({
+      queryKey: ['/api/event-eligibility', event.id, user?.email],
+      queryFn: async () => {
+        if (!user?.email) return false;
+        
+        // Check if user's email is in roll number attendees (manually added attendees)
+        if (event.rollNumberAttendees?.includes(user?.email || '')) {
+          return true;
+        }
+        
+        // If no targeting specified, event is for everyone
+        if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
+          return true;
+        }
+        
+        // For targeted events, check attendance records
+        if (!event.targetBatchSections?.length) {
+          return false; // No batch-sections targeted, user not eligible
+        }
+        
+        try {
+          const response = await fetch(`/api/events/${event.id}/attendance`);
+          if (!response.ok) {
+            return false; // Can't access attendance data
+          }
+          
+          const attendanceData = await response.json();
+          if (!attendanceData.sheets) {
+            return false;
+          }
+          
+          // Check if user's email exists in any attendance sheet for this event
+          for (const sheetData of attendanceData.sheets) {
+            if (sheetData.records) {
+              const userExists = sheetData.records.some((record: any) => 
+                record.studentEmail?.toLowerCase() === user.email?.toLowerCase()
+              );
+              if (userExists) {
+                return true;
+              }
+            }
+          }
+          
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+      enabled: !!user?.email,
+      staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    });
+
+    // Show loading state or eligibility result
+    if (isEligible === null) {
+      return null; // Still loading, don't show anything yet
     }
-    
-    // If no targeting specified, event is for everyone
-    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
-      return true;
-    }
-    
-    // For events with targeting, we need to check attendance records
-    // This will be handled by individual queries per event when needed
-    return false; // Default to not eligible until we can check attendance
+
+    return (
+      <>
+        {!isEligible && (
+          <Badge variant="secondary" className="text-xs">
+            Not Applicable
+          </Badge>
+        )}
+        {isEligible && (
+          <div className="flex items-center gap-1 text-green-600">
+            <Check className="w-3 h-3" />
+            <span className="text-xs">Eligible</span>
+          </div>
+        )}
+      </>
+    );
   };
 
   // Fetch batches and sections for admin event creation
@@ -1651,59 +1708,6 @@ export default function Calendar() {
               {events.map((event) => {
                 const eventDate = new Date(event.date);
                 
-                // Use React Query to check eligibility by fetching attendance data
-                const { data: isEligible = null } = useQuery({
-                  queryKey: ['/api/event-eligibility', event.id, user?.email],
-                  queryFn: async () => {
-                    if (!user?.email) return false;
-                    
-                    // Check if user's email is in roll number attendees (manually added attendees)
-                    if (event.rollNumberAttendees?.includes(user?.email || '')) {
-                      return true;
-                    }
-                    
-                    // If no targeting specified, event is for everyone
-                    if (!event.targetBatches?.length && !event.targetSections?.length && !event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
-                      return true;
-                    }
-                    
-                    // For targeted events, check attendance records
-                    if (!event.targetBatchSections?.length) {
-                      return false; // No batch-sections targeted, user not eligible
-                    }
-                    
-                    try {
-                      const response = await fetch(`/api/events/${event.id}/attendance`);
-                      if (!response.ok) {
-                        return false; // Can't access attendance data
-                      }
-                      
-                      const attendanceData = await response.json();
-                      if (!attendanceData.sheets) {
-                        return false;
-                      }
-                      
-                      // Check if user's email exists in any attendance sheet for this event
-                      for (const sheetData of attendanceData.sheets) {
-                        if (sheetData.records) {
-                          const userExists = sheetData.records.some((record: any) => 
-                            record.studentEmail?.toLowerCase() === user.email?.toLowerCase()
-                          );
-                          if (userExists) {
-                            return true;
-                          }
-                        }
-                      }
-                      
-                      return false;
-                    } catch (error) {
-                      return false;
-                    }
-                  },
-                  enabled: !!user?.email,
-                  staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-                });
-                
                 return (
                   <div
                     key={event.id}
@@ -1727,11 +1731,7 @@ export default function Calendar() {
                                 Mandatory
                               </Badge>
                             )}
-                            {!isEligible && (
-                              <Badge variant="secondary" className="text-xs">
-                                Not Applicable
-                              </Badge>
-                            )}
+                            <EventEligibilityBadge event={event} />
                             <Badge variant="outline" className="text-xs">
                               {event.category}
                             </Badge>
@@ -1785,13 +1785,7 @@ export default function Calendar() {
                         </div>
                       </div>
 
-                      {/* Eligible status */}
-                      {isEligible && (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <Check className="w-3 h-3" />
-                          <span className="text-xs">Eligible</span>
-                        </div>
-                      )}
+                      {/* Eligible status - handled by EventEligibilityBadge above */}
                     </div>
                   </div>
                 );
