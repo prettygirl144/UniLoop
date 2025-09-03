@@ -453,10 +453,14 @@ export class DatabaseStorage implements IStorage {
 
             console.log(`👥 [ATTENDANCE] Found ${students.length} students for ${batchSection}`);
 
+            // Create attendance records for batch-section students
+            let totalRecordsCreated = 0;
+            const allAttendanceRecords = [];
+
             if (students.length > 0) {
-              console.log(`📝 [ATTENDANCE] Creating ${students.length} attendance records...`);
+              console.log(`📝 [ATTENDANCE] Creating ${students.length} attendance records for batch-section students...`);
               
-              const attendanceRecords = students.map(student => ({
+              const batchSectionRecords = students.map(student => ({
                 sheetId: sheet.id,
                 studentEmail: student.email,
                 studentName: student.email.split('@')[0] || '', // Use email prefix as name
@@ -464,17 +468,59 @@ export class DatabaseStorage implements IStorage {
                 status: 'UNMARKED' as const,
               }));
 
-              const createdRecords = await this.createAttendanceRecords(attendanceRecords);
-              console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} students from ${batch}::${section}`);
+              allAttendanceRecords.push(...batchSectionRecords);
+              totalRecordsCreated += students.length;
+            }
+
+            // ✅ NEW: Add roll number attendees to this sheet
+            if (event.rollNumberAttendees && Array.isArray(event.rollNumberAttendees) && event.rollNumberAttendees.length > 0) {
+              console.log(`📝 [ATTENDANCE] Adding ${event.rollNumberAttendees.length} roll number attendees to sheet...`);
+              
+              for (const email of event.rollNumberAttendees) {
+                // Check if this email is already in the batch-section records to avoid duplicates
+                const existsInBatchSection = allAttendanceRecords.some(record => 
+                  record.studentEmail.toLowerCase() === email.toLowerCase()
+                );
+
+                if (!existsInBatchSection) {
+                  // Try to get additional info from student directory
+                  const studentInfo = await db
+                    .select()
+                    .from(studentDirectory)
+                    .where(eq(studentDirectory.email, email))
+                    .limit(1);
+
+                  const rollNumberRecord = {
+                    sheetId: sheet.id,
+                    studentEmail: email,
+                    studentName: studentInfo.length > 0 ? 
+                      (studentInfo[0].email.split('@')[0] || '') : 
+                      email.split('@')[0] || '',
+                    rollNumber: studentInfo.length > 0 ? studentInfo[0].rollNumber : null,
+                    status: 'UNMARKED' as const,
+                  };
+
+                  allAttendanceRecords.push(rollNumberRecord);
+                  totalRecordsCreated++;
+                  console.log(`📝 [ATTENDANCE] Added roll number attendee: ${email}`);
+                } else {
+                  console.log(`📝 [ATTENDANCE] Roll number attendee ${email} already in batch-section records, skipping duplicate`);
+                }
+              }
+            }
+
+            if (allAttendanceRecords.length > 0) {
+              const createdRecords = await this.createAttendanceRecords(allAttendanceRecords);
+              console.log(`✅ [ATTENDANCE] Created attendance sheet ${sheet.id} for event ${event.id} with ${createdRecords.length} total students (${students.length} from ${batch}::${section}${event.rollNumberAttendees?.length ? `, ${event.rollNumberAttendees.length} roll number attendees` : ''})`);
               
               results.push({
                 batchSection,
                 status: 'success',
-                message: `Created sheet ${sheet.id} with ${createdRecords.length} students`
+                message: `Created sheet ${sheet.id} with ${createdRecords.length} total students (${students.length} from batch-section, ${totalRecordsCreated - students.length} roll number attendees)`
               });
               successCount++;
             } else {
-              console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} - sheet created but empty`);
+              console.log(`⚠️ [ATTENDANCE] No students found for ${batchSection} and no roll number attendees - sheet created but empty`);
               results.push({
                 batchSection,
                 status: 'success',

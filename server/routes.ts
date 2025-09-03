@@ -675,8 +675,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .from(studentDirectory)
                 .where(and(eq(studentDirectory.batch, batch), eq(studentDirectory.section, batchSection)));
 
+              // Create attendance records for both batch-section students and roll number attendees
+              const allAttendanceRecords = [];
+              let totalRecordsCount = 0;
+
               if (students.length > 0) {
-                const attendanceRecords = students.map(student => ({
+                const batchSectionRecords = students.map(student => ({
                   sheetId: sheet.id,
                   studentEmail: student.email,
                   studentName: student.email.split('@')[0] || '',
@@ -684,9 +688,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   status: 'UNMARKED' as const,
                 }));
 
-                await storage.createAttendanceRecords(attendanceRecords);
-                console.log(`Regenerated attendance sheet for event ${eventId} with ${students.length} students from ${batchSection}`);
-                createdSheets.push({ sheet, studentCount: students.length });
+                allAttendanceRecords.push(...batchSectionRecords);
+                totalRecordsCount += students.length;
+              }
+
+              // Add roll number attendees to this sheet
+              if (event.rollNumberAttendees && Array.isArray(event.rollNumberAttendees) && event.rollNumberAttendees.length > 0) {
+                console.log(`Adding ${event.rollNumberAttendees.length} roll number attendees to regenerated sheet...`);
+                
+                for (const email of event.rollNumberAttendees) {
+                  // Check if this email is already in the batch-section records to avoid duplicates
+                  const existsInBatchSection = allAttendanceRecords.some(record => 
+                    record.studentEmail.toLowerCase() === email.toLowerCase()
+                  );
+
+                  if (!existsInBatchSection) {
+                    // Try to get additional info from student directory
+                    const [studentInfo] = await db
+                      .select()
+                      .from(studentDirectory)
+                      .where(eq(studentDirectory.email, email))
+                      .limit(1);
+
+                    const rollNumberRecord = {
+                      sheetId: sheet.id,
+                      studentEmail: email,
+                      studentName: studentInfo ? 
+                        (studentInfo.email.split('@')[0] || '') : 
+                        email.split('@')[0] || '',
+                      rollNumber: studentInfo ? studentInfo.rollNumber : null,
+                      status: 'UNMARKED' as const,
+                    };
+
+                    allAttendanceRecords.push(rollNumberRecord);
+                    totalRecordsCount++;
+                  }
+                }
+              }
+
+              if (allAttendanceRecords.length > 0) {
+                await storage.createAttendanceRecords(allAttendanceRecords);
+                console.log(`Regenerated attendance sheet for event ${eventId} with ${totalRecordsCount} total students (${students.length} from ${batchSection}, ${totalRecordsCount - students.length} roll number attendees)`);
+                createdSheets.push({ 
+                  sheet, 
+                  studentCount: totalRecordsCount,
+                  batchSectionStudents: students.length,
+                  rollNumberAttendees: totalRecordsCount - students.length
+                });
               }
             } catch (error) {
               console.error(`Failed to regenerate attendance sheet for event ${eventId}, batch-section ${batchSection}:`, error);
