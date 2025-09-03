@@ -1,0 +1,21 @@
+(index):161  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/main.tsx?v=1i7g6_D2fP-3Dmos36hb5 net::ERR_ABORTED 503 (Service Unavailable)Understand this error
+(index):1 Unchecked runtime.lastError: The message port closed before a response was received.Understand this error
+/favicon.ico?v=1753632517:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/favicon.ico?v=1753632517 503 (Service Unavailable)Understand this error
+/favicon-32x32.png?v=1753632517:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/favicon-32x32.png?v=1753632517 503 (Service Unavailable)Understand this error
+client:536 WebSocket connection to 'wss://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/?token=h2hflsT8-eJV' failed: 
+setupWebSocket @ client:536
+(anonymous) @ client:531Understand this error
+client:536 Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=h2hflsT8-eJV' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+setupWebSocket @ client:536
+fallback @ client:509
+(anonymous) @ client:555Understand this error
+manifest.json:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/manifest.json 503 (Service Unavailable)Understand this error
+(index):1 Manifest fetch from https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/manifest.json failed, code 503Understand this error
+/favicon-16x16.png?v=1753632517:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/favicon-16x16.png?v=1753632517 503 (Service Unavailable)Understand this error
+/favicon-48x48.png?v=1753632517:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/favicon-48x48.png?v=1753632517 503 (Service Unavailable)Understand this error
+/icons/144.png?v=1753632517:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/icons/144.png?v=1753632517 503 (Service Unavailable)Understand this error
+192.png:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/icons/192.png?v=1753632517 503 (Service Unavailable)Understand this error
+512.png:1  GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/icons/512.png?v=1753632517 503 (Service Unavailable)
