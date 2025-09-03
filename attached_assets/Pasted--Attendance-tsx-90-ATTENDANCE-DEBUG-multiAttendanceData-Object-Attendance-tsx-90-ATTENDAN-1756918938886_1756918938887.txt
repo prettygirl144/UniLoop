@@ -1,0 +1,36 @@
+
+Attendance.tsx:90 🐛 [ATTENDANCE-DEBUG] multiAttendanceData: 
+Object
+Attendance.tsx:90 🐛 [ATTENDANCE-DEBUG] multiAttendanceData: 
+Object
+Attendance.tsx:441 Uncaught ReferenceError: Input is not defined
+    at Attendance (Attendance.tsx:441:16)
+Attendance.tsx:90 🐛 [ATTENDANCE-DEBUG] multiAttendanceData: 
+Object
+Attendance.tsx:90 🐛 [ATTENDANCE-DEBUG] multiAttendanceData: 
+Object
+Attendance.tsx:441 Uncaught ReferenceError: Input is not defined
+    at Attendance (Attendance.tsx:441:16)
+chunk-RPCDYKBN.js?v=e7614ad7:14032 The above error occurred in the <Attendance> component:
+
+    at Attendance (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/pages/Attendance.tsx:40:23)
+    at Route (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:323:16)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at div
+    at div
+    at div
+    at Layout (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/Layout.tsx:21:34)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at Router (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/App.tsx?v=M2ipDGn54ATR_z1vAuEOD:43:42)
+    at Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…unner/workspace/node_modules/.vite/deps/chunk-VFYO4PQK.js?v=e7614ad7:38:15)
+    at TooltipProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e7614ad7:61:5)
+    at AuthProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/context/AuthContext.tsx:22:32)
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e7614ad7:2805:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-RPCDYKBN.js?v=e7614ad7:9129 Uncaught ReferenceError: Input is not defined
+    at Attendance (Attendance.tsx:441:16)
+﻿
+
