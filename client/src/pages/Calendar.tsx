@@ -354,16 +354,6 @@ export default function Calendar() {
 
   // Helper function to check if user is eligible for event based on batch/section or roll number attendance
   const isUserEligibleForEvent = (event: Event) => {
-    // Admin users can see all events
-    if (user?.role === 'admin') {
-      return true;
-    }
-    
-    // Event creator can see their own events
-    if (event.authorId === user?.id) {
-      return true;
-    }
-    
     // Check if user's email is in roll number attendees (manually added attendees)
     if (event.rollNumberAttendees?.includes(user?.email || '')) {
       return true;
