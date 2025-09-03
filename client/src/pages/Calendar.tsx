@@ -365,8 +365,9 @@ export default function Calendar() {
         }
         
         // For targeted events, check attendance records
-        if (!event.targetBatchSections?.length) {
-          return false; // No batch-sections targeted, user not eligible
+        // Skip if neither batch-sections nor roll number attendees are specified
+        if (!event.targetBatchSections?.length && !event.rollNumberAttendees?.length) {
+          return false; // No targeting specified, user not eligible
         }
         
         try {
@@ -1873,7 +1874,8 @@ export default function Calendar() {
               {/* Attendance Management Button - Admin Only */}
               {(() => {
                 const hasAdminAccess = user?.role === 'admin' || user?.permissions?.attendance;
-                const hasTargetSections = selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0;
+                const hasTargetSections = (selectedEvent.targetBatchSections && selectedEvent.targetBatchSections.length > 0) || 
+                                           (selectedEvent.rollNumberAttendees && selectedEvent.rollNumberAttendees.length > 0);
                 
                 // Show button for admin users if event has target sections or is mandatory
                 const shouldShowButton = hasAdminAccess && (hasTargetSections || selectedEvent.isMandatory);

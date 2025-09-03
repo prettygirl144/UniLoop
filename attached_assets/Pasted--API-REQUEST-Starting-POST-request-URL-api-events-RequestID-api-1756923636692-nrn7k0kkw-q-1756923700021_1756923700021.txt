@@ -1,0 +1,28 @@
+🚀 [API-REQUEST] Starting POST request - URL: /api/events, RequestID: api_1756923636692_nrn7k0kkw
+queryClient.ts:26 📝 [API-REQUEST] Request data (RequestID: api_1756923636692_nrn7k0kkw): 
+{title: 'Upload', description: '', date: '2025-09-07T00:00:00.000Z', startTime: '12:00', endTime: '22:00', …}
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events
+2
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/unread
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications
+queryClient.ts:54 📊 [API-REQUEST] Response received - Status: 200, RequestID: api_1756923636692_nrn7k0kkw
+queryClient.ts:58 ✅ [API-REQUEST] Request successful - RequestID: api_1756923636692_nrn7k0kkw
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/16/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/18/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/15/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/19/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/14/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/22/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/21/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/17/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/27/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/26/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/28/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/24/attendance
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events/25/attendance
+Calendar.tsx:373 
+ GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/events/14/attendance 404 (Not Found)
+queryFn	@	Calendar.tsx:373
+Calendar.tsx:373 
+ GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/events/17/attendance 404 (Not Found)
