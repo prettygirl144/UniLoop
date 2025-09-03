@@ -1,0 +1,56 @@
+client:536 WebSocket connection to 'wss://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/?token=BNZtV5kkGEVI' failed: 
+
+client:536 Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=BNZtV5kkGEVI' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+chunk-RPCDYKBN.js?v=e7614ad7:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:8 🚀 Client App Started - 2025-09-03T18:31:08.296Z
+main.tsx:9 📍 Environment: development
+main.tsx:10 🌐 Base URL: https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev
+main.tsx:11 📦 Service Worker: Supported
+App.tsx:97 APP_MOUNTED_TWICE
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/user
+2
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/heartbeat
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/unread
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/preferences
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/linked-accounts
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/batches
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/heartbeat
+pushNotifications.ts:15 Service Worker registered for push notifications
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/push/subscribe
+calendar:1 Unchecked runtime.lastError: The message port closed before a response was received.
+Calendar.tsx:1609 Uncaught ReferenceError: isUserEligibleForEvent is not defined
+    at Calendar.tsx:1609:34
+    at Array.map (<anonymous>)
+    at Calendar (Calendar.tsx:1608:27)
+Calendar.tsx:1609 Uncaught ReferenceError: isUserEligibleForEvent is not defined
+    at Calendar.tsx:1609:34
+    at Array.map (<anonymous>)
+    at Calendar (Calendar.tsx:1608:27)
+chunk-RPCDYKBN.js?v=e7614ad7:14032 The above error occurred in the <Calendar> component:
+
+    at Calendar (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/pages/Calendar.tsx:472:35)
+    at Route (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:323:16)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at div
+    at div
+    at div
+    at Layout (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/Layout.tsx:21:34)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at Router (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/App.tsx?v=wmup0tcuBqMoEjgcbRopb:43:42)
+    at Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…unner/workspace/node_modules/.vite/deps/chunk-VFYO4PQK.js?v=e7614ad7:38:15)
+    at TooltipProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e7614ad7:61:5)
+    at AuthProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/context/AuthContext.tsx:22:32)
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e7614ad7:2805:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-RPCDYKBN.js?v=e7614ad7:9129 Uncaught ReferenceError: isUserEligibleForEvent is not defined
+    at Calendar.tsx:1609:34
+    at Array.map (<anonymous>)
+    at Calendar (Calendar.tsx:1608:27)

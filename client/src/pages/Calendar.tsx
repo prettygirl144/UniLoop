@@ -1605,9 +1605,7 @@ export default function Calendar() {
           </CardHeader>
           <CardContent className="max-h-[400px] overflow-y-auto">
             <div className="space-y-3">
-            {todaysEvents.map((event) => {
-              const isEligible = isUserEligibleForEvent(event);
-              return (
+            {todaysEvents.map((event) => (
                 <div
                   key={event.id}
                   className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
@@ -1628,11 +1626,7 @@ export default function Calendar() {
                               Mandatory
                             </Badge>
                           )}
-                          {!isEligible && (
-                            <Badge variant="secondary" className="text-xs">
-                              Not Applicable
-                            </Badge>
-                          )}
+                          <EventEligibilityBadge event={event} />
                           <Badge variant="outline" className="text-xs">
                             {event.category}
                           </Badge>
@@ -1682,17 +1676,10 @@ export default function Calendar() {
                       </div>
                     </div>
 
-                    {/* Eligible status */}
-                    {isEligible && (
-                      <div className="flex items-center gap-1 text-green-600">
-                        <Check className="w-3 h-3" />
-                        <span className="text-xs">Eligible</span>
-                      </div>
-                    )}
+                    {/* Eligible status handled by EventEligibilityBadge above */}
                   </div>
                 </div>
-              );
-            })}
+            ))}
             </div>
           </CardContent>
         </Card>
