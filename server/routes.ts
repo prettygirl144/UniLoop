@@ -2577,6 +2577,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/gallery/folders/:id', authorize('gallery'), async (req: any, res) => {
     try {
       const folderId = parseInt(req.params.id);
+      
+      console.log('🗑️ [DELETE-FOLDER] Session data:', {
+        hasSession: !!req.session,
+        hasUser: !!req.session?.user,
+        userId: req.session?.user?.id,
+        role: req.session?.user?.role
+      });
+      
+      if (!req.session?.user) {
+        return res.status(401).json({ message: "User session not found" });
+      }
+      
       const userId = req.session.user.id;
       const userRole = req.session.user.role;
       
