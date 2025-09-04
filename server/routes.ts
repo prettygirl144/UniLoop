@@ -2578,7 +2578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const folderId = parseInt(req.params.id);
       const userId = req.session.user.id;
-      const userRole = req.user.role;
+      const userRole = req.session.user.role;
       
       // Only allow deletion by admin or creator
       const folder = await storage.getGalleryFolderById(folderId);
