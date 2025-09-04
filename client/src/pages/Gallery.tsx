@@ -8,13 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Calendar, MapPin, Users, Search, Image as ImageIcon, Plus, ExternalLink, FolderOpen } from "lucide-react";
+import { Calendar, MapPin, Users, Search, Image as ImageIcon, Plus, ExternalLink, FolderOpen, Trash2, MoreVertical } from "lucide-react";
 
 interface Event {
   id: number;
@@ -54,6 +56,8 @@ export default function Gallery() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"events" | "folders">("folders");
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<GalleryFolder | null>(null);
 
   const form = useForm<z.infer<typeof folderFormSchema>>({
     resolver: zodResolver(folderFormSchema),
@@ -93,14 +97,57 @@ export default function Gallery() {
       form.reset();
       setIsAddFolderOpen(false);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create gallery folder",
+        description: error.message || "Failed to create folder",
         variant: "destructive",
       });
     },
   });
+
+  // Delete folder mutation
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (folderId: number) => {
+      const response = await apiRequest("DELETE", `/api/gallery/folders/${folderId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Gallery folder deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery/folders"] });
+      setDeleteConfirmOpen(false);
+      setFolderToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete folder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Function to check if user can delete a folder
+  const canDeleteFolder = (folder: GalleryFolder) => {
+    if (!user) return false;
+    return user.role === 'admin' || folder.createdBy === user.id;
+  };
+
+  // Function to handle delete confirmation
+  const handleDeleteFolder = (folder: GalleryFolder) => {
+    setFolderToDelete(folder);
+    setDeleteConfirmOpen(true);
+  };
+
+  // Function to confirm deletion
+  const confirmDelete = () => {
+    if (folderToDelete) {
+      deleteFolderMutation.mutate(folderToDelete.id);
+    }
+  };
 
   const eventsWithMedia = events.filter((event: Event) => 
     event.mediaUrls && event.mediaUrls.length > 0
@@ -295,6 +342,24 @@ export default function Gallery() {
                           </CardDescription>
                         )}
                       </div>
+                      {canDeleteFolder(folder) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteFolder(folder)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Folder
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -397,6 +462,28 @@ export default function Gallery() {
           )
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Gallery Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{folderToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteFolderMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteFolderMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
