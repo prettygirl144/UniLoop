@@ -35,8 +35,16 @@ const pointsSchema = z.object({
   reason: z.string().optional(),
 });
 
+// Schema for directly setting point values
+const setPointsSchema = z.object({
+  category: z.enum(['academic', 'cultural', 'sports', 'surprise', 'penalty']),
+  points: z.number().min(-10000, 'Points too low').max(10000, 'Points too high'),
+  reason: z.string().optional(),
+});
+
 type TeamForm = z.infer<typeof teamSchema>;
 type PointsForm = z.infer<typeof pointsSchema>;
+type SetPointsForm = z.infer<typeof setPointsSchema>;
 
 interface TeamWithRank extends TriathlonTeam {
   rank: number;
@@ -54,6 +62,10 @@ export default function Triathlon() {
   const [teamToDelete, setTeamToDelete] = useState<TeamWithRank | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  
+  // State for inline editing
+  const [editingCell, setEditingCell] = useState<{ teamId: number; category: string } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
 
   const isAdmin = user && typeof user === 'object' && 'role' in user ? (user as any).role === 'admin' : false;
   const hasTriathlonPermission = user && typeof user === 'object' && 'permissions' in user ? 
@@ -166,6 +178,21 @@ export default function Triathlon() {
       queryClient.invalidateQueries({ queryKey: ['/api/triathlon/history', selectedTeam?.id] });
       setShowEditPoints(false);
       pointsForm.reset();
+      toast({ title: "Points updated successfully!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update points", variant: "destructive" });
+    },
+  });
+
+  // Mutation for directly setting point values
+  const setPointsMutation = useMutation({
+    mutationFn: ({ teamId, data }: { teamId: number; data: SetPointsForm }) => 
+      apiRequest('PUT', `/api/triathlon/teams/${teamId}/points`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/teams'] });
+      setEditingCell(null);
+      setEditingValue('');
       toast({ title: "Points updated successfully!" });
     },
     onError: () => {
