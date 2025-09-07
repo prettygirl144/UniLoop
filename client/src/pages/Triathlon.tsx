@@ -238,6 +238,81 @@ export default function Triathlon() {
     }
   };
 
+  // Functions for inline editing
+  const startCellEdit = (teamId: number, category: string, currentValue: string | number | null | undefined) => {
+    if (!hasTriathlonPermission) return;
+    setEditingCell({ teamId, category });
+    setEditingValue(formatPoints(currentValue));
+  };
+
+  const cancelCellEdit = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
+  const saveCellEdit = async (teamId: number, category: string) => {
+    const points = parseFloat(editingValue);
+    if (isNaN(points)) {
+      toast({ title: "Invalid number format", variant: "destructive" });
+      return;
+    }
+
+    const data: SetPointsForm = {
+      category: category as any,
+      points,
+      reason: 'Direct cell edit'
+    };
+
+    setPointsMutation.mutate({ teamId, data });
+  };
+
+  // EditablePointCell component
+  const EditablePointCell: React.FC<{
+    team: TeamWithRank;
+    category: string;
+    value: string | number | null | undefined;
+    className: string;
+  }> = ({ team, category, value, className }) => {
+    const isEditing = editingCell?.teamId === team.id && editingCell?.category === category;
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveCellEdit(team.id, category);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelCellEdit();
+      }
+    };
+
+    if (isEditing) {
+      return (
+        <Input
+          data-testid={`input-points-${category}-${team.id}`}
+          type="number"
+          step="0.01"
+          value={editingValue}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => saveCellEdit(team.id, category)}
+          className="w-20 h-8 text-center text-small"
+          autoFocus
+        />
+      );
+    }
+
+    return (
+      <Badge
+        data-testid={`badge-points-${category}-${team.id}`}
+        variant="secondary"
+        className={`${className} ${hasTriathlonPermission ? 'cursor-pointer hover:opacity-80' : ''}`}
+        onClick={() => startCellEdit(team.id, category, value)}
+      >
+        {formatPoints(value)}
+      </Badge>
+    );
+  };
+
   const onCreateTeam = async (data: TeamForm) => {
     if (!user) return;
     
