@@ -625,29 +625,44 @@ export default function Triathlon() {
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                          {formatPoints(team.academicPoints)}
-                        </Badge>
+                        <EditablePointCell 
+                          team={team} 
+                          category="academic" 
+                          value={team.academicPoints} 
+                          className="bg-blue-100 text-blue-800"
+                        />
                       </td>
                       <td className="p-4 text-center">
-                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                          {formatPoints(team.culturalPoints)}
-                        </Badge>
+                        <EditablePointCell 
+                          team={team} 
+                          category="cultural" 
+                          value={team.culturalPoints} 
+                          className="bg-purple-100 text-purple-800"
+                        />
                       </td>
                       <td className="p-4 text-center">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          {formatPoints(team.sportsPoints)}
-                        </Badge>
+                        <EditablePointCell 
+                          team={team} 
+                          category="sports" 
+                          value={team.sportsPoints} 
+                          className="bg-green-100 text-green-800"
+                        />
                       </td>
                       <td className="p-4 text-center">
-                        <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                          {formatPoints(team.surprisePoints)}
-                        </Badge>
+                        <EditablePointCell 
+                          team={team} 
+                          category="surprise" 
+                          value={team.surprisePoints} 
+                          className="bg-orange-100 text-orange-800"
+                        />
                       </td>
                       <td className="p-4 text-center">
-                        <Badge variant="secondary" className="bg-red-100 text-red-800">
-                          {formatPoints(team.penaltyPoints)}
-                        </Badge>
+                        <EditablePointCell 
+                          team={team} 
+                          category="penalty" 
+                          value={team.penaltyPoints} 
+                          className="bg-red-100 text-red-800"
+                        />
                       </td>
                       <td className="p-4 text-center">
                         <Badge variant="default" className="font-medium">

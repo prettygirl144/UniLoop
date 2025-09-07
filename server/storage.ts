@@ -1725,6 +1725,95 @@ export class DatabaseStorage implements IStorage {
     return updatedTeam;
   }
 
+  async setTriathlonPoints(
+    teamId: number, 
+    category: 'academic' | 'cultural' | 'sports' | 'surprise' | 'penalty', 
+    points: number,
+    reason: string | undefined,
+    changedBy: string
+  ): Promise<TriathlonTeam> {
+    // Get current team data
+    const [team] = await db
+      .select()
+      .from(triathlonTeams)
+      .where(eq(triathlonTeams.id, teamId));
+    
+    if (!team) {
+      throw new Error('Team not found');
+    }
+
+    // Get current points for this category
+    const getCategoryPoints = (team: TriathlonTeam, category: string): number => {
+      switch (category) {
+        case 'academic': return parseFloat(team.academicPoints as string) || 0;
+        case 'cultural': return parseFloat(team.culturalPoints as string) || 0;
+        case 'sports': return parseFloat(team.sportsPoints as string) || 0;
+        case 'surprise': return parseFloat(team.surprisePoints as string) || 0;
+        case 'penalty': return parseFloat(team.penaltyPoints as string) || 0;
+        default: return 0;
+      }
+    };
+
+    const currentPoints = getCategoryPoints(team, category);
+    const newPoints = Math.max(0, points); // Ensure points are not negative
+    
+    // Calculate new total: academic + cultural + sports + surprise - penalty
+    let newAcademic = parseFloat(team.academicPoints as string) || 0;
+    let newCultural = parseFloat(team.culturalPoints as string) || 0;
+    let newSports = parseFloat(team.sportsPoints as string) || 0;
+    let newSurprise = parseFloat(team.surprisePoints as string) || 0;
+    let newPenalty = parseFloat(team.penaltyPoints as string) || 0;
+    
+    // Update the specific category
+    switch (category) {
+      case 'academic': newAcademic = newPoints; break;
+      case 'cultural': newCultural = newPoints; break;
+      case 'sports': newSports = newPoints; break;
+      case 'surprise': newSurprise = newPoints; break;
+      case 'penalty': newPenalty = newPoints; break;
+    }
+    
+    const newTotal = newAcademic + newCultural + newSports + newSurprise - newPenalty;
+
+    // Prepare update object with proper column mapping
+    const updateData: any = {
+      totalPoints: newTotal.toFixed(2),
+      updatedAt: new Date()
+    };
+
+    // Set the specific category column
+    switch (category) {
+      case 'academic': updateData.academicPoints = newPoints.toFixed(2); break;
+      case 'cultural': updateData.culturalPoints = newPoints.toFixed(2); break;
+      case 'sports': updateData.sportsPoints = newPoints.toFixed(2); break;
+      case 'surprise': updateData.surprisePoints = newPoints.toFixed(2); break;
+      case 'penalty': updateData.penaltyPoints = newPoints.toFixed(2); break;
+    }
+
+    // Update team points
+    const [updatedTeam] = await db
+      .update(triathlonTeams)
+      .set(updateData)
+      .where(eq(triathlonTeams.id, teamId))
+      .returning();
+
+    // Record point history (calculate the point change)
+    const pointChange = newPoints - currentPoints;
+    await db
+      .insert(triathlonPointHistory)
+      .values({
+        teamId,
+        category,
+        pointChange: pointChange.toFixed(2),
+        previousPoints: currentPoints.toFixed(2),
+        newPoints: newPoints.toFixed(2),
+        reason: reason || null,
+        changedBy
+      });
+
+    return updatedTeam;
+  }
+
   async getTriathlonPointHistory(teamId: number): Promise<TriathlonPointHistory[]> {
     return await db
       .select()

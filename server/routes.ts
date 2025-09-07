@@ -2921,6 +2921,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/triathlon/teams/:teamId/points', authorize('triathlon'), async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const { category, points, reason } = req.body;
+      
+      const user = extractUser(req);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const updatedTeam = await storage.setTriathlonPoints(
+        teamId, 
+        category, 
+        points, 
+        reason, 
+        user.id
+      );
+      
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error setting triathlon points:", error);
+      res.status(500).json({ message: "Failed to set points" });
+    }
+  });
+
   app.get('/api/triathlon/history/:teamId', authorize('triathlon'), async (req, res) => {
     try {
       const teamId = parseInt(req.params.teamId);
