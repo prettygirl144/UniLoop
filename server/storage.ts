@@ -125,6 +125,7 @@ export interface IStorage {
   replaceAllMenu(menuData: InsertWeeklyMenu[], uploadedBy: string): Promise<WeeklyMenu[]>;
   bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking>;
   getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]>;
+  updateSickFoodBookingStatus(id: number, status: 'pending' | 'approved' | 'rejected', approvedBy: string, adminNotes?: string): Promise<SickFoodBooking | undefined>;
   applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave>;
   getLeaveApplications(status?: string): Promise<HostelLeave[]>;
   approveLeave(id: number, token: string): Promise<HostelLeave>;
@@ -1139,6 +1140,25 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
+  }
+
+  async updateSickFoodBookingStatus(
+    id: number, 
+    status: 'pending' | 'approved' | 'rejected', 
+    approvedBy: string, 
+    adminNotes?: string
+  ): Promise<SickFoodBooking | undefined> {
+    const [updated] = await db
+      .update(sickFoodBookings)
+      .set({ 
+        status, 
+        approvedBy, 
+        approvedAt: new Date(), 
+        adminNotes 
+      })
+      .where(eq(sickFoodBookings.id, id))
+      .returning();
+    return updated;
   }
 
   async applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave> {

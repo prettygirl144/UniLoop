@@ -1621,6 +1621,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Approve sick food booking - RBAC protected
+  app.post('/api/amenities/sick-food/:id/approve', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const bookingId = parseInt(req.params.id);
+      const { adminNotes } = req.body;
+
+      if (isNaN(bookingId)) {
+        return res.status(400).json({ message: "Invalid booking ID" });
+      }
+
+      const updatedBooking = await storage.updateSickFoodBookingStatus(
+        bookingId, 
+        'approved', 
+        userInfo.id, 
+        adminNotes
+      );
+
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      res.json({
+        message: "Sick food booking approved successfully",
+        booking: updatedBooking
+      });
+    } catch (error) {
+      console.error("Error approving sick food booking:", error);
+      res.status(500).json({ message: "Failed to approve booking" });
+    }
+  });
+
+  // Reject sick food booking - RBAC protected
+  app.post('/api/amenities/sick-food/:id/reject', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const bookingId = parseInt(req.params.id);
+      const { adminNotes } = req.body;
+
+      if (isNaN(bookingId)) {
+        return res.status(400).json({ message: "Invalid booking ID" });
+      }
+
+      const updatedBooking = await storage.updateSickFoodBookingStatus(
+        bookingId, 
+        'rejected', 
+        userInfo.id, 
+        adminNotes
+      );
+
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      res.json({
+        message: "Sick food booking rejected successfully",
+        booking: updatedBooking
+      });
+    } catch (error) {
+      console.error("Error rejecting sick food booking:", error);
+      res.status(500).json({ message: "Failed to reject booking" });
+    }
+  });
+
   // Apply for hostel leave with Google Form integration
   app.post('/api/hostel/leave', checkAuth, async (req: any, res) => {
     const requestId = req.headers['x-request-id'] || `leave_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
