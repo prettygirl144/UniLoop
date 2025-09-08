@@ -1702,10 +1702,12 @@ export default function Forum() {
                                   
                                   modal.innerHTML = `
                                     <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
-                                      <img id="zoomableImage" src="${url}" alt="Full size image" 
-                                           class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
-                                           style="transform: scale(1) translate(0px, 0px)" 
-                                           draggable="false" />
+                                      <div class="relative w-full h-full flex items-center justify-center">
+                                        <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                             class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                             style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                             draggable="false" />
+                                      </div>
                                       
                                       <!-- Close button -->
                                       <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
@@ -1753,8 +1755,24 @@ export default function Forum() {
                                   // Update transform
                                   const updateTransform = () => {
                                     if (img) {
-                                      (img as HTMLImageElement).style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                                      // Apply transform with proper origin
+                                      (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                      (img as HTMLImageElement).style.transformOrigin = 'center center';
                                       (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                                      
+                                      // Ensure image stays within reasonable bounds when panning
+                                      if (scale > 1) {
+                                        const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                        const modalRect = modal.getBoundingClientRect();
+                                        
+                                        const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                        const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                        
+                                        translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                        translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                        
+                                        (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                      }
                                     }
                                   };
                                   
@@ -2030,10 +2048,12 @@ export default function Forum() {
                           
                           modal.innerHTML = `
                             <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
-                              <img id="zoomableImage" src="${url}" alt="Full size image" 
-                                   class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
-                                   style="transform: scale(1) translate(0px, 0px)" 
-                                   draggable="false" />
+                              <div class="relative w-full h-full flex items-center justify-center">
+                                <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                     class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                     style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                     draggable="false" />
+                              </div>
                               
                               <!-- Close button -->
                               <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
@@ -2081,8 +2101,24 @@ export default function Forum() {
                           // Update transform
                           const updateTransform = () => {
                             if (img) {
-                              (img as HTMLImageElement).style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                              // Apply transform with proper origin
+                              (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                              (img as HTMLImageElement).style.transformOrigin = 'center center';
                               (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                              
+                              // Ensure image stays within reasonable bounds when panning
+                              if (scale > 1) {
+                                const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                const modalRect = modal.getBoundingClientRect();
+                                
+                                const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                
+                                translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                
+                                (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                              }
                             }
                           };
                           
