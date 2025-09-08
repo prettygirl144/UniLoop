@@ -120,6 +120,13 @@ export default function Amenities() {
   // Check if user is admin
   const isAdmin = (user as any)?.role === 'admin';
   
+  // Check if user has records access (Dining/Hostel, Sick Food, Leave Application, or Grievance Access)
+  const hasRecordsAccess = isAdmin || 
+    (user as any)?.permissions?.diningHostel || 
+    (user as any)?.permissions?.sickFoodAccess || 
+    (user as any)?.permissions?.leaveApplicationAccess || 
+    (user as any)?.permissions?.grievanceAccess;
+  
   // Check if user can edit menus (admin role OR diningHostel permission)
   const canEditMenu = isAdmin || (user as any)?.permissions?.diningHostel;
   
@@ -739,13 +746,6 @@ export default function Amenities() {
   };
 
   // Remove the processExcelFile function - let backend handle parsing
-
-  // Check if user has records access (Dining/Hostel, Sick Food, Leave Application, or Grievance Access)
-  const hasRecordsAccess = isAdmin || 
-    (user as any)?.permissions?.diningHostel || 
-    (user as any)?.permissions?.sickFoodAccess || 
-    (user as any)?.permissions?.leaveApplicationAccess || 
-    (user as any)?.permissions?.grievanceAccess;
 
   // Download reports
   const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {
