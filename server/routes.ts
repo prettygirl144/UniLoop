@@ -1554,17 +1554,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // If scope=mine, user can access their own bookings without admin permission
     if (scope !== 'mine') {
-      // For admin access to all bookings, use the authorization middleware
-      const authResult = await new Promise<boolean>((resolve) => {
-        authorizeAmenities('sickFoodAccess')(req as any, res as any, (err: any) => {
-          if (err) resolve(false);
-          else resolve(true);
-        });
-      });
+      // For admin access to all bookings, check for any Records-related permission
+      const sessionUser = req.session?.user;
+      const hasRecordsAccess = sessionUser?.role === 'admin' || 
+        sessionUser?.permissions?.diningHostel || 
+        sessionUser?.permissions?.sickFoodAccess || 
+        sessionUser?.permissions?.leaveApplicationAccess || 
+        sessionUser?.permissions?.grievanceAccess;
       
-      if (!authResult) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      if (!hasRecordsAccess) {
+        console.log(`❌ [SICK-FOOD-GET] Access denied - User: ${sessionUser?.id}, Role: ${sessionUser?.role}, Permissions:`, sessionUser?.permissions, `RequestID: ${requestId}`);
+        return res.status(403).json({ message: "Insufficient permissions to access records" });
       }
+      
+      console.log(`✅ [SICK-FOOD-GET] Records access granted - User: ${sessionUser?.id}, Role: ${sessionUser?.role}, RequestID: ${requestId}`);
     }
     
     try {

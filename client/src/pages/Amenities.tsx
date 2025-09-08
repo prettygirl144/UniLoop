@@ -270,8 +270,10 @@ export default function Amenities() {
       const requestId = `sf_fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       console.log(`📋 [CLIENT-SICK-FOOD-FETCH] Fetching bookings - Filter: ${sickFoodDateFilter || 'None'}, RequestID: ${requestId}`);
       
-      const params = sickFoodDateFilter ? `?date=${sickFoodDateFilter}` : '';
-      const endpoint = `/api/amenities/sick-food${params}`;
+      const params = new URLSearchParams();
+      if (sickFoodDateFilter) params.set('date', sickFoodDateFilter);
+      params.set('scope', 'all');
+      const endpoint = `/api/amenities/sick-food?${params.toString()}`;
       
       console.log(`🔑 [CLIENT-TRIAGE] EXACT QUERY KEY:`, JSON.stringify(baseKey));
       console.log(`🔗 [CLIENT-SICK-FOOD-FETCH] Full endpoint: ${window.location.origin}${endpoint}`);
