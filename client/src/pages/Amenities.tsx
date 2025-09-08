@@ -316,7 +316,7 @@ export default function Amenities() {
         throw error;
       }
     },
-    enabled: isAdmin,
+    enabled: hasRecordsAccess,
     staleTime: 0,
     gcTime: 0,
   });
@@ -327,7 +327,7 @@ export default function Amenities() {
       data: sickFoodBookings,
       isLoading: sickFoodLoading, 
       error: sickFoodError,
-      enabled: isAdmin,
+      enabled: hasRecordsAccess,
       length: Array.isArray(sickFoodBookings) ? sickFoodBookings.length : 'Not Array',
       type: typeof sickFoodBookings,
       filter: sickFoodDateFilter
@@ -336,12 +336,12 @@ export default function Amenities() {
 
   const { data: leaveApplications = [] } = useQuery({
     queryKey: ['/api/hostel/leave'],
-    enabled: isAdmin,
+    enabled: hasRecordsAccess,
   });
 
   const { data: grievances = [] } = useQuery({
     queryKey: ['/api/grievances'],
-    enabled: isAdmin,
+    enabled: hasRecordsAccess,
   });
 
   // Mutations
