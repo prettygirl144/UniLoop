@@ -741,6 +741,7 @@ export default function Amenities() {
   // Check if user has records access (Dining/Hostel, Sick Food, Leave Application, or Grievance Access)
   const hasRecordsAccess = isAdmin || 
     (user as any)?.permissions?.diningHostel || 
+    (user as any)?.permissions?.sickFoodAccess || 
     (user as any)?.permissions?.leaveApplicationAccess || 
     (user as any)?.permissions?.grievanceAccess;
 
