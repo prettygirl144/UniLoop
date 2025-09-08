@@ -1,0 +1,149 @@
+🍽️ [CLIENT-SICK-FOOD] Starting booking submission - RequestID: sf_client_1757353644664_1nalwpijl
+Amenities.tsx:350 📝 [CLIENT-SICK-FOOD] Form data: {hasDate: true, hasMealType: true, hasRoomNumber: true, hasSpecialRequirements: false, requestId: 'sf_client_1757353644664_1nalwpijl'}
+Amenities.tsx:357 🌐 [CLIENT-SICK-FOOD] API Base URL: https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev
+Amenities.tsx:358 🔗 [CLIENT-SICK-FOOD] Full endpoint: https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/amenities/sick-food
+queryClient.ts:23 🚀 [API-REQUEST] Starting POST request - URL: /api/amenities/sick-food, RequestID: api_1757353644664_f5gdtvsd9
+queryClient.ts:26 📝 [API-REQUEST] Request data (RequestID: api_1757353644664_f5gdtvsd9): {date: '2025-09-10', mealType: 'dinner', roomNumber: 'U4', specialRequirements: '', phoneNumber: '9831837266', …}
+sw.js:42 🔄 [SERVICE-WORKER] Intercepted sick food request - Method: POST, URL: /api/amenities/sick-food
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/amenities/sick-food
+queryClient.ts:47  POST https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/amenities/sick-food 500 (Internal Server Error)
+apiRequest @ queryClient.ts:47
+mutationFn @ Amenities.tsx:361
+fn @ @tanstack_react-query.js?v=e7614ad7:1189
+run @ @tanstack_react-query.js?v=e7614ad7:494
+start @ @tanstack_react-query.js?v=e7614ad7:536
+execute @ @tanstack_react-query.js?v=e7614ad7:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=e7614ad7:2630
+(anonymous) @ @tanstack_react-query.js?v=e7614ad7:3295
+(anonymous) @ Amenities.tsx:1163
+(anonymous) @ chunk-4BFJKWC4.js?v=e7614ad7:1465
+await in (anonymous)
+callCallback2 @ chunk-RPCDYKBN.js?v=e7614ad7:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=e7614ad7:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=e7614ad7:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=e7614ad7:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=e7614ad7:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=e7614ad7:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=e7614ad7:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=e7614ad7:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=e7614ad7:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=e7614ad7:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=e7614ad7:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=e7614ad7:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=e7614ad7:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5449Understand this error
+queryClient.ts:54 📊 [API-REQUEST] Response received - Status: 500, RequestID: api_1757353644664_f5gdtvsd9
+queryClient.ts:61 ❌ [API-REQUEST] Request failed - RequestID: api_1757353644664_f5gdtvsd9: Error: 500: {"message":"Failed to book sick food","_diagnostics":{"requestId":"api_1757353644664_f5gdtvsd9","responseTime":"122ms","timestamp":"2025-09-08T17:47:24.183Z","success":false,"error":"column \"status\" of relation \"sick_food_bookings\" does not exist"}}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:56:5)
+    at async Object.mutationFn (Amenities.tsx:361:26)
+apiRequest @ queryClient.ts:61
+await in apiRequest
+mutationFn @ Amenities.tsx:361
+fn @ @tanstack_react-query.js?v=e7614ad7:1189
+run @ @tanstack_react-query.js?v=e7614ad7:494
+start @ @tanstack_react-query.js?v=e7614ad7:536
+execute @ @tanstack_react-query.js?v=e7614ad7:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=e7614ad7:2630
+(anonymous) @ @tanstack_react-query.js?v=e7614ad7:3295
+(anonymous) @ Amenities.tsx:1163
+(anonymous) @ chunk-4BFJKWC4.js?v=e7614ad7:1465
+await in (anonymous)
+callCallback2 @ chunk-RPCDYKBN.js?v=e7614ad7:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=e7614ad7:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=e7614ad7:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=e7614ad7:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=e7614ad7:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=e7614ad7:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=e7614ad7:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=e7614ad7:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=e7614ad7:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=e7614ad7:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=e7614ad7:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=e7614ad7:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=e7614ad7:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5449Understand this error
+Amenities.tsx:369 ❌ [CLIENT-SICK-FOOD] Booking failed - RequestID: sf_client_1757353644664_1nalwpijl: Error: 500: {"message":"Failed to book sick food","_diagnostics":{"requestId":"api_1757353644664_f5gdtvsd9","responseTime":"122ms","timestamp":"2025-09-08T17:47:24.183Z","success":false,"error":"column \"status\" of relation \"sick_food_bookings\" does not exist"}}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:56:5)
+    at async Object.mutationFn (Amenities.tsx:361:26)
+mutationFn @ Amenities.tsx:369
+await in mutationFn
+fn @ @tanstack_react-query.js?v=e7614ad7:1189
+run @ @tanstack_react-query.js?v=e7614ad7:494
+start @ @tanstack_react-query.js?v=e7614ad7:536
+execute @ @tanstack_react-query.js?v=e7614ad7:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=e7614ad7:2630
+(anonymous) @ @tanstack_react-query.js?v=e7614ad7:3295
+(anonymous) @ Amenities.tsx:1163
+(anonymous) @ chunk-4BFJKWC4.js?v=e7614ad7:1465
+await in (anonymous)
+callCallback2 @ chunk-RPCDYKBN.js?v=e7614ad7:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=e7614ad7:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=e7614ad7:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=e7614ad7:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=e7614ad7:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=e7614ad7:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=e7614ad7:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=e7614ad7:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=e7614ad7:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=e7614ad7:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=e7614ad7:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=e7614ad7:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=e7614ad7:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5449Understand this error
+Amenities.tsx:397 🚨 [CLIENT-SICK-FOOD] Error handler triggered: Error: 500: {"message":"Failed to book sick food","_diagnostics":{"requestId":"api_1757353644664_f5gdtvsd9","responseTime":"122ms","timestamp":"2025-09-08T17:47:24.183Z","success":false,"error":"column \"status\" of relation \"sick_food_bookings\" does not exist"}}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:56:5)
+    at async Object.mutationFn (Amenities.tsx:361:26)
+onError @ Amenities.tsx:397
+execute @ @tanstack_react-query.js?v=e7614ad7:1254
+await in execute
+mutate @ @tanstack_react-query.js?v=e7614ad7:2630
+(anonymous) @ @tanstack_react-query.js?v=e7614ad7:3295
+(anonymous) @ Amenities.tsx:1163
+(anonymous) @ chunk-4BFJKWC4.js?v=e7614ad7:1465
+await in (anonymous)
+callCallback2 @ chunk-RPCDYKBN.js?v=e7614ad7:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=e7614ad7:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=e7614ad7:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=e7614ad7:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=e7614ad7:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=e7614ad7:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=e7614ad7:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=e7614ad7:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=e7614ad7:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=e7614ad7:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=e7614ad7:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=e7614ad7:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=e7614ad7:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5449Understand this error
+Amenities.tsx:1469 🧪 [CLIENT-TRIAGE] RENDER CHECK - sickFoodBookings: []
+Amenities.tsx:1470 🧪 [CLIENT-TRIAGE] RENDER CHECK - Length: 0
+Amenities.tsx:1471 🧪 [CLIENT-TRIAGE] RENDER CHECK - Type: object
+Amenities.tsx:1472 🧪 [CLIENT-TRIAGE] RENDER CHECK - IsArray: true
+Amenities.tsx:1469 🧪 [CLIENT-TRIAGE] RENDER CHECK - sickFoodBookings: []
+Amenities.tsx:1470 🧪 [CLIENT-TRIAGE] RENDER CHECK - Length: 0
+Amenities.tsx:1471 🧪 [CLIENT-TRIAGE] RENDER CHECK - Type: object
+Amenities.tsx:1472 🧪 [CLIENT-TRIAGE] RENDER CHECK - IsArray: true
+Amenities.tsx:324 🧪 [CLIENT-TRIAGE] QUERY STATE CHANGE: {data: Array(0), isLoading: false, error: Error: HTTP 500
+    at queryFn (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picar…, enabled: true, length: 0, …}
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/unread
+Amenities.tsx:1469 🧪 [CLIENT-TRIAGE] RENDER CHECK - sickFoodBookings: []
+Amenities.tsx:1470 🧪 [CLIENT-TRIAGE] RENDER CHECK - Length: 0
+Amenities.tsx:1471 🧪 [CLIENT-TRIAGE] RENDER CHECK - Type: object
+Amenities.tsx:1472 🧪 [CLIENT-TRIAGE] RENDER CHECK - IsArray: true
+Amenities.tsx:1469 🧪 [CLIENT-TRIAGE] RENDER CHECK - sickFoodBookings: []
+Amenities.tsx:1470 🧪 [CLIENT-TRIAGE] RENDER CHECK - Length: 0
+Amenities.tsx:1471 🧪 [CLIENT-TRIAGE] RENDER CHECK - Type: object
+Amenities.tsx:1472 🧪 [CLIENT-TRIAGE] RENDER CHECK - IsArray: true
+Amenities.tsx:324 🧪 [CLIENT-TRIAGE] QUERY STATE CHANGE: {data: Array(0), isLoading: false, error: Error: HTTP 500
+    at queryFn (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picar…, enabled: true, length: 0, …}
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/unread
