@@ -253,7 +253,10 @@ export const sickFoodBookings = pgTable("sick_food_bookings", {
   roomNumber: varchar("room_number").notNull(),
   phoneNumber: varchar("phone_number").notNull(),
   parcelMode: varchar("parcel_mode").notNull().default("dine_in"), // 'dine_in' | 'takeaway'
-  // Removed status field - sick food bookings are always confirmed when created
+  status: varchar("status").default("pending"), // pending, approved, rejected
+  approvedBy: varchar("approved_by").references(() => users.id), // who approved/rejected the request
+  approvedAt: timestamp("approved_at"), // when it was approved/rejected
+  adminNotes: text("admin_notes"), // optional notes from approver
   createdAt: timestamp("created_at").defaultNow(),
 });
 
