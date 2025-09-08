@@ -1206,9 +1206,30 @@ export default function Forum() {
                           )}
                         </div>
                         {post.mediaUrls && post.mediaUrls.length > 0 && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <Image className="h-3 w-3" />
-                            <span className="text-small text-gray-500">{post.mediaUrls.length} image{post.mediaUrls.length > 1 ? 's' : ''}</span>
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center gap-1">
+                              <Image className="h-3 w-3" />
+                              <span className="text-small text-gray-500">{post.mediaUrls.length} image{post.mediaUrls.length > 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {post.mediaUrls.map((url, index) => (
+                                <div key={index} className="relative aspect-square">
+                                  <img
+                                    src={url}
+                                    alt={`Post media ${index + 1}`}
+                                    className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPost(post);
+                                    }}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMjEgMTktMi0yaDJWNWMwLTEuMS0uOS0yLTItMmgtOGMtMS4xIDAtMiAuOS0yIDJ2NGwtMi0yaDJWN0gzYy0xLjEgMC0yIC45LTIgMnYxMGMwIDEuMSAuOSAyIDIgMmgxOGMxLjEgMCAyLS45IDItMnptLTYtNi05LTktMS00IDEgOSA5eiIgZmlsbD0iIzk5OTk5OSIvPjwvc3ZnPg==';
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1427,12 +1448,48 @@ export default function Forum() {
                       )}
                     </div>
                     {announcement.mediaUrls && announcement.mediaUrls.length > 0 && (
-                      <div className="flex gap-2 mt-2">
+                      <div className="mt-3 space-y-2">
                         <div className="flex items-center gap-1">
                           <Image className="h-3 w-3 text-gray-500" />
                           <span className="text-small text-gray-500">
                             {announcement.mediaUrls.length} image{announcement.mediaUrls.length > 1 ? 's' : ''}
                           </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {announcement.mediaUrls.map((url, index) => (
+                            <div key={index} className="relative aspect-square">
+                              <img
+                                src={url}
+                                alt={`Announcement media ${index + 1}`}
+                                className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Create and open image modal
+                                  const modal = document.createElement('div');
+                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4';
+                                  modal.innerHTML = `
+                                    <div class="relative max-w-full max-h-full">
+                                      <img src="${url}" alt="Full size image" class="max-w-full max-h-full object-contain rounded-lg" />
+                                      <button class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all" onclick="this.parentElement.parentElement.remove()">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  `;
+                                  modal.addEventListener('click', (e) => {
+                                    if (e.target === modal) modal.remove();
+                                  });
+                                  document.body.appendChild(modal);
+                                }}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMjEgMTktMi0yaDJWNWMwLTEuMS0uOS0yLTItMmgtOGMtMS4xIDAtMiAuOS0yIDJ2NGwtMi0yaDJWN0gzYy0xLjEgMC0yIC45LTIgMnYxMGMwIDEuMSAuOSAyIDIgMmgxOGMxLjEgMCAyLS45IDItMnptLTYtNi05LTktMS00IDEgOSA5eiIgZmlsbD0iIzk5OTk5OSIvPjwvc3ZnPg==';
+                                }}
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -1522,7 +1579,26 @@ export default function Forum() {
                         src={url}
                         alt={`Post media ${index + 1}`}
                         className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(url, '_blank')}
+                        onClick={() => {
+                          // Create and open image modal
+                          const modal = document.createElement('div');
+                          modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4';
+                          modal.innerHTML = `
+                            <div class="relative max-w-full max-h-full">
+                              <img src="${url}" alt="Full size image" class="max-w-full max-h-full object-contain rounded-lg" />
+                              <button class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all" onclick="this.parentElement.parentElement.remove()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            </div>
+                          `;
+                          modal.addEventListener('click', (e) => {
+                            if (e.target === modal) modal.remove();
+                          });
+                          document.body.appendChild(modal);
+                        }}
                       />
                     </div>
                   ))}
