@@ -738,6 +738,12 @@ export default function Amenities() {
 
   // Remove the processExcelFile function - let backend handle parsing
 
+  // Check if user has records access (Dining/Hostel, Sick Food, Leave Application, or Grievance Access)
+  const hasRecordsAccess = isAdmin || 
+    (user as any)?.permissions?.diningHostel || 
+    (user as any)?.permissions?.leaveApplicationAccess || 
+    (user as any)?.permissions?.grievanceAccess;
+
   // Download reports
   const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {
     try {
@@ -1001,7 +1007,7 @@ export default function Amenities() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
-          {isAdmin && <TabsTrigger value="records">Records</TabsTrigger>}
+          {hasRecordsAccess && <TabsTrigger value="records">Records</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="menu" className="space-y-4">
@@ -1472,7 +1478,7 @@ export default function Amenities() {
           </div>
         </TabsContent>
 
-        {isAdmin && (
+        {hasRecordsAccess && (
           <TabsContent value="records" className="space-y-4">
             <div className="grid gap-4">
               {/* Sick Food Bookings */}
