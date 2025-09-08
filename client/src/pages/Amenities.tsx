@@ -650,6 +650,56 @@ export default function Amenities() {
     },
   });
 
+  // Sick food approval mutations
+  const approveSickFoodMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest('POST', `/api/amenities/sick-food/${id}/approve`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Sick food booking approved successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['sick-food', 'bookings'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to approve sick food booking.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const rejectSickFoodMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest('POST', `/api/amenities/sick-food/${id}/reject`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Sick food booking rejected successfully!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['sick-food', 'bookings'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to reject sick food booking.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handlers for approval actions
+  const handleApproveSickFood = (id: number) => {
+    approveSickFoodMutation.mutate(id);
+  };
+
+  const handleRejectSickFood = (id: number) => {
+    rejectSickFoodMutation.mutate(id);
+  };
+
   // File upload handlers
   const handleFileSelect = () => {
     fileInputRef.current?.click();
@@ -1503,9 +1553,42 @@ export default function Amenities() {
                                         <p className="text-small text-muted-foreground break-words">Special: {booking.specialRequirements}</p>
                                       )}
                                     </div>
-                                    <Badge variant="default" className="w-fit self-start">
-                                      Confirmed
-                                    </Badge>
+                                    <div className="flex flex-col gap-2 items-end">
+                                      <Badge 
+                                        variant={
+                                          booking.status === 'approved' ? 'default' :
+                                          booking.status === 'rejected' ? 'destructive' :
+                                          'secondary'
+                                        }
+                                        className="w-fit"
+                                      >
+                                        {booking.status === 'approved' ? 'Approved' :
+                                         booking.status === 'rejected' ? 'Rejected' :
+                                         'Pending'}
+                                      </Badge>
+                                      {booking.status === 'pending' && (isAdmin || (user as any)?.permissions?.diningHostel) && (
+                                        <div className="flex gap-1">
+                                          <Button 
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-green-600 border-green-200 hover:bg-green-50 px-2 py-1 h-6 text-xs"
+                                            onClick={() => handleApproveSickFood(booking.id)}
+                                            disabled={approveSickFoodMutation.isPending || rejectSickFoodMutation.isPending}
+                                          >
+                                            {approveSickFoodMutation.isPending ? 'Approving...' : 'Approve'}
+                                          </Button>
+                                          <Button 
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-red-600 border-red-200 hover:bg-red-50 px-2 py-1 h-6 text-xs"
+                                            onClick={() => handleRejectSickFood(booking.id)}
+                                            disabled={approveSickFoodMutation.isPending || rejectSickFoodMutation.isPending}
+                                          >
+                                            {rejectSickFoodMutation.isPending ? 'Rejecting...' : 'Reject'}
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
