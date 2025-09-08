@@ -1595,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const formattedData = paginatedBookings.map(booking => ({
           id: booking.id.toString(),
           createdAt: (booking.createdAt || new Date()).toISOString(),
-          status: 'approved', // Sick food bookings are always approved when created
+          status: booking.status || 'pending', // Use actual status from database
           type: 'sickFood',
           title: 'Sick Food',
           details: booking.specialRequirements || 'No special requirements',
