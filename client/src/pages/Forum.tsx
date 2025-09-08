@@ -1231,10 +1231,12 @@ export default function Forum() {
                                       
                                       modal.innerHTML = `
                                         <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
-                                          <img id="zoomableImage" src="${url}" alt="Full size image" 
-                                               class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
-                                               style="transform: scale(1) translate(0px, 0px)" 
-                                               draggable="false" />
+                                          <div class="relative w-full h-full flex items-center justify-center">
+                                            <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                                 class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                                 style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                                 draggable="false" />
+                                          </div>
                                           
                                           <!-- Close button -->
                                           <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
@@ -1281,23 +1283,41 @@ export default function Forum() {
                                       
                                       // Update transform
                                       const updateTransform = () => {
-                                        img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
-                                        img.style.cursor = scale > 1 ? 'grab' : 'default';
+                                        if (img) {
+                                          // Apply transform with proper origin
+                                          (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                          (img as HTMLImageElement).style.transformOrigin = 'center center';
+                                          (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                                          
+                                          // Ensure image stays within reasonable bounds when panning
+                                          if (scale > 1) {
+                                            const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                            const modalRect = modal.getBoundingClientRect();
+                                            
+                                            const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                            const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                            
+                                            translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                            translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                            
+                                            (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                          }
+                                        }
                                       };
                                       
                                       // Close modal
-                                      closeBtn.addEventListener('click', () => modal.remove());
-                                      modal.addEventListener('click', (e) => {
+                                      closeBtn?.addEventListener('click', () => modal.remove());
+                                      modal.addEventListener('click', (e: MouseEvent) => {
                                         if (e.target === modal) modal.remove();
                                       });
                                       
                                       // Zoom controls
-                                      zoomInBtn.addEventListener('click', () => {
+                                      zoomInBtn?.addEventListener('click', () => {
                                         scale = Math.min(scale * 1.5, 5);
                                         updateTransform();
                                       });
                                       
-                                      zoomOutBtn.addEventListener('click', () => {
+                                      zoomOutBtn?.addEventListener('click', () => {
                                         scale = Math.max(scale / 1.5, 0.5);
                                         if (scale <= 1) {
                                           translateX = 0;
@@ -1306,7 +1326,7 @@ export default function Forum() {
                                         updateTransform();
                                       });
                                       
-                                      resetBtn.addEventListener('click', () => {
+                                      resetBtn?.addEventListener('click', () => {
                                         scale = 1;
                                         translateX = 0;
                                         translateY = 0;
@@ -1314,7 +1334,7 @@ export default function Forum() {
                                       });
                                       
                                       // Mouse wheel zoom
-                                      modal.addEventListener('wheel', (e) => {
+                                      modal.addEventListener('wheel', (e: WheelEvent) => {
                                         e.preventDefault();
                                         const zoomSpeed = 0.1;
                                         const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -1328,31 +1348,33 @@ export default function Forum() {
                                       });
                                       
                                       // Mouse drag to pan
-                                      img.addEventListener('mousedown', (e) => {
+                                      img?.addEventListener('mousedown', (e) => {
+                                        const mouseEvent = e as MouseEvent;
                                         if (scale <= 1) return;
                                         isDragging = true;
-                                        startX = e.clientX - translateX;
-                                        startY = e.clientY - translateY;
-                                        img.style.cursor = 'grabbing';
+                                        startX = mouseEvent.clientX - translateX;
+                                        startY = mouseEvent.clientY - translateY;
+                                        if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
                                       });
                                       
                                       modal.addEventListener('mousemove', (e) => {
+                                        const mouseEvent = e as MouseEvent;
                                         if (!isDragging || scale <= 1) return;
-                                        translateX = e.clientX - startX;
-                                        translateY = e.clientY - startY;
+                                        translateX = mouseEvent.clientX - startX;
+                                        translateY = mouseEvent.clientY - startY;
                                         updateTransform();
                                       });
                                       
                                       modal.addEventListener('mouseup', () => {
                                         isDragging = false;
-                                        if (scale > 1) img.style.cursor = 'grab';
+                                        if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
                                       });
                                       
                                       // Touch support for mobile
                                       let lastTouchDistance = 0;
                                       let initialScale = 1;
                                       
-                                      modal.addEventListener('touchstart', (e) => {
+                                      modal.addEventListener('touchstart', (e: TouchEvent) => {
                                         if (e.touches.length === 2) {
                                           const touch1 = e.touches[0];
                                           const touch2 = e.touches[1];
@@ -1368,7 +1390,7 @@ export default function Forum() {
                                         }
                                       });
                                       
-                                      modal.addEventListener('touchmove', (e) => {
+                                      modal.addEventListener('touchmove', (e: TouchEvent) => {
                                         e.preventDefault();
                                         
                                         if (e.touches.length === 2) {
@@ -1398,7 +1420,7 @@ export default function Forum() {
                                       });
                                       
                                       // Keyboard support
-                                      const handleKeyPress = (e) => {
+                                      const handleKeyPress = (e: KeyboardEvent) => {
                                         switch(e.key) {
                                           case 'Escape':
                                             modal.remove();
