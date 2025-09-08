@@ -1220,7 +1220,234 @@ export default function Forum() {
                                     className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setSelectedPost(post);
+                                      // Create enhanced zoomable image modal - same as announcements
+                                      const modal = document.createElement('div');
+                                      modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                                      
+                                      let scale = 1;
+                                      let isDragging = false;
+                                      let startX = 0, startY = 0;
+                                      let translateX = 0, translateY = 0;
+                                      
+                                      modal.innerHTML = `
+                                        <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                                          <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                               class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
+                                               style="transform: scale(1) translate(0px, 0px)" 
+                                               draggable="false" />
+                                          
+                                          <!-- Close button -->
+                                          <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                          </button>
+                                          
+                                          <!-- Zoom controls -->
+                                          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                            <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"></circle>
+                                                <path d="M21 21l-4.35-4.35"></path>
+                                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                                              </svg>
+                                            </button>
+                                            <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                              Reset
+                                            </button>
+                                            <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"></circle>
+                                                <path d="M21 21l-4.35-4.35"></path>
+                                                <line x1="11" y1="8" x2="11" y2="14"></line>
+                                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                                              </svg>
+                                            </button>
+                                          </div>
+                                          
+                                          <!-- Instructions -->
+                                          <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                            Scroll to zoom • Drag to pan
+                                          </div>
+                                        </div>
+                                      `;
+                                      
+                                      const img = modal.querySelector('#zoomableImage');
+                                      const closeBtn = modal.querySelector('#closeModal');
+                                      const zoomInBtn = modal.querySelector('#zoomIn');
+                                      const zoomOutBtn = modal.querySelector('#zoomOut');
+                                      const resetBtn = modal.querySelector('#resetZoom');
+                                      
+                                      // Update transform
+                                      const updateTransform = () => {
+                                        img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                                        img.style.cursor = scale > 1 ? 'grab' : 'default';
+                                      };
+                                      
+                                      // Close modal
+                                      closeBtn.addEventListener('click', () => modal.remove());
+                                      modal.addEventListener('click', (e) => {
+                                        if (e.target === modal) modal.remove();
+                                      });
+                                      
+                                      // Zoom controls
+                                      zoomInBtn.addEventListener('click', () => {
+                                        scale = Math.min(scale * 1.5, 5);
+                                        updateTransform();
+                                      });
+                                      
+                                      zoomOutBtn.addEventListener('click', () => {
+                                        scale = Math.max(scale / 1.5, 0.5);
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                      });
+                                      
+                                      resetBtn.addEventListener('click', () => {
+                                        scale = 1;
+                                        translateX = 0;
+                                        translateY = 0;
+                                        updateTransform();
+                                      });
+                                      
+                                      // Mouse wheel zoom
+                                      modal.addEventListener('wheel', (e) => {
+                                        e.preventDefault();
+                                        const zoomSpeed = 0.1;
+                                        const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                                        scale = Math.max(0.5, Math.min(5, scale + delta));
+                                        
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                      });
+                                      
+                                      // Mouse drag to pan
+                                      img.addEventListener('mousedown', (e) => {
+                                        if (scale <= 1) return;
+                                        isDragging = true;
+                                        startX = e.clientX - translateX;
+                                        startY = e.clientY - translateY;
+                                        img.style.cursor = 'grabbing';
+                                      });
+                                      
+                                      modal.addEventListener('mousemove', (e) => {
+                                        if (!isDragging || scale <= 1) return;
+                                        translateX = e.clientX - startX;
+                                        translateY = e.clientY - startY;
+                                        updateTransform();
+                                      });
+                                      
+                                      modal.addEventListener('mouseup', () => {
+                                        isDragging = false;
+                                        if (scale > 1) img.style.cursor = 'grab';
+                                      });
+                                      
+                                      // Touch support for mobile
+                                      let lastTouchDistance = 0;
+                                      let initialScale = 1;
+                                      
+                                      modal.addEventListener('touchstart', (e) => {
+                                        if (e.touches.length === 2) {
+                                          const touch1 = e.touches[0];
+                                          const touch2 = e.touches[1];
+                                          lastTouchDistance = Math.sqrt(
+                                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                                          );
+                                          initialScale = scale;
+                                        } else if (e.touches.length === 1 && scale > 1) {
+                                          isDragging = true;
+                                          startX = e.touches[0].clientX - translateX;
+                                          startY = e.touches[0].clientY - translateY;
+                                        }
+                                      });
+                                      
+                                      modal.addEventListener('touchmove', (e) => {
+                                        e.preventDefault();
+                                        
+                                        if (e.touches.length === 2) {
+                                          const touch1 = e.touches[0];
+                                          const touch2 = e.touches[1];
+                                          const currentDistance = Math.sqrt(
+                                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                                          );
+                                          
+                                          scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                                          
+                                          if (scale <= 1) {
+                                            translateX = 0;
+                                            translateY = 0;
+                                          }
+                                          updateTransform();
+                                        } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                                          translateX = e.touches[0].clientX - startX;
+                                          translateY = e.touches[0].clientY - startY;
+                                          updateTransform();
+                                        }
+                                      });
+                                      
+                                      modal.addEventListener('touchend', () => {
+                                        isDragging = false;
+                                      });
+                                      
+                                      // Keyboard support
+                                      const handleKeyPress = (e) => {
+                                        switch(e.key) {
+                                          case 'Escape':
+                                            modal.remove();
+                                            break;
+                                          case '=':
+                                          case '+':
+                                            scale = Math.min(scale * 1.2, 5);
+                                            updateTransform();
+                                            break;
+                                          case '-':
+                                          case '_':
+                                            scale = Math.max(scale / 1.2, 0.5);
+                                            if (scale <= 1) {
+                                              translateX = 0;
+                                              translateY = 0;
+                                            }
+                                            updateTransform();
+                                            break;
+                                          case '0':
+                                            scale = 1;
+                                            translateX = 0;
+                                            translateY = 0;
+                                            updateTransform();
+                                            break;
+                                        }
+                                      };
+                                      
+                                      document.addEventListener('keydown', handleKeyPress);
+                                      
+                                      // Cleanup on modal remove
+                                      const observer = new MutationObserver((mutations) => {
+                                        mutations.forEach((mutation) => {
+                                          if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                            Array.from(mutation.removedNodes).forEach((node) => {
+                                              if (node === modal) {
+                                                document.removeEventListener('keydown', handleKeyPress);
+                                                observer.disconnect();
+                                              }
+                                            });
+                                          }
+                                        });
+                                      });
+                                      
+                                      observer.observe(document.body, { childList: true });
+                                      document.body.appendChild(modal);
+                                      
+                                      // Focus for keyboard navigation
+                                      modal.focus();
+                                      modal.tabIndex = 0;
                                     }}
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
@@ -1464,24 +1691,236 @@ export default function Forum() {
                                 className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Create and open image modal
+                                  // Create enhanced zoomable image modal
                                   const modal = document.createElement('div');
-                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4';
+                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                                  
+                                  let scale = 1;
+                                  let isDragging = false;
+                                  let startX = 0, startY = 0;
+                                  let translateX = 0, translateY = 0;
+                                  
                                   modal.innerHTML = `
-                                    <div class="relative max-w-full max-h-full">
-                                      <img src="${url}" alt="Full size image" class="max-w-full max-h-full object-contain rounded-lg" />
-                                      <button class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all" onclick="this.parentElement.parentElement.remove()">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                                      <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                           class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
+                                           style="transform: scale(1) translate(0px, 0px)" 
+                                           draggable="false" />
+                                      
+                                      <!-- Close button -->
+                                      <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                           <line x1="18" y1="6" x2="6" y2="18"></line>
                                           <line x1="6" y1="6" x2="18" y2="18"></line>
                                         </svg>
                                       </button>
+                                      
+                                      <!-- Zoom controls -->
+                                      <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                        <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <path d="M21 21l-4.35-4.35"></path>
+                                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                                          </svg>
+                                        </button>
+                                        <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                          Reset
+                                        </button>
+                                        <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <path d="M21 21l-4.35-4.35"></path>
+                                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                                          </svg>
+                                        </button>
+                                      </div>
+                                      
+                                      <!-- Instructions -->
+                                      <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                        Scroll to zoom • Drag to pan
+                                      </div>
                                     </div>
                                   `;
-                                  modal.addEventListener('click', (e) => {
+                                  
+                                  const img = modal.querySelector('#zoomableImage');
+                                  const closeBtn = modal.querySelector('#closeModal');
+                                  const zoomInBtn = modal.querySelector('#zoomIn');
+                                  const zoomOutBtn = modal.querySelector('#zoomOut');
+                                  const resetBtn = modal.querySelector('#resetZoom');
+                                  
+                                  // Update transform
+                                  const updateTransform = () => {
+                                    if (img) {
+                                      (img as HTMLImageElement).style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                                      (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                                    }
+                                  };
+                                  
+                                  // Close modal
+                                  closeBtn?.addEventListener('click', () => modal.remove());
+                                  modal.addEventListener('click', (e: MouseEvent) => {
                                     if (e.target === modal) modal.remove();
                                   });
+                                  
+                                  // Zoom controls
+                                  zoomInBtn?.addEventListener('click', () => {
+                                    scale = Math.min(scale * 1.5, 5);
+                                    updateTransform();
+                                  });
+                                  
+                                  zoomOutBtn?.addEventListener('click', () => {
+                                    scale = Math.max(scale / 1.5, 0.5);
+                                    if (scale <= 1) {
+                                      translateX = 0;
+                                      translateY = 0;
+                                    }
+                                    updateTransform();
+                                  });
+                                  
+                                  resetBtn?.addEventListener('click', () => {
+                                    scale = 1;
+                                    translateX = 0;
+                                    translateY = 0;
+                                    updateTransform();
+                                  });
+                                  
+                                  // Mouse wheel zoom
+                                  modal.addEventListener('wheel', (e: WheelEvent) => {
+                                    e.preventDefault();
+                                    const zoomSpeed = 0.1;
+                                    const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                                    scale = Math.max(0.5, Math.min(5, scale + delta));
+                                    
+                                    if (scale <= 1) {
+                                      translateX = 0;
+                                      translateY = 0;
+                                    }
+                                    updateTransform();
+                                  });
+                                  
+                                  // Mouse drag to pan
+                                  img?.addEventListener('mousedown', (e: MouseEvent) => {
+                                    if (scale <= 1) return;
+                                    isDragging = true;
+                                    startX = e.clientX - translateX;
+                                    startY = e.clientY - translateY;
+                                    if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
+                                  });
+                                  
+                                  modal.addEventListener('mousemove', (e: MouseEvent) => {
+                                    if (!isDragging || scale <= 1) return;
+                                    translateX = e.clientX - startX;
+                                    translateY = e.clientY - startY;
+                                    updateTransform();
+                                  });
+                                  
+                                  modal.addEventListener('mouseup', () => {
+                                    isDragging = false;
+                                    if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
+                                  });
+                                  
+                                  // Touch support for mobile
+                                  let lastTouchDistance = 0;
+                                  let initialScale = 1;
+                                  
+                                  modal.addEventListener('touchstart', (e: TouchEvent) => {
+                                    if (e.touches.length === 2) {
+                                      const touch1 = e.touches[0];
+                                      const touch2 = e.touches[1];
+                                      lastTouchDistance = Math.sqrt(
+                                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                                      );
+                                      initialScale = scale;
+                                    } else if (e.touches.length === 1 && scale > 1) {
+                                      isDragging = true;
+                                      startX = e.touches[0].clientX - translateX;
+                                      startY = e.touches[0].clientY - translateY;
+                                    }
+                                  });
+                                  
+                                  modal.addEventListener('touchmove', (e: TouchEvent) => {
+                                    e.preventDefault();
+                                    
+                                    if (e.touches.length === 2) {
+                                      const touch1 = e.touches[0];
+                                      const touch2 = e.touches[1];
+                                      const currentDistance = Math.sqrt(
+                                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                                      );
+                                      
+                                      scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                                      
+                                      if (scale <= 1) {
+                                        translateX = 0;
+                                        translateY = 0;
+                                      }
+                                      updateTransform();
+                                    } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                                      translateX = e.touches[0].clientX - startX;
+                                      translateY = e.touches[0].clientY - startY;
+                                      updateTransform();
+                                    }
+                                  });
+                                  
+                                  modal.addEventListener('touchend', () => {
+                                    isDragging = false;
+                                  });
+                                  
+                                  // Keyboard support
+                                  const handleKeyPress = (e: KeyboardEvent) => {
+                                    switch(e.key) {
+                                      case 'Escape':
+                                        modal.remove();
+                                        break;
+                                      case '=':
+                                      case '+':
+                                        scale = Math.min(scale * 1.2, 5);
+                                        updateTransform();
+                                        break;
+                                      case '-':
+                                      case '_':
+                                        scale = Math.max(scale / 1.2, 0.5);
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                        break;
+                                      case '0':
+                                        scale = 1;
+                                        translateX = 0;
+                                        translateY = 0;
+                                        updateTransform();
+                                        break;
+                                    }
+                                  };
+                                  
+                                  document.addEventListener('keydown', handleKeyPress);
+                                  
+                                  // Cleanup on modal remove
+                                  const observer = new MutationObserver((mutations: MutationRecord[]) => {
+                                    mutations.forEach((mutation: MutationRecord) => {
+                                      if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                        Array.from(mutation.removedNodes).forEach((node) => {
+                                          if (node === modal) {
+                                            document.removeEventListener('keydown', handleKeyPress);
+                                            observer.disconnect();
+                                          }
+                                        });
+                                      }
+                                    });
+                                  });
+                                  
+                                  observer.observe(document.body, { childList: true });
                                   document.body.appendChild(modal);
+                                  
+                                  // Focus for keyboard navigation
+                                  modal.focus();
+                                  modal.tabIndex = 0;
                                 }}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
@@ -1580,24 +2019,237 @@ export default function Forum() {
                         alt={`Post media ${index + 1}`}
                         className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => {
-                          // Create and open image modal
+                          // Create enhanced zoomable image modal
                           const modal = document.createElement('div');
-                          modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4';
+                          modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                          
+                          let scale = 1;
+                          let isDragging = false;
+                          let startX = 0, startY = 0;
+                          let translateX = 0, translateY = 0;
+                          
                           modal.innerHTML = `
-                            <div class="relative max-w-full max-h-full">
-                              <img src="${url}" alt="Full size image" class="max-w-full max-h-full object-contain rounded-lg" />
-                              <button class="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all" onclick="this.parentElement.parentElement.remove()">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                              <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                   class="max-w-none max-h-none object-contain transition-transform duration-200 cursor-grab" 
+                                   style="transform: scale(1) translate(0px, 0px)" 
+                                   draggable="false" />
+                              
+                              <!-- Close button -->
+                              <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                   <line x1="18" y1="6" x2="6" y2="18"></line>
                                   <line x1="6" y1="6" x2="18" y2="18"></line>
                                 </svg>
                               </button>
+                              
+                              <!-- Zoom controls -->
+                              <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="M21 21l-4.35-4.35"></path>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                  </svg>
+                                </button>
+                                <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                  Reset
+                                </button>
+                                <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="M21 21l-4.35-4.35"></path>
+                                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                  </svg>
+                                </button>
+                              </div>
+                              
+                              <!-- Instructions -->
+                              <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                Scroll to zoom • Drag to pan
+                              </div>
                             </div>
                           `;
-                          modal.addEventListener('click', (e) => {
+                          
+                          const img = modal.querySelector('#zoomableImage');
+                          const closeBtn = modal.querySelector('#closeModal');
+                          const zoomInBtn = modal.querySelector('#zoomIn');
+                          const zoomOutBtn = modal.querySelector('#zoomOut');
+                          const resetBtn = modal.querySelector('#resetZoom');
+                          
+                          // Update transform
+                          const updateTransform = () => {
+                            if (img) {
+                              (img as HTMLImageElement).style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+                              (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                            }
+                          };
+                          
+                          // Close modal
+                          closeBtn?.addEventListener('click', () => modal.remove());
+                          modal.addEventListener('click', (e: MouseEvent) => {
                             if (e.target === modal) modal.remove();
                           });
+                          
+                          // Zoom controls
+                          zoomInBtn?.addEventListener('click', () => {
+                            scale = Math.min(scale * 1.5, 5);
+                            updateTransform();
+                          });
+                          
+                          zoomOutBtn?.addEventListener('click', () => {
+                            scale = Math.max(scale / 1.5, 0.5);
+                            if (scale <= 1) {
+                              translateX = 0;
+                              translateY = 0;
+                            }
+                            updateTransform();
+                          });
+                          
+                          resetBtn?.addEventListener('click', () => {
+                            scale = 1;
+                            translateX = 0;
+                            translateY = 0;
+                            updateTransform();
+                          });
+                          
+                          // Mouse wheel zoom
+                          modal.addEventListener('wheel', (e: WheelEvent) => {
+                            e.preventDefault();
+                            const zoomSpeed = 0.1;
+                            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                            scale = Math.max(0.5, Math.min(5, scale + delta));
+                            
+                            if (scale <= 1) {
+                              translateX = 0;
+                              translateY = 0;
+                            }
+                            updateTransform();
+                          });
+                          
+                          // Mouse drag to pan
+                          img?.addEventListener('mousedown', (e: Event) => {
+                            const mouseEvent = e as MouseEvent;
+                            if (scale <= 1) return;
+                            isDragging = true;
+                            startX = mouseEvent.clientX - translateX;
+                            startY = mouseEvent.clientY - translateY;
+                            if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
+                          });
+                          
+                          modal.addEventListener('mousemove', (e: MouseEvent) => {
+                            if (!isDragging || scale <= 1) return;
+                            translateX = e.clientX - startX;
+                            translateY = e.clientY - startY;
+                            updateTransform();
+                          });
+                          
+                          modal.addEventListener('mouseup', () => {
+                            isDragging = false;
+                            if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
+                          });
+                          
+                          // Touch support for mobile
+                          let lastTouchDistance = 0;
+                          let initialScale = 1;
+                          
+                          modal.addEventListener('touchstart', (e: TouchEvent) => {
+                            if (e.touches.length === 2) {
+                              const touch1 = e.touches[0];
+                              const touch2 = e.touches[1];
+                              lastTouchDistance = Math.sqrt(
+                                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                Math.pow(touch2.clientY - touch1.clientY, 2)
+                              );
+                              initialScale = scale;
+                            } else if (e.touches.length === 1 && scale > 1) {
+                              isDragging = true;
+                              startX = e.touches[0].clientX - translateX;
+                              startY = e.touches[0].clientY - translateY;
+                            }
+                          });
+                          
+                          modal.addEventListener('touchmove', (e: TouchEvent) => {
+                            e.preventDefault();
+                            
+                            if (e.touches.length === 2) {
+                              const touch1 = e.touches[0];
+                              const touch2 = e.touches[1];
+                              const currentDistance = Math.sqrt(
+                                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                Math.pow(touch2.clientY - touch1.clientY, 2)
+                              );
+                              
+                              scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                              
+                              if (scale <= 1) {
+                                translateX = 0;
+                                translateY = 0;
+                              }
+                              updateTransform();
+                            } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                              translateX = e.touches[0].clientX - startX;
+                              translateY = e.touches[0].clientY - startY;
+                              updateTransform();
+                            }
+                          });
+                          
+                          modal.addEventListener('touchend', () => {
+                            isDragging = false;
+                          });
+                          
+                          // Keyboard support
+                          const handleKeyPress = (e: KeyboardEvent) => {
+                            switch(e.key) {
+                              case 'Escape':
+                                modal.remove();
+                                break;
+                              case '=':
+                              case '+':
+                                scale = Math.min(scale * 1.2, 5);
+                                updateTransform();
+                                break;
+                              case '-':
+                              case '_':
+                                scale = Math.max(scale / 1.2, 0.5);
+                                if (scale <= 1) {
+                                  translateX = 0;
+                                  translateY = 0;
+                                }
+                                updateTransform();
+                                break;
+                              case '0':
+                                scale = 1;
+                                translateX = 0;
+                                translateY = 0;
+                                updateTransform();
+                                break;
+                            }
+                          };
+                          
+                          document.addEventListener('keydown', handleKeyPress);
+                          
+                          // Cleanup on modal remove
+                          const observer = new MutationObserver((mutations: MutationRecord[]) => {
+                            mutations.forEach((mutation: MutationRecord) => {
+                              if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                Array.from(mutation.removedNodes).forEach((node) => {
+                                  if (node === modal) {
+                                    document.removeEventListener('keydown', handleKeyPress);
+                                    observer.disconnect();
+                                  }
+                                });
+                              }
+                            });
+                          });
+                          
+                          observer.observe(document.body, { childList: true });
                           document.body.appendChild(modal);
+                          
+                          // Focus for keyboard navigation
+                          modal.focus();
+                          modal.tabIndex = 0;
                         }}
                       />
                     </div>
