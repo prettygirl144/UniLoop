@@ -1370,7 +1370,7 @@ export default function Amenities() {
                     </DialogHeader>
                     <div className="flex-1 p-4 pt-2 overflow-hidden">
                       <iframe
-                        src="https://docs.google.com/forms/u/0/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?pli=1&embedded=true"
+                        src="https://forms.gle/TYx2d373r6NFt3Ew8"
                         width="100%"
                         height="100%"
                         frameBorder="0"
