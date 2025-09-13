@@ -9,6 +9,16 @@ export interface LeaveFormData {
   correlationId: string;
 }
 
+export interface GrievanceFormData {
+  email: string;
+  name: string;
+  phoneNumber?: string;
+  roomNumber?: string;
+  category: string;
+  description: string;
+  correlationId: string;
+}
+
 export interface GoogleFormResponse {
   ok: boolean;
   statusCode?: number;
@@ -440,4 +450,191 @@ export function buildGoogleFormPreview(formData: LeaveFormData): {
     entryKeys: Array.from(formBody.keys()).sort(),
     maskedEmail: email!.length > 4 ? `${email!.substring(0, 2)}***${email!.slice(-2)}` : '***'
   };
+}
+
+/**
+ * Submits grievance data to Google Forms
+ * Handles form data mapping, HTTP submission, and error tracking
+ */
+export async function submitGrievanceToGoogleForm(
+  formData: GrievanceFormData,
+  attemptNumber: number = 1
+): Promise<GoogleFormResponse> {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  console.log(`📝 [GOOGLE-FORM-GRIEVANCE] Submitting grievance - Correlation ID: ${formData.correlationId}, Attempt: ${attemptNumber}`);
+  
+  // Check if we're in test mode
+  const grievanceConfig = (googleFormMap as any).grievance;
+  if (!grievanceConfig) {
+    console.error(`❌ [GOOGLE-FORM-GRIEVANCE] Grievance form configuration not found in googleFormMap.json`);
+    return {
+      ok: false,
+      statusCode: 500,
+      attempts: attemptNumber,
+      lastTriedAt: timestamp,
+      latencyMs: Date.now() - startTime,
+      error: 'Grievance form configuration not found'
+    };
+  }
+
+  if ((googleFormMap as any)._test_mode) {
+    console.log(`🧪 [GOOGLE-FORM-GRIEVANCE] TEST MODE - Simulating successful submission`);
+    await addJitter();
+    
+    return {
+      ok: true,
+      statusCode: 200,
+      attempts: attemptNumber,
+      lastTriedAt: timestamp,
+      latencyMs: Date.now() - startTime,
+    };
+  }
+  
+  try {
+    // Validate required fields
+    const validationErrors: string[] = [];
+    
+    const email = formData.email?.trim().toLowerCase();
+    const name = formData.name?.trim();
+    const category = formData.category?.trim();
+    const description = formData.description?.trim();
+    const correlationId = formData.correlationId;
+    const phoneNumber = formData.phoneNumber?.trim();
+    const roomNumber = formData.roomNumber?.trim();
+    
+    // Check required fields
+    if (!email) validationErrors.push('Email is required');
+    else if (!validateEmail(email)) validationErrors.push('Invalid email format');
+    
+    if (!name) validationErrors.push('Name is required');
+    if (!category) validationErrors.push('Category is required');
+    if (!description) validationErrors.push('Description is required');
+    if (!correlationId) validationErrors.push('Correlation ID is required');
+    
+    if (validationErrors.length > 0) {
+      console.error(`❌ [GOOGLE-FORM-GRIEVANCE] Validation failed:`, validationErrors);
+      return {
+        ok: false,
+        statusCode: 400,
+        attempts: attemptNumber,
+        lastTriedAt: timestamp,
+        latencyMs: Date.now() - startTime,
+        error: `Validation failed: skipped:validation`,
+        validationErrors
+      };
+    }
+    
+    // Add anti-bot jitter delay
+    await addJitter();
+    
+    // Map our form data to Google Form entries
+    const formBody = new URLSearchParams();
+    const mappings = grievanceConfig.mappings;
+    
+    // Add form fields
+    formBody.append(mappings.email, email!);
+    formBody.append(mappings.name, name!);
+    formBody.append(mappings.category, category!);
+    formBody.append(mappings.description, description!);
+    
+    if (phoneNumber && mappings.phoneNumber) {
+      formBody.append(mappings.phoneNumber, phoneNumber);
+    }
+    
+    if (roomNumber && mappings.roomNumber) {
+      formBody.append(mappings.roomNumber, roomNumber);
+    }
+    
+    const entryKeys = Array.from(formBody.keys());
+    
+    console.log(`🔗 [GOOGLE-FORM-GRIEVANCE] Posting to: ${grievanceConfig._form_url}`);
+    console.log(`📋 [GOOGLE-FORM-GRIEVANCE] Mapped fields:`, {
+      email: `***${email!.slice(-4)}`,
+      name: name!.substring(0, 20) + '...',
+      category,
+      description: description!.substring(0, 50) + '...',
+      correlationId,
+      entryKeys: entryKeys.sort()
+    });
+    
+    // Submit to Google Forms with enhanced headers
+    const userAgent = generateUserAgent();
+    const response = await fetch(grievanceConfig._form_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': userAgent,
+        'Referer': 'https://docs.google.com/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      },
+      body: formBody
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const responseText = await response.text();
+    const bodySnippet = responseText.substring(0, 200);
+
+    if (response.ok) {
+      console.log(`✅ [GOOGLE-FORM-GRIEVANCE] Successfully submitted - Status: ${response.status}, Latency: ${latencyMs}ms`);
+      return {
+        ok: true,
+        statusCode: response.status,
+        finalUrl: response.url,
+        attempts: attemptNumber,
+        lastTriedAt: timestamp,
+        latencyMs,
+        bodySnippet
+      };
+    } else {
+      console.error(`❌ [GOOGLE-FORM-GRIEVANCE] Submission failed - Status: ${response.status}, Response snippet: ${bodySnippet}`);
+      
+      // Retry logic for server errors
+      if (response.status >= 500 && attemptNumber < 3) {
+        const retryDelay = Math.pow(2, attemptNumber) * 1000; // Exponential backoff
+        console.log(`🔄 [GOOGLE-FORM-GRIEVANCE] Retrying in ${retryDelay}ms (attempt ${attemptNumber + 1}/3)`);
+        
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return submitGrievanceToGoogleForm(formData, attemptNumber + 1);
+      }
+      
+      return {
+        ok: false,
+        statusCode: response.status,
+        finalUrl: response.url,
+        attempts: attemptNumber,
+        lastTriedAt: timestamp,
+        latencyMs,
+        error: `HTTP ${response.status}`,
+        bodySnippet
+      };
+    }
+  } catch (error: any) {
+    const latencyMs = Date.now() - startTime;
+    console.error(`💥 [GOOGLE-FORM-GRIEVANCE] Network/parsing error:`, error.message);
+    
+    // Retry logic for network errors
+    if (attemptNumber < 3 && (error.code === 'ENOTFOUND' || error.code === 'ECONNRESET' || error.message.includes('fetch'))) {
+      const retryDelay = Math.pow(2, attemptNumber) * 1000;
+      console.log(`🔄 [GOOGLE-FORM-GRIEVANCE] Retrying network request in ${retryDelay}ms (attempt ${attemptNumber + 1}/3)`);
+      
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      return submitGrievanceToGoogleForm(formData, attemptNumber + 1);
+    }
+    
+    return {
+      ok: false,
+      statusCode: 0,
+      attempts: attemptNumber,
+      lastTriedAt: timestamp,
+      latencyMs,
+      error: error.message || 'Unknown network error'
+    };
+  }
 }

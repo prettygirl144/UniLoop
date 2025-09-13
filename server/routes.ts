@@ -27,7 +27,7 @@ import {
 import { z } from "zod";
 import { parseExcelMenu } from "./menuParser";
 import { parseStudentExcel, parseRollNumbersForEvent } from "./studentParser";
-import { submitToGoogleForm, generateCorrelationId, generatePrefillProbeUrl, buildGoogleFormPreview, type LeaveFormData } from "./services/googleFormSubmit";
+import { submitToGoogleForm, submitGrievanceToGoogleForm, generateCorrelationId, generatePrefillProbeUrl, buildGoogleFormPreview, type LeaveFormData, type GrievanceFormData } from "./services/googleFormSubmit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -2136,21 +2136,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit grievance
+  // Submit grievance with Google Form integration
   app.post('/api/grievances', checkAuth, async (req: any, res) => {
+    const requestId = req.headers['x-request-id'] || `grievance_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    
+    console.log(`📋 [GRIEVANCE] Request entry - RequestID: ${requestId}`);
+    console.log(`👤 [GRIEVANCE] User session:`, {
+      userId: req.session?.user?.id,
+      userEmail: req.session?.user?.email,
+      requestId
+    });
+    
     try {
       const userId = req.session.user.id;
+      const userEmail = req.session.user.email;
+      const userName = req.session.user.name || req.session.user.email;
+      const correlationId = generateCorrelationId();
       
+      console.log(`📝 [GRIEVANCE] Processing submission - Correlation ID: ${correlationId}, RequestID: ${requestId}`);
+      
+      // Validate and prepare data for local storage
       const grievanceData = insertGrievanceSchema.parse({
         ...req.body,
         userId,
       });
       
+      console.log(`📊 [GRIEVANCE] Validated payload:`, {
+        userId: grievanceData.userId,
+        roomNumber: grievanceData.roomNumber,
+        category: grievanceData.category,
+        description: grievanceData.description?.substring(0, 50) + '...',
+        correlationId,
+        requestId
+      });
+      
+      // Prepare data for Google Form submission
+      const googleFormData: GrievanceFormData = {
+        email: userEmail,
+        name: userName,
+        phoneNumber: req.body.phoneNumber || '',
+        roomNumber: grievanceData.roomNumber,
+        category: grievanceData.category,
+        description: grievanceData.description,
+        correlationId,
+      };
+      
+      // Attempt Google Form submission
+      console.log(`🔗 [GRIEVANCE] Attempting Google Form submission - RequestID: ${requestId}`);
+      const googleStatus = await submitGrievanceToGoogleForm(googleFormData, 1);
+      
+      console.log(`${googleStatus.ok ? '✅' : '❌'} [GRIEVANCE] Google Form ${googleStatus.ok ? 'succeeded' : 'failed'} - Status: ${googleStatus.statusCode}, Latency: ${googleStatus.latencyMs}ms, RequestID: ${requestId}`);
+      
+      // Save to local database
+      console.log(`💾 [GRIEVANCE] Saving to database - RequestID: ${requestId}`);
       const grievance = await storage.submitGrievance(grievanceData);
-      res.json(grievance);
-    } catch (error) {
-      console.error("Error submitting grievance:", error);
-      res.status(500).json({ message: "Failed to submit grievance" });
+      
+      const responseTime = Date.now() - startTime;
+      
+      console.log(`✅ [GRIEVANCE] Complete - RequestID: ${requestId}, Response time: ${responseTime}ms, Google: ${googleStatus.ok ? 'success' : 'failed'}`);
+      
+      // Return success with both local and Google status
+      res.json({
+        ...grievance,
+        googleFormStatus: {
+          submitted: googleStatus.ok,
+          statusCode: googleStatus.statusCode,
+          latencyMs: googleStatus.latencyMs,
+          error: googleStatus.error
+        },
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ [GRIEVANCE] Error submitting grievance - RequestID: ${requestId}:`, error);
+      res.status(500).json({ 
+        message: "Failed to submit grievance",
+        _diagnostics: {
+          requestId,
+          responseTime: `${responseTime}ms`,
+          timestamp: new Date().toISOString(),
+          error: error.message
+        }
+      });
     }
   });
 
