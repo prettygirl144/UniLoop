@@ -76,11 +76,6 @@ const leaveApplicationSchema = z.object({
   path: ['endDate'],
 });
 
-const grievanceSchema = z.object({
-  category: z.string().min(1, 'Category is required'),
-  description: z.string().min(1, 'Description is required'),
-  roomNumber: z.string().min(1, 'Room number is required'),
-});
 
 const menuUploadSchema = z.object({
   date: z.string().optional(),
@@ -93,7 +88,6 @@ const menuUploadSchema = z.object({
 
 type SickFoodForm = z.infer<typeof sickFoodSchema>;
 type LeaveApplicationForm = z.infer<typeof leaveApplicationSchema>;
-type GrievanceForm = z.infer<typeof grievanceSchema>;
 type MenuUploadForm = z.infer<typeof menuUploadSchema>;
 
 export default function Amenities() {
@@ -180,14 +174,6 @@ export default function Amenities() {
     },
   });
 
-  const grievanceForm = useForm<GrievanceForm>({
-    resolver: zodResolver(grievanceSchema),
-    defaultValues: {
-      category: '',
-      description: '',
-      roomNumber: '',
-    },
-  });
 
   const menuUploadForm = useForm<MenuUploadForm>({
     resolver: zodResolver(menuUploadSchema),
@@ -457,41 +443,6 @@ export default function Amenities() {
     },
   });
 
-  const grievanceMutation = useMutation({
-    mutationFn: async (data: GrievanceForm) => {
-      await apiRequest('POST', '/api/grievances', data);
-    },
-    onSuccess: () => {
-      setShowGrievanceDialog(false);
-      grievanceForm.reset();
-      toast({
-        title: 'Success',
-        description: 'Grievance submitted successfully!',
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/grievances'] });
-      
-      // Invalidate user submissions cache for the modal
-      queryClient.invalidateQueries({ queryKey: ['userSubmissions', 'grievances'] });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: 'Error',
-        description: 'Failed to submit grievance. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
 
   const retryGoogleSync = useMutation({
     mutationFn: async (applicationId: string) => {
@@ -1410,70 +1361,24 @@ export default function Amenities() {
                   <DialogTrigger asChild>
                     <Button className="w-full">Submit Grievance</Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-4xl w-[95vw] h-[90vh] max-h-[600px]">
                     <DialogHeader>
                       <DialogTitle>Submit Grievance</DialogTitle>
                     </DialogHeader>
-                    <Form {...grievanceForm}>
-                      <form onSubmit={grievanceForm.handleSubmit((data) => grievanceMutation.mutate(data))} className="space-y-4">
-                        <FormField
-                          control={grievanceForm.control}
-                          name="category"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Category</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select category" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Mess">Mess</SelectItem>
-                                  <SelectItem value="IT">IT Services</SelectItem>
-                                  <SelectItem value="Hostel">Hostel Maintenance</SelectItem>
-                                  <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={grievanceForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Describe your grievance in detail..." {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={grievanceForm.control}
-                          name="roomNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Room Number</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g., A-101" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button 
-                          type="submit" 
-                          disabled={grievanceMutation.isPending}
-                          className="w-full"
-                        >
-                          {grievanceMutation.isPending ? 'Submitting...' : 'Submit Grievance'}
-                        </Button>
-                      </form>
-                    </Form>
+                    <div className="flex-1 w-full h-full min-h-[500px]">
+                      <iframe
+                        src="https://docs.google.com/forms/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?embedded=true"
+                        width="100%"
+                        height="100%"
+                        frameBorder={0}
+                        marginHeight={0}
+                        marginWidth={0}
+                        title="Submit Grievance Form"
+                        className="rounded-lg"
+                        allow="camera; microphone"
+                        loading="lazy"
+                      />
+                    </div>
                   </DialogContent>
                 </Dialog>
               </CardContent>
