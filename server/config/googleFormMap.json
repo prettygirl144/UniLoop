@@ -39,22 +39,5 @@
   "_maintenance": {
     "lastUpdated": "2025-08-21",
     "howToRefresh": "When Google Form is edited: 1) View form source, 2) Copy new entry.* IDs, 3) Update mappings above, 4) Test with sample submission"
-  },
-  "grievance": {
-    "_comment": "Grievance Form mapping - Form URL: https://forms.gle/TYx2d373r6NFt3Ew8",
-    "_form_url": "https://docs.google.com/forms/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/formResponse",
-    "_instructions": "TO UPDATE MAPPINGS: 1) Open https://forms.gle/TYx2d373r6NFt3Ew8, 2) Inspect each field, 3) Find 'entry.XXXXXXXXX' values, 4) Update mappings below",
-    "mappings": {
-      "email": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID",
-      "category": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID",
-      "description": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID",
-      "roomNumber": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID",
-      "name": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID",
-      "phoneNumber": "entry.REPLACE_WITH_ACTUAL_ENTRY_ID"
-    },
-    "_notes": {
-      "status": "NEEDS_FIELD_MAPPING - Replace entry IDs with actual values from the Google Form",
-      "howToGetEntryIds": "1) Open the form, 2) Right-click each field > Inspect, 3) Find name='entry.XXXXXXXXX' attribute, 4) Copy the entry ID"
-    }
   }
 }
