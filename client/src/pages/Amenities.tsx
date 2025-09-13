@@ -1361,23 +1361,24 @@ export default function Amenities() {
                   <DialogTrigger asChild>
                     <Button className="w-full">Submit Grievance</Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl w-[95vw] h-[90vh] max-h-[600px]">
-                    <DialogHeader>
+                  <DialogContent className="max-w-4xl w-[90vw] h-[90vh] p-0 flex flex-col">
+                    <DialogHeader className="p-4 pb-2 flex-shrink-0">
                       <DialogTitle>Submit Grievance</DialogTitle>
+                      <p className="text-small text-muted-foreground">
+                        Complete the grievance form. Your email may be automatically populated if you're signed in to Google.
+                      </p>
                     </DialogHeader>
-                    <div className="flex-1 w-full h-full min-h-[500px]">
+                    <div className="flex-1 p-4 pt-2 overflow-hidden">
                       <iframe
-                        src="https://docs.google.com/forms/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?embedded=true&usp=pp_url&chrome=false"
+                        src="https://docs.google.com/forms/u/0/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?pli=1&embedded=true"
                         width="100%"
                         height="100%"
-                        frameBorder={0}
+                        frameBorder="0"
                         marginHeight={0}
                         marginWidth={0}
                         title="Submit Grievance Form"
                         className="rounded-lg"
-                        sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                        allow="camera; microphone; clipboard-write; encrypted-media"
-                        referrerPolicy="no-referrer"
+                        allow="camera; microphone"
                         loading="lazy"
                       />
                     </div>
