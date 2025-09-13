@@ -1367,7 +1367,7 @@ export default function Amenities() {
                     </DialogHeader>
                     <div className="flex-1 w-full h-full min-h-[500px]">
                       <iframe
-                        src="https://docs.google.com/forms/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?embedded=true"
+                        src="https://docs.google.com/forms/d/e/1FAIpQLSf0DLDbtzJfKUNe2J4vlL1UKwk31WWAzz9qW5Qs4JjTY66DnA/viewform?embedded=true&usp=pp_url&chrome=false"
                         width="100%"
                         height="100%"
                         frameBorder={0}
@@ -1375,7 +1375,9 @@ export default function Amenities() {
                         marginWidth={0}
                         title="Submit Grievance Form"
                         className="rounded-lg"
-                        allow="camera; microphone"
+                        sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                        allow="camera; microphone; clipboard-write; encrypted-media"
+                        referrerPolicy="no-referrer"
                         loading="lazy"
                       />
                     </div>
