@@ -354,29 +354,46 @@ export class DatabaseStorage implements IStorage {
 
   async getEventsFiltered(options: {
     status?: 'current' | 'past' | 'all';
+    search?: string;
     page?: number;
     limit?: number;
   } = {}): Promise<{ events: Event[], total: number, hasMore: boolean }> {
-    const { status = 'current', page = 1, limit = 20 } = options;
+    const { status = 'current', search, page = 1, limit = 20 } = options;
     
     // Get current date and time for filtering
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const todayStr = today.toISOString().split('T')[0];
     
     // Build query conditions
-    let whereCondition = sql`1=1`; // Default condition for 'all' status
+    let whereConditions = [];
     
+    // Status-based filtering
     if (status === 'current') {
       // Current: event date > today OR (event date is today AND endTime >= now)
-      whereCondition = sql`(${events.date} > ${todayStr} OR 
-                           (${events.date} = ${todayStr} AND ${events.endTime} >= ${currentTime}))`;
+      whereConditions.push(sql`(DATE(${events.date}) > CURRENT_DATE OR 
+                           (DATE(${events.date}) = CURRENT_DATE AND ${events.endTime} >= ${currentTime}))`);
     } else if (status === 'past') {
       // Past: event date < today OR (event date is today AND endTime < now)
-      whereCondition = sql`(${events.date} < ${todayStr} OR 
-                           (${events.date} = ${todayStr} AND ${events.endTime} < ${currentTime}))`;
+      whereConditions.push(sql`(DATE(${events.date}) < CURRENT_DATE OR 
+                           (DATE(${events.date}) = CURRENT_DATE AND ${events.endTime} < ${currentTime}))`);
     }
+    
+    // Search filtering
+    if (search && search.trim() !== '') {
+      const searchTerm = `%${search.trim()}%`;
+      whereConditions.push(sql`(
+        LOWER(${events.title}) LIKE LOWER(${searchTerm}) OR
+        LOWER(${events.description}) LIKE LOWER(${searchTerm}) OR
+        LOWER(${events.location}) LIKE LOWER(${searchTerm}) OR
+        LOWER(${events.hostCommittee}) LIKE LOWER(${searchTerm}) OR
+        LOWER(${events.category}) LIKE LOWER(${searchTerm})
+      )`);
+    }
+    
+    // Combine all conditions
+    const whereCondition = whereConditions.length > 0 
+      ? whereConditions.reduce((acc, condition) => sql`${acc} AND ${condition}`)
+      : sql`1=1`;
     
     // Get total count for pagination
     const [{ count: total }] = await db

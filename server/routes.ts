@@ -332,25 +332,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Events routes
   app.get('/api/events', async (req, res) => {
     try {
-      const { tag, limit, status, page } = req.query;
+      const { tag, search, limit, status, page } = req.query;
       const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log(`🔍 [EVENTS-GET] Fetching events - Status: ${status || 'current'}, Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Page: ${page || '1'}, RequestID: ${requestId}`);
+      console.log(`🔍 [EVENTS-GET] Fetching events - Status: ${status || 'current'}, Search: ${search || 'none'}, Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Page: ${page || '1'}, RequestID: ${requestId}`);
       
       // Parse parameters
       const statusFilter = (status as string) || 'current';
+      const searchQuery = search as string;
       const pageNum = parseInt((page as string) || '1', 10);
       const limitNum = parseInt((limit as string) || '20', 10);
       
-      // For backward compatibility, use old method if no status filter provided and no page requested
+      // For backward compatibility, use old method if no status filter provided, no search, and no page requested
       let result;
-      if (!status && !page) {
+      if (!status && !search && !page) {
         const events = await storage.getEvents();
         result = { events, total: events.length, hasMore: false };
       } else {
         // Use new filtered method
         result = await storage.getEventsFiltered({
           status: statusFilter as 'current' | 'past' | 'all',
+          search: searchQuery,
           page: pageNum,
           limit: limitNum
         });

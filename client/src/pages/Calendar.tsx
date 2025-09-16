@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2, List, Grid3X3, MapPin, Upload, FileSpreadsheet, UserCheck } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock, AlertTriangle, Info, Check, X, Edit, Trash2, List, Grid3X3, MapPin, Upload, FileSpreadsheet, UserCheck, Search } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -323,6 +323,7 @@ export default function Calendar() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [eventTab, setEventTab] = useState<'current' | 'past'>('current');
   const [pastEventsPage, setPastEventsPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -330,7 +331,16 @@ export default function Calendar() {
 
   // Fetch current events data (backward compatible)
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ['/api/events'],
+    queryKey: ['/api/events', { status: 'current', search: searchQuery }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ status: 'current' });
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery);
+      }
+      const response = await fetch(`/api/events?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch current events');
+      return response.json();
+    },
     select: (data: any) => {
       // Handle both legacy format (Event[]) and new format ({ events: Event[], pagination: {...} })
       return Array.isArray(data) ? data : data?.events || [];
@@ -339,9 +349,17 @@ export default function Calendar() {
 
   // Fetch past events data with pagination
   const { data: pastEventsData, isLoading: pastEventsLoading } = useQuery({
-    queryKey: ['/api/events', { status: 'past', page: pastEventsPage }],
+    queryKey: ['/api/events', { status: 'past', page: pastEventsPage, search: searchQuery }],
     queryFn: async () => {
-      const response = await fetch(`/api/events?status=past&page=${pastEventsPage}&limit=20`);
+      const params = new URLSearchParams({ 
+        status: 'past',
+        page: pastEventsPage.toString(),
+        limit: '20'
+      });
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery);
+      }
+      const response = await fetch(`/api/events?${params}`);
       if (!response.ok) throw new Error('Failed to fetch past events');
       return response.json();
     },
@@ -1701,6 +1719,21 @@ export default function Calendar() {
           </CardContent>
         </Card>
       )}
+
+          {/* Search Events */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search events by title, description, location, or host..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4"
+                data-testid="input-search-events"
+              />
+            </div>
+          </div>
 
           {/* Events Tabs */}
           <Tabs value={eventTab} onValueChange={(value) => setEventTab(value as 'current' | 'past')} className="w-full">
