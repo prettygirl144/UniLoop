@@ -324,18 +324,32 @@ export default function Calendar() {
   const [eventTab, setEventTab] = useState<'current' | 'past'>('current');
   const [pastEventsPage, setPastEventsPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Debounce search query to reduce API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      // Reset page when search changes
+      if (eventTab === 'past') {
+        setPastEventsPage(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, eventTab]);
+
   // Fetch current events data (backward compatible)
   const { data: events, isLoading } = useQuery<Event[]>({
-    queryKey: ['/api/events', { status: 'current', search: searchQuery }],
+    queryKey: ['/api/events', { status: 'current', search: debouncedSearchQuery }],
     queryFn: async () => {
       const params = new URLSearchParams({ status: 'current' });
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery);
+      if (debouncedSearchQuery.trim()) {
+        params.append('search', debouncedSearchQuery);
       }
       const response = await fetch(`/api/events?${params}`);
       if (!response.ok) throw new Error('Failed to fetch current events');
@@ -349,15 +363,15 @@ export default function Calendar() {
 
   // Fetch past events data with pagination
   const { data: pastEventsData, isLoading: pastEventsLoading } = useQuery({
-    queryKey: ['/api/events', { status: 'past', page: pastEventsPage, search: searchQuery }],
+    queryKey: ['/api/events', { status: 'past', page: pastEventsPage, search: debouncedSearchQuery }],
     queryFn: async () => {
       const params = new URLSearchParams({ 
         status: 'past',
         page: pastEventsPage.toString(),
         limit: '20'
       });
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery);
+      if (debouncedSearchQuery.trim()) {
+        params.append('search', debouncedSearchQuery);
       }
       const response = await fetch(`/api/events?${params}`);
       if (!response.ok) throw new Error('Failed to fetch past events');
