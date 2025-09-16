@@ -1268,7 +1268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload weekly menu via Excel file (RBAC protected)
-  app.post('/api/amenities/menu/upload', authorizeAmenities('menuUpload'), upload.single('menuFile'), async (req: any, res) => {
+  app.post('/api/amenities/menu/upload', checkAuth, authorizeAmenities('menuUpload'), upload.single('menuFile'), async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       if (!userInfo) {
@@ -1350,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Edit individual menu items (RBAC protected)
-  app.put('/api/amenities/menu/:id', authorizeAmenities('menuUpload'), async (req: any, res) => {
+  app.put('/api/amenities/menu/:id', checkAuth, authorizeAmenities('menuUpload'), async (req: any, res) => {
     try {
       const userInfo = extractUser(req);
       if (!userInfo) {

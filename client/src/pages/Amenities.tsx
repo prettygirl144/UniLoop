@@ -121,8 +121,8 @@ export default function Amenities() {
     (user as any)?.permissions?.leaveApplicationAccess || 
     (user as any)?.permissions?.grievanceAccess;
   
-  // Check if user can edit menus (admin role OR diningHostel permission)
-  const canEditMenu = isAdmin || (user as any)?.permissions?.diningHostel;
+  // Check if user can edit menus (admin role OR menuUpload permission)
+  const canEditMenu = isAdmin || (user as any)?.permissions?.menuUpload;
   
   // Determine current tab from URL
   const getCurrentTab = () => {
@@ -1482,7 +1482,7 @@ export default function Amenities() {
                                          booking.status === 'rejected' ? 'Rejected' :
                                          'Pending'}
                                       </Badge>
-                                      {booking.status === 'pending' && (isAdmin || (user as any)?.permissions?.diningHostel) && (
+                                      {booking.status === 'pending' && (isAdmin || (user as any)?.permissions?.sickFoodAccess) && (
                                         <div className="flex gap-1">
                                           <Button 
                                             size="sm"

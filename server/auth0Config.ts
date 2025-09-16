@@ -28,7 +28,7 @@ export const checkAuth: RequestHandler = async (req: any, res, next) => {
         id: 'test-admin',
         email: 'admin@test.com',
         role: 'admin',
-        permissions: { diningHostel: true }
+        permissions: { diningHostel: true, menuUpload: true }
       };
       req.user = req.session.user;
       return next();
