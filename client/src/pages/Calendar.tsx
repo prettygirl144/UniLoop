@@ -321,14 +321,31 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [rollNumberAttendees, setRollNumberAttendees] = useState<any[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [eventTab, setEventTab] = useState<'current' | 'past'>('current');
+  const [pastEventsPage, setPastEventsPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch events data - moved before useEffect to fix variable declaration order
+  // Fetch current events data (backward compatible)
   const { data: events, isLoading } = useQuery<Event[]>({
     queryKey: ['/api/events'],
+    select: (data: any) => {
+      // Handle both legacy format (Event[]) and new format ({ events: Event[], pagination: {...} })
+      return Array.isArray(data) ? data : data?.events || [];
+    }
+  });
+
+  // Fetch past events data with pagination
+  const { data: pastEventsData, isLoading: pastEventsLoading } = useQuery({
+    queryKey: ['/api/events', { status: 'past', page: pastEventsPage }],
+    queryFn: async () => {
+      const response = await fetch(`/api/events?status=past&page=${pastEventsPage}&limit=20`);
+      if (!response.ok) throw new Error('Failed to fetch past events');
+      return response.json();
+    },
+    enabled: eventTab === 'past',
   });
 
   // No longer using student directory for eligibility - will check attendance sheets per event
@@ -1593,19 +1610,19 @@ export default function Calendar() {
 
       {/* Main Content - List or Calendar View */}
       {viewMode === 'list' ? (
-        <>
-          {/* Today's Events */}
+        <div className="space-y-4">
+          {/* Today's Events - Always show if available */}
           {todaysEvents && todaysEvents.length > 0 && (
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <CardTitle className="text-medium flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5" />
-              Today's Events
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-[400px] overflow-y-auto">
-            <div className="space-y-3">
-            {todaysEvents.map((event) => (
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="text-medium flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  Today's Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[400px] overflow-y-auto">
+                <div className="space-y-3">
+                {todaysEvents.map((event) => (
                 <div
                   key={event.id}
                   className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
@@ -1685,109 +1702,252 @@ export default function Calendar() {
         </Card>
       )}
 
-      {/* All Events */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-medium">All Events</CardTitle>
-        </CardHeader>
-        <CardContent className="max-h-[400px] overflow-y-auto">
-          {events && events.length > 0 ? (
-            <div className="space-y-3">
-              {events.map((event) => {
-                const eventDate = new Date(event.date);
-                
-                return (
-                  <div
-                    key={event.id}
-                    className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
-                    onClick={() => {
-                      console.log('EVENT CLICKED:', event.title, event.id);
-                      setSelectedEvent(event);
-                      setShowEventDetails(true);
-                      console.log('AFTER SETTING STATE - selectedEvent should be:', event.title);
-                    }}
-                  >
-                    <div className="space-y-3">
-                      {/* Header with title, badges, and action buttons */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-small font-medium truncate">{event.title}</h4>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {event.isMandatory && (
-                              <Badge variant="destructive" className="text-xs">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Mandatory
-                              </Badge>
-                            )}
-                            <EventEligibilityBadge event={event} />
-                            <Badge variant="outline" className="text-xs">
-                              {event.category}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        {/* Action buttons - Admin only */}
-                        {user?.role === 'admin' && (
-                          <div className="flex gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditEvent(event);
-                              }}
-                              className="p-1 h-6 w-6"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteEvent(event);
-                              }}
-                              className="p-1 h-6 w-6 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Event details */}
-                      <div className="text-xs text-muted-foreground space-y-2">
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3 h-3 shrink-0" />
-                            {eventDate.toLocaleDateString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 shrink-0" />
-                            {event.startTime} - {event.endTime}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <span className="truncate">{event.location}</span>
-                          <span className="truncate">Host: {event.hostCommittee}</span>
-                        </div>
-                      </div>
-
-                      {/* Eligible status - handled by EventEligibilityBadge above */}
+          {/* Events Tabs */}
+          <Tabs value={eventTab} onValueChange={(value) => setEventTab(value as 'current' | 'past')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2" data-testid="tabs-events">
+              <TabsTrigger value="current" data-testid="tab-current-events">All Events</TabsTrigger>
+              <TabsTrigger value="past" data-testid="tab-archived-events">Archived Past Events</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="current" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-medium">Current & Upcoming Events</CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-[400px] overflow-y-auto">
+                  {isLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                      <p className="text-small">Loading events...</p>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-small">No events scheduled</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-        </>
+                  ) : events && events.length > 0 ? (
+                    <div className="space-y-3" data-testid="list-current-events">
+                      {events.map((event) => {
+                        const eventDate = new Date(event.date);
+                        
+                        return (
+                          <div
+                            key={event.id}
+                            className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px]"
+                            onClick={() => {
+                              console.log('EVENT CLICKED:', event.title, event.id);
+                              setSelectedEvent(event);
+                              setShowEventDetails(true);
+                              console.log('AFTER SETTING STATE - selectedEvent should be:', event.title);
+                            }}
+                            data-testid={`card-event-${event.id}`}
+                          >
+                            <div className="space-y-3">
+                              {/* Header with title, badges, and action buttons */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-small font-medium truncate">{event.title}</h4>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    {event.isMandatory && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        <AlertTriangle className="w-3 h-3 mr-1" />
+                                        Mandatory
+                                      </Badge>
+                                    )}
+                                    <EventEligibilityBadge event={event} />
+                                    <Badge variant="outline" className="text-xs">
+                                      {event.category}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                {/* Action buttons - Admin only */}
+                                {user?.role === 'admin' && (
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditEvent(event);
+                                      }}
+                                      className="p-1 h-6 w-6"
+                                      data-testid={`button-edit-${event.id}`}
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteEvent(event);
+                                      }}
+                                      className="p-1 h-6 w-6 text-red-600 hover:text-red-700"
+                                      data-testid={`button-delete-${event.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Event details */}
+                              <div className="text-xs text-muted-foreground space-y-2">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <span className="flex items-center gap-1">
+                                    <CalendarIcon className="w-3 h-3 shrink-0" />
+                                    {eventDate.toLocaleDateString()}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3 shrink-0" />
+                                    {event.startTime} - {event.endTime}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <span className="truncate">{event.location}</span>
+                                  <span className="truncate">Host: {event.hostCommittee}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-small">No current events scheduled</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="past" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-medium">Archived Past Events</CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-[400px] overflow-y-auto">
+                  {pastEventsLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                      <p className="text-small">Loading archived events...</p>
+                    </div>
+                  ) : pastEventsData?.events && pastEventsData.events.length > 0 ? (
+                    <>
+                      <div className="space-y-3" data-testid="list-archived-events">
+                        {pastEventsData.events.map((event: Event) => {
+                          const eventDate = new Date(event.date);
+                          
+                          return (
+                            <div
+                              key={event.id}
+                              className="rounded-lg border hover:bg-gray-50 cursor-pointer p-4 min-h-[160px] opacity-75"
+                              onClick={() => {
+                                setSelectedEvent(event);
+                                setShowEventDetails(true);
+                              }}
+                              data-testid={`card-past-event-${event.id}`}
+                            >
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-small font-medium truncate">{event.title}</h4>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                      <Badge variant="secondary" className="text-xs">
+                                        Past Event
+                                      </Badge>
+                                      {event.isMandatory && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          <AlertTriangle className="w-3 h-3 mr-1" />
+                                          Mandatory
+                                        </Badge>
+                                      )}
+                                      <Badge variant="outline" className="text-xs">
+                                        {event.category}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Admin can still access attendance for past events */}
+                                  {user?.role === 'admin' && (
+                                    <div className="flex gap-1 shrink-0">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          window.open(`/attendance/${event.id}`, '_blank');
+                                        }}
+                                        className="p-1 h-6 w-6"
+                                        title="View Attendance"
+                                        data-testid={`button-attendance-${event.id}`}
+                                      >
+                                        <UserCheck className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-xs text-muted-foreground space-y-2">
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <span className="flex items-center gap-1">
+                                      <CalendarIcon className="w-3 h-3 shrink-0" />
+                                      {eventDate.toLocaleDateString()}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3 shrink-0" />
+                                      {event.startTime} - {event.endTime}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <span className="truncate">{event.location}</span>
+                                    <span className="truncate">Host: {event.hostCommittee}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Pagination for past events */}
+                      {pastEventsData?.pagination && pastEventsData.pagination.total > 20 && (
+                        <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPastEventsPage(p => Math.max(1, p - 1))}
+                            disabled={pastEventsPage === 1}
+                            data-testid="button-prev-page"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <span className="text-small text-muted-foreground">
+                            Page {pastEventsPage} of {Math.ceil(pastEventsData.pagination.total / 20)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPastEventsPage(p => p + 1)}
+                            disabled={!pastEventsData.pagination.hasMore}
+                            data-testid="button-next-page"
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-small">No archived events found</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       ) : (
         /* Calendar View */
         <CalendarGrid events={events || []} onEventClick={(event) => {

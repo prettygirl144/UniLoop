@@ -352,6 +352,67 @@ export class DatabaseStorage implements IStorage {
       .orderBy(events.date);
   }
 
+  async getEventsFiltered(options: {
+    status?: 'current' | 'past' | 'all';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{ events: Event[], total: number, hasMore: boolean }> {
+    const { status = 'current', page = 1, limit = 20 } = options;
+    
+    // Get current date and time for filtering
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Build query conditions
+    let whereCondition = sql`1=1`; // Default condition for 'all' status
+    
+    if (status === 'current') {
+      // Current: event date > today OR (event date is today AND endTime >= now)
+      whereCondition = sql`(${events.date} > ${todayStr} OR 
+                           (${events.date} = ${todayStr} AND ${events.endTime} >= ${currentTime}))`;
+    } else if (status === 'past') {
+      // Past: event date < today OR (event date is today AND endTime < now)
+      whereCondition = sql`(${events.date} < ${todayStr} OR 
+                           (${events.date} = ${todayStr} AND ${events.endTime} < ${currentTime}))`;
+    }
+    
+    // Get total count for pagination
+    const [{ count: total }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(events)
+      .where(whereCondition);
+    
+    // Build main query with pagination and ordering
+    const offset = (page - 1) * limit;
+    let orderBy;
+    
+    if (status === 'current') {
+      // Sort current events ascending by date (upcoming first)
+      orderBy = [events.date, events.startTime];
+    } else {
+      // Sort past and all events descending by date (recent first)
+      orderBy = [desc(events.date), desc(events.startTime)];
+    }
+    
+    const eventsResult = await db
+      .select()
+      .from(events)
+      .where(whereCondition)
+      .orderBy(...orderBy)
+      .limit(limit)
+      .offset(offset);
+    
+    const hasMore = offset + eventsResult.length < total;
+    
+    return {
+      events: eventsResult,
+      total,
+      hasMore
+    };
+  }
+
   async createEvent(event: InsertEvent): Promise<Event> {
     const requestId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`🔧 [DB-WRITE] Creating event - RequestID: ${requestId}`);

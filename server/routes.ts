@@ -332,27 +332,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Events routes
   app.get('/api/events', async (req, res) => {
     try {
-      const { tag, limit } = req.query;
+      const { tag, limit, status, page } = req.query;
       const requestId = `evt_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log(`🔍 [EVENTS-GET] Fetching events - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, RequestID: ${requestId}`);
+      console.log(`🔍 [EVENTS-GET] Fetching events - Status: ${status || 'current'}, Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Page: ${page || '1'}, RequestID: ${requestId}`);
       
-      const events = await storage.getEvents();
+      // Parse parameters
+      const statusFilter = (status as string) || 'current';
+      const pageNum = parseInt((page as string) || '1', 10);
+      const limitNum = parseInt((limit as string) || '20', 10);
       
-      let filteredEvents = events;
+      // For backward compatibility, use old method if no status filter provided and no page requested
+      let result;
+      if (!status && !page) {
+        const events = await storage.getEvents();
+        result = { events, total: events.length, hasMore: false };
+      } else {
+        // Use new filtered method
+        result = await storage.getEventsFiltered({
+          status: statusFilter as 'current' | 'past' | 'all',
+          page: pageNum,
+          limit: limitNum
+        });
+      }
       
-      // Filter by tag (case-insensitive) - check both category and any future tags field
+      let filteredEvents = result.events;
+      
+      // Apply tag filtering if provided (case-insensitive)
       if (tag) {
         const tagLower = (tag as string).toLowerCase();
-        filteredEvents = events.filter(event => 
+        filteredEvents = result.events.filter(event => 
           event.category?.toLowerCase().includes(tagLower) ||
           event.hostCommittee?.toLowerCase().includes(tagLower)
         );
-        console.log(`🏷️ [EVENTS-GET] Filtered ${events.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
+        console.log(`🏷️ [EVENTS-GET] Filtered ${result.events.length} -> ${filteredEvents.length} events by tag '${tag}', RequestID: ${requestId}`);
       }
       
-      // Apply limit if specified
-      if (limit) {
+      // Apply legacy limit if specified (for backward compatibility)
+      if (limit && !status && !page) {
         const limitNum = parseInt(limit as string, 10);
         if (!isNaN(limitNum) && limitNum > 0) {
           filteredEvents = filteredEvents.slice(0, limitNum);
@@ -360,8 +377,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log(`✅ [EVENTS-GET] Returning ${filteredEvents.length} events, RequestID: ${requestId}`);
-      res.json(filteredEvents);
+      console.log(`✅ [EVENTS-GET] Returning ${filteredEvents.length} events (${result.total} total, hasMore: ${result.hasMore}), RequestID: ${requestId}`);
+      
+      // Return format based on whether pagination is being used
+      if (status || page) {
+        res.json({
+          events: filteredEvents,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: result.total,
+            hasMore: result.hasMore
+          }
+        });
+      } else {
+        // Legacy format for backward compatibility
+        res.json(filteredEvents);
+      }
     } catch (error) {
       console.error("Error fetching events:", error);
       res.status(500).json({ message: "Failed to fetch events" });
