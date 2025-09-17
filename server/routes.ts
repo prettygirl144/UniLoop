@@ -1658,6 +1658,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export sick food bookings as CSV with user data
+  app.get('/api/amenities/sick-food/export', async (req: any, res) => {
+    // Check authentication first
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    // Check for admin access or Records-related permissions
+    const sessionUser = req.session?.user;
+    const hasRecordsAccess = sessionUser?.role === 'admin' || 
+      sessionUser?.permissions?.diningHostel || 
+      sessionUser?.permissions?.sickFoodAccess || 
+      sessionUser?.permissions?.leaveApplicationAccess || 
+      sessionUser?.permissions?.grievanceAccess;
+    
+    if (!hasRecordsAccess) {
+      console.log(`❌ [SICK-FOOD-EXPORT] Access denied - User: ${sessionUser?.id}, Role: ${sessionUser?.role}`);
+      return res.status(403).json({ message: "Insufficient permissions to export records" });
+    }
+
+    try {
+      const date = req.query.date ? new Date(req.query.date as string) : undefined;
+      const bookingsWithUsers = await storage.getSickFoodBookingsWithUserData(date);
+      
+      // Create CSV content with user data
+      const headers = ['ID', 'Student Name', 'Roll Number', 'Email', 'Date', 'Meal Type', 'Room Number', 'Phone Number', 'Special Requirements', 'Status', 'Approved By', 'Admin Notes', 'Created At'];
+      const csvRows = [
+        headers.join(','),
+        ...bookingsWithUsers.map(booking => {
+          const fullName = [booking.user.firstName, booking.user.lastName].filter(Boolean).join(' ') || 'N/A';
+          return [
+            booking.id,
+            fullName,
+            booking.user.rollNumber || 'N/A',
+            booking.user.email || 'N/A',
+            new Date(booking.date).toLocaleDateString(),
+            booking.mealType,
+            booking.roomNumber,
+            booking.phoneNumber || 'N/A',
+            booking.specialRequirements || '',
+            booking.status || 'pending',
+            booking.approvedBy || '',
+            booking.adminNotes || '',
+            new Date(booking.createdAt).toLocaleString(),
+          ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+        })
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      
+      const dateString = date ? `_${date.toISOString().split('T')[0]}` : '';
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="sick-food-bookings${dateString}.csv"`);
+      res.send(csvContent);
+      
+      console.log(`✅ [SICK-FOOD-EXPORT] CSV exported successfully - ${bookingsWithUsers.length} records - User: ${sessionUser?.id}`);
+    } catch (error) {
+      console.error("❌ [SICK-FOOD-EXPORT] Error exporting sick food bookings:", error);
+      res.status(500).json({ message: "Failed to export sick food bookings" });
+    }
+  });
+
   // Approve sick food booking - RBAC protected
   app.post('/api/amenities/sick-food/:id/approve', authorizeAmenities('sickFoodAccess'), async (req: any, res) => {
     try {
