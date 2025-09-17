@@ -125,6 +125,7 @@ export interface IStorage {
   replaceAllMenu(menuData: InsertWeeklyMenu[], uploadedBy: string): Promise<WeeklyMenu[]>;
   bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking>;
   getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]>;
+  getSickFoodBookingsWithUserData(date?: Date, userId?: string): Promise<Array<SickFoodBooking & { user: { firstName: string | null; lastName: string | null; rollNumber: string | null; email: string | null } }>>;
   updateSickFoodBookingStatus(id: number, status: 'pending' | 'approved' | 'rejected', approvedBy: string, adminNotes?: string): Promise<SickFoodBooking | undefined>;
   applyForLeave(leave: InsertHostelLeave): Promise<HostelLeave>;
   getLeaveApplications(status?: string): Promise<HostelLeave[]>;
@@ -1218,6 +1219,54 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await db.select().from(sickFoodBookings).orderBy(desc(sickFoodBookings.createdAt));
+  }
+
+  async getSickFoodBookingsWithUserData(date?: Date, userId?: string): Promise<Array<SickFoodBooking & { user: { firstName: string | null; lastName: string | null; rollNumber: string | null; email: string | null } }>> {
+    const conditions = [];
+    
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      conditions.push(gte(sickFoodBookings.date, startDate));
+      conditions.push(lte(sickFoodBookings.date, endDate));
+    }
+    
+    if (userId) {
+      conditions.push(eq(sickFoodBookings.userId, userId));
+    }
+    
+    const query = db
+      .select({
+        id: sickFoodBookings.id,
+        userId: sickFoodBookings.userId,
+        date: sickFoodBookings.date,
+        mealType: sickFoodBookings.mealType,
+        specialRequirements: sickFoodBookings.specialRequirements,
+        roomNumber: sickFoodBookings.roomNumber,
+        phoneNumber: sickFoodBookings.phoneNumber,
+        status: sickFoodBookings.status,
+        approvedBy: sickFoodBookings.approvedBy,
+        approvedAt: sickFoodBookings.approvedAt,
+        adminNotes: sickFoodBookings.adminNotes,
+        createdAt: sickFoodBookings.createdAt,
+        user: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          rollNumber: users.rollNumber,
+          email: users.email,
+        },
+      })
+      .from(sickFoodBookings)
+      .leftJoin(users, eq(sickFoodBookings.userId, users.id));
+    
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(sickFoodBookings.createdAt));
+    }
+    
+    return await query.orderBy(desc(sickFoodBookings.createdAt));
   }
 
   async updateSickFoodBookingStatus(
