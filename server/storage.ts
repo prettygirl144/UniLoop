@@ -1247,6 +1247,7 @@ export class DatabaseStorage implements IStorage {
         specialRequirements: sickFoodBookings.specialRequirements,
         roomNumber: sickFoodBookings.roomNumber,
         phoneNumber: sickFoodBookings.phoneNumber,
+        parcelMode: sickFoodBookings.parcelMode,
         status: sickFoodBookings.status,
         approvedBy: sickFoodBookings.approvedBy,
         approvedAt: sickFoodBookings.approvedAt,
@@ -1255,12 +1256,13 @@ export class DatabaseStorage implements IStorage {
         user: {
           firstName: users.firstName,
           lastName: users.lastName,
-          rollNumber: users.rollNumber,
+          rollNumber: sql<string>`COALESCE(${studentDirectory.rollNumber}, ${users.rollNumber})`.as('rollNumber'),
           email: users.email,
         },
       })
       .from(sickFoodBookings)
-      .leftJoin(users, eq(sickFoodBookings.userId, users.id));
+      .leftJoin(users, eq(sickFoodBookings.userId, users.id))
+      .leftJoin(studentDirectory, eq(users.directoryId, studentDirectory.id));
     
     if (conditions.length > 0) {
       return await query.where(and(...conditions)).orderBy(desc(sickFoodBookings.createdAt));
