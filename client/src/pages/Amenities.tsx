@@ -703,19 +703,44 @@ export default function Amenities() {
       
       switch (reportType) {
         case 'sick-food':
-          // Transform sick food data for better CSV/Excel format
-          data = (sickFoodBookings as any[]).map(booking => ({
-            'ID': booking.id,
-            'Date': new Date(booking.date).toLocaleDateString(),
-            'Meal Type': booking.mealType,
-            'Room Number': booking.roomNumber,
-            'Phone Number': booking.phoneNumber || '—',
-            'Special Requirements': booking.specialRequirements || '',
-            'User ID': booking.userId,
-            'Created At': new Date(booking.createdAt).toLocaleString()
-          }));
-          filename = 'sick-food-bookings.xlsx';
-          break;
+          // Use backend CSV export endpoint for sick food bookings with user data
+          try {
+            const dateFilter = sickFoodDateFilter || undefined;
+            const queryParams = dateFilter ? `?date=${dateFilter}` : '';
+            const response = await fetch(`/api/amenities/sick-food/export${queryParams}`, {
+              method: 'GET',
+              credentials: 'include',
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to export: ${response.statusText}`);
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'sick-food-bookings.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast({
+              title: 'Success',
+              description: 'Sick food bookings exported successfully with student names and roll numbers!',
+            });
+            return; // Skip the general CSV creation below
+          } catch (error) {
+            console.error('Error exporting sick food bookings:', error);
+            toast({
+              title: 'Error',
+              description: 'Failed to export sick food bookings. Please try again.',
+              variant: 'destructive',
+            });
+            return;
+          }
         case 'leave-applications':
           // Enhanced data with Google Form fields
           data = (leaveApplications as any[]).map((app: any) => ({

@@ -1682,6 +1682,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const date = req.query.date ? new Date(req.query.date as string) : undefined;
       const bookingsWithUsers = await storage.getSickFoodBookingsWithUserData(date);
       
+      // Helper function to sanitize CSV fields and prevent formula injection
+      const sanitizeCSVField = (field: any): string => {
+        const str = String(field || '').trim();
+        // Prevent CSV injection by prefixing dangerous characters with a single quote
+        if (str.match(/^[=+@-]/)) {
+          return `'${str}`;
+        }
+        return str;
+      };
+
       // Create CSV content with user data
       const headers = ['ID', 'Student Name', 'Roll Number', 'Email', 'Date', 'Meal Type', 'Room Number', 'Phone Number', 'Special Requirements', 'Status', 'Approved By', 'Admin Notes', 'Created At'];
       const csvRows = [
@@ -1690,26 +1700,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const fullName = [booking.user.firstName, booking.user.lastName].filter(Boolean).join(' ') || 'N/A';
           return [
             booking.id,
-            fullName,
-            booking.user.rollNumber || 'N/A',
-            booking.user.email || 'N/A',
+            sanitizeCSVField(fullName),
+            sanitizeCSVField(booking.user.rollNumber || 'N/A'),
+            sanitizeCSVField(booking.user.email || 'N/A'),
             new Date(booking.date).toLocaleDateString(),
-            booking.mealType,
-            booking.roomNumber,
-            booking.phoneNumber || 'N/A',
-            booking.specialRequirements || '',
-            booking.status || 'pending',
-            booking.approvedBy || '',
-            booking.adminNotes || '',
+            sanitizeCSVField(booking.mealType),
+            sanitizeCSVField(booking.roomNumber),
+            sanitizeCSVField(booking.phoneNumber || 'N/A'),
+            sanitizeCSVField(booking.specialRequirements || ''),
+            sanitizeCSVField(booking.status || 'pending'),
+            sanitizeCSVField(booking.approvedBy || ''),
+            sanitizeCSVField(booking.adminNotes || ''),
             new Date(booking.createdAt).toLocaleString(),
           ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
         })
       ];
       
-      const csvContent = csvRows.join('\n');
+      // Add UTF-8 BOM for Excel compatibility
+      const BOM = '\uFEFF';
+      const csvContent = BOM + csvRows.join('\n');
       
       const dateString = date ? `_${date.toISOString().split('T')[0]}` : '';
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="sick-food-bookings${dateString}.csv"`);
       res.send(csvContent);
       
