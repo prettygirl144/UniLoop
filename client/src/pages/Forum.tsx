@@ -91,7 +91,8 @@ const CATEGORIES = [
   'Triathlon',
   'Feedback & Suggestions',
   'Technical Support',
-  'Clubs & Societies'
+  'Clubs & Societies',
+  'Lost and Found'
 ];
 
 const TIME_FILTERS = [
@@ -126,6 +127,8 @@ const getCategoryColor = (category: string) => {
       return 'bg-red-100 text-red-800 border-red-200';
     case 'Feedback & Suggestions':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'Lost and Found':
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200';
   }
