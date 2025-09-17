@@ -105,6 +105,10 @@ export default function Amenities() {
   const [editingMenu, setEditingMenu] = useState<{id: number, date: string, mealType: string, items: string[]} | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [hideLeaveApplications, setHideLeaveApplications] = useState(false);
+  const [showDateRangeDialog, setShowDateRangeDialog] = useState(false);
+  const [downloadReportType, setDownloadReportType] = useState<'sick-food' | 'leave-applications' | 'grievances'>('sick-food');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -695,8 +699,16 @@ export default function Amenities() {
 
   // Remove the processExcelFile function - let backend handle parsing
 
-  // Download reports
-  const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {
+  // Open date range dialog for download
+  const openDownloadDialog = (reportType: 'sick-food' | 'leave-applications' | 'grievances') => {
+    setDownloadReportType(reportType);
+    setStartDate('');
+    setEndDate('');
+    setShowDateRangeDialog(true);
+  };
+
+  // Download reports with optional date range
+  const downloadReports = async (reportType: 'sick-food' | 'leave-applications' | 'grievances', startDate?: string, endDate?: string) => {
     try {
       let data: any[] = [];
       let filename = '';
@@ -705,9 +717,11 @@ export default function Amenities() {
         case 'sick-food':
           // Use backend CSV export endpoint for sick food bookings with user data
           try {
-            const dateFilter = sickFoodDateFilter || undefined;
-            const queryParams = dateFilter ? `?date=${dateFilter}` : '';
-            const response = await fetch(`/api/amenities/sick-food/export${queryParams}`, {
+            const queryParams = new URLSearchParams();
+            if (startDate) queryParams.set('startDate', startDate);
+            if (endDate) queryParams.set('endDate', endDate);
+            
+            const response = await fetch(`/api/amenities/sick-food/export?${queryParams.toString()}`, {
               method: 'GET',
               credentials: 'include',
             });
@@ -1415,7 +1429,7 @@ export default function Amenities() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => downloadReports('sick-food')}
+                        onClick={() => openDownloadDialog('sick-food')}
                         className="flex items-center gap-1 h-8 px-2 justify-center"
                       >
                         <Download className="h-3 w-3" />
@@ -1553,7 +1567,7 @@ export default function Amenities() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => downloadReports('leave-applications')}
+                        onClick={() => openDownloadDialog('leave-applications')}
                         className="flex items-center gap-1 h-8 px-2 justify-center"
                       >
                         <Download className="h-3 w-3" />
@@ -1647,7 +1661,7 @@ export default function Amenities() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => downloadReports('grievances')}
+                      onClick={() => openDownloadDialog('grievances')}
                       className="flex items-center gap-1 h-8 px-2 justify-center"
                     >
                       <Download className="h-3 w-3" />
@@ -1753,6 +1767,64 @@ export default function Amenities() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Range Dialog for CSV Downloads */}
+      <Dialog open={showDateRangeDialog} onOpenChange={setShowDateRangeDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Date Range for Export</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Start Date (optional)</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full"
+                data-testid="input-start-date"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">End Date (optional)</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full"
+                data-testid="input-end-date"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>• Leave both dates empty to download all data</p>
+              <p>• Select only start date to download from that date onwards</p>
+              <p>• Select both dates to download data within the range</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDateRangeDialog(false)}
+                className="flex-1"
+                data-testid="button-cancel"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                onClick={async () => {
+                  setShowDateRangeDialog(false);
+                  await downloadReports(downloadReportType, startDate, endDate);
+                }}
+                className="flex-1"
+                data-testid="button-download"
+              >
+                Download
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       

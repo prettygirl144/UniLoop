@@ -1679,8 +1679,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const date = req.query.date ? new Date(req.query.date as string) : undefined;
-      const bookingsWithUsers = await storage.getSickFoodBookingsWithUserData(date);
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const bookingsWithUsers = await storage.getSickFoodBookingsWithUserData(startDate, endDate);
       
       // Helper function to sanitize CSV fields and prevent formula injection
       const sanitizeCSVField = (field: any): string => {
@@ -1720,7 +1721,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const BOM = '\uFEFF';
       const csvContent = BOM + csvRows.join('\n');
       
-      const dateString = date ? `_${date.toISOString().split('T')[0]}` : '';
+      let dateString = '';
+      if (startDate && endDate) {
+        dateString = `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
+      } else if (startDate) {
+        dateString = `_from_${startDate.toISOString().split('T')[0]}`;
+      } else if (endDate) {
+        dateString = `_until_${endDate.toISOString().split('T')[0]}`;
+      }
+      
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="sick-food-bookings${dateString}.csv"`);
       res.send(csvContent);
