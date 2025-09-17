@@ -1165,6 +1165,18 @@ export default function Amenities() {
                     <DialogHeader>
                       <DialogTitle>Book Sick Food</DialogTitle>
                     </DialogHeader>
+                    {/* Food Collection Notice */}
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mx-6 mt-4">
+                      <div className="flex items-start space-x-3">
+                        <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-medium text-blue-900">Food Collection Information</h4>
+                          <p className="text-sm text-blue-800">
+                            Students are required to collect their meals from the mess hall. For takeaway arrangements, please contact an ITC member for assistance.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                     <Form {...sickFoodForm}>
                       <form onSubmit={sickFoodForm.handleSubmit((data) => sickFoodMutation.mutate(data))} className="space-y-4">
                         <FormField
@@ -1234,18 +1246,6 @@ export default function Amenities() {
                             </FormItem>
                           )}
                         />
-                        {/* Food Collection Notice */}
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start space-x-3">
-                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-medium text-blue-900">Food Collection Information</h4>
-                              <p className="text-sm text-blue-800">
-                                Students are required to collect their meals from the mess hall. For takeaway arrangements, please contact an ITC (Information Technology Committee) member for assistance.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
                         <FormField
                           control={sickFoodForm.control}
                           name="specialRequirements"
