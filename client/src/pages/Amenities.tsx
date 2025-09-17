@@ -32,7 +32,8 @@ import {
   Filter,
   History,
   Eye,
-  EyeOff
+  EyeOff,
+  Info
 } from 'lucide-react';
 import { YourSubmissionsModal } from '@/components/YourSubmissionsModal';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -52,9 +53,6 @@ const sickFoodSchema = z.object({
   phoneNumber: z.string()
     .min(1, 'Phone number is required')
     .regex(/^[+0-9]{10,15}$/, 'Enter a valid phone number (10-15 digits; + allowed)'),
-  parcelMode: z.enum(['dine_in', 'takeaway'], {
-    required_error: 'Please select how you want to receive your food',
-  }),
 });
 
 const leaveApplicationSchema = z.object({
@@ -157,7 +155,6 @@ export default function Amenities() {
       roomNumber: '',
       specialRequirements: '',
       phoneNumber: '',
-      parcelMode: 'dine_in',
     },
   });
 
@@ -713,7 +710,6 @@ export default function Amenities() {
             'Meal Type': booking.mealType,
             'Room Number': booking.roomNumber,
             'Phone Number': booking.phoneNumber || '—',
-            'Parcel Mode': booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess',
             'Special Requirements': booking.specialRequirements || '',
             'User ID': booking.userId,
             'Created At': new Date(booking.createdAt).toLocaleString()
@@ -1238,44 +1234,18 @@ export default function Amenities() {
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={sickFoodForm.control}
-                          name="parcelMode"
-                          render={({ field }) => (
-                            <FormItem className="space-y-3">
-                              <FormLabel>Food Collection *</FormLabel>
-                              <FormControl>
-                                <div className="space-y-2">
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="radio"
-                                      id="dine_in"
-                                      value="dine_in"
-                                      checked={field.value === 'dine_in'}
-                                      onChange={() => field.onChange('dine_in')}
-                                      className="h-4 w-4"
-                                      data-testid="radio-dine-in"
-                                    />
-                                    <label htmlFor="dine_in" className="text-sm">Have food in the mess itself</label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="radio"
-                                      id="takeaway"
-                                      value="takeaway"
-                                      checked={field.value === 'takeaway'}
-                                      onChange={() => field.onChange('takeaway')}
-                                      className="h-4 w-4"
-                                      data-testid="radio-takeaway"
-                                    />
-                                    <label htmlFor="takeaway" className="text-sm">Takeaway through friends</label>
-                                  </div>
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {/* Food Collection Notice */}
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start space-x-3">
+                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-medium text-blue-900">Food Collection Information</h4>
+                              <p className="text-sm text-blue-800">
+                                Students are required to collect their meals from the mess hall. For takeaway arrangements, please contact an ITC (Information Technology Committee) member for assistance.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                         <FormField
                           control={sickFoodForm.control}
                           name="specialRequirements"
@@ -1461,9 +1431,6 @@ export default function Amenities() {
                                       <p className="text-xs text-blue-600 break-words">User: {booking.userId?.substring(0, 20)}...</p>
                                       <p className="text-xs text-muted-foreground break-words">
                                         Phone: {booking.phoneNumber || '—'}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground break-words">
-                                        Mode: {booking.parcelMode === 'dine_in' ? 'Mess' : booking.parcelMode === 'takeaway' ? 'Takeaway' : 'Mess'}
                                       </p>
                                       {booking.specialRequirements && (
                                         <p className="text-small text-muted-foreground break-words">Special: {booking.specialRequirements}</p>
