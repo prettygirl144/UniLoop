@@ -277,29 +277,39 @@ router.get('/callback', async (req, res) => {
     }
     
     // Regenerate session for security but preserve accounts
-    session.regenerate((err: any) => {
+    (req as any).session.regenerate((err: any) => {
       if (err) {
         console.error('Session regeneration error:', err);
         return res.redirect('/?error=session_error');
       }
       
-      // Restore and update session data after regeneration
-      session.accounts = updatedAccounts;
-      session.currentAccountId = identity.id;
-      session.user = identity; // Maintain compatibility with existing code
+      // Use req.session (the new session) after regeneration, not the captured reference
+      (req as any).session.accounts = updatedAccounts;
+      (req as any).session.currentAccountId = identity.id;
+      (req as any).session.user = identity; // Maintain compatibility with existing code
       
       // Generate CSRF token for this session
-      session.csrfToken = crypto.randomBytes(32).toString('hex');
+      (req as any).session.csrfToken = crypto.randomBytes(32).toString('hex');
       
       console.log('Multi-account session created:', {
-        currentAccountId: session.currentAccountId,
-        totalAccounts: session.accounts.length,
-        accounts: session.accounts.map((acc: any) => ({ id: acc.id, email: acc.email }))
+        currentAccountId: (req as any).session.currentAccountId,
+        totalAccounts: (req as any).session.accounts.length,
+        accounts: (req as any).session.accounts.map((acc: any) => ({ id: acc.id, email: acc.email }))
       });
       
-      // Redirect to appropriate page
-      const returnTo = parsedState?.returnTo || '/';
-      res.redirect(returnTo);
+      // Explicitly save the session to ensure persistence
+      (req as any).session.save((saveErr: any) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
+          return res.redirect('/?error=session_save_error');
+        }
+        
+        console.log('Session saved successfully');
+        
+        // Redirect to appropriate page
+        const returnTo = parsedState?.returnTo || '/';
+        res.redirect(returnTo);
+      });
     });
     
   } catch (error: any) {

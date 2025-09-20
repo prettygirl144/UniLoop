@@ -93,9 +93,6 @@ function Router() {
 }
 
 function App() {
-  // Step 9: Temporary detection to prove the fix (remove after)
-  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
-  (window as any).__APP_MOUNTED__ = true;
 
   return (
     <QueryClientProvider client={queryClient}>
