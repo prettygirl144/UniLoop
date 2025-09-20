@@ -400,7 +400,6 @@ router.get('/csrf-token', (req, res) => {
   }
   
   if (!session.csrfToken) {
-    const crypto = require('crypto');
     session.csrfToken = crypto.randomBytes(32).toString('hex');
   }
   
