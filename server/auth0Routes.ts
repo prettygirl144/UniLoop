@@ -396,10 +396,19 @@ router.get('/accounts', (req, res) => {
     return res.status(401).json({ message: 'No accounts in session' });
   }
   
-  res.json({
+  // Debug: Log the full account structure
+  console.log('🔍 [ACCOUNTS-DEBUG] Full session accounts:', JSON.stringify(session.accounts, null, 2));
+  console.log('🔍 [ACCOUNTS-DEBUG] Current account ID:', session.currentAccountId);
+  console.log('🔍 [ACCOUNTS-DEBUG] Account count:', session.accounts.length);
+  
+  const response = {
     accounts: session.accounts,
     currentAccountId: session.currentAccountId
-  });
+  };
+  
+  console.log('🔍 [ACCOUNTS-DEBUG] Response being sent:', JSON.stringify(response, null, 2));
+  
+  res.json(response);
 });
 
 // CSRF token endpoint
