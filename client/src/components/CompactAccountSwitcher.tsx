@@ -25,13 +25,22 @@ interface SessionAccount {
   profileImageUrl?: string;
 }
 
+interface AccountsResponse {
+  accounts: SessionAccount[];
+  currentAccountId: string;
+}
+
+interface CsrfResponse {
+  csrfToken: string;
+}
+
 export default function CompactAccountSwitcher() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch session accounts
-  const { data: accountData } = useQuery({
+  const { data: accountData } = useQuery<AccountsResponse>({
     queryKey: ["/api/auth/accounts"],
     retry: false,
     enabled: !!user,
@@ -41,7 +50,7 @@ export default function CompactAccountSwitcher() {
   const currentAccountId = accountData?.currentAccountId;
 
   // Fetch CSRF token
-  const { data: csrfData } = useQuery({
+  const { data: csrfData } = useQuery<CsrfResponse>({
     queryKey: ["/api/auth/csrf-token"],
     retry: false,
     enabled: !!user,
@@ -166,8 +175,8 @@ export default function CompactAccountSwitcher() {
     return null;
   }
 
-  const currentAccount = accounts.find(acc => acc.id === currentAccountId);
-  const otherAccounts = accounts.filter(acc => acc.id !== currentAccountId);
+  const currentAccount = accounts.find((acc: SessionAccount) => acc.id === currentAccountId);
+  const otherAccounts = accounts.filter((acc: SessionAccount) => acc.id !== currentAccountId);
   const hasMultipleAccounts = accounts.length > 1;
 
   return (
@@ -212,7 +221,7 @@ export default function CompactAccountSwitcher() {
         <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
-              {user.firstName?.charAt(0) || user.email.charAt(0).toUpperCase()}
+              {user.firstName?.charAt(0) || user.email?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
@@ -242,7 +251,7 @@ export default function CompactAccountSwitcher() {
                 Switch Account
               </p>
             </div>
-            {otherAccounts.map((account) => (
+            {otherAccounts.map((account: SessionAccount) => (
               <DropdownMenuItem
                 key={account.id}
                 onClick={() => switchAccountMutation.mutate(account.id)}
