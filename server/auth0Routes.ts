@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { storage } from './storage';
 
 const router = express.Router();
@@ -288,7 +289,6 @@ router.get('/callback', async (req, res) => {
       session.user = identity; // Maintain compatibility with existing code
       
       // Generate CSRF token for this session
-      const crypto = require('crypto');
       session.csrfToken = crypto.randomBytes(32).toString('hex');
       
       console.log('Multi-account session created:', {
