@@ -390,6 +390,7 @@ router.get('/user', (req, res) => {
 
 // Get all accounts in session
 router.get('/accounts', (req, res) => {
+  console.log('🚨 [ROUTE-TEST] ACCOUNTS ROUTE HIT!');
   const session = (req as any).session;
   
   console.log('🔍 [ACCOUNTS-DEBUG] === ACCOUNTS ENDPOINT HIT ===');
