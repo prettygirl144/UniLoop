@@ -23,12 +23,12 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const sessionTtl = 14 * 24 * 60 * 60 * 1000; // 14 days (2 weeks)
+  const sessionTtl = 14 * 24 * 60 * 60 * 1000; // 14 days (2 weeks) in milliseconds
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
-    ttl: sessionTtl,
+    ttl: Math.floor(sessionTtl / 1000), // TTL in seconds for connect-pg-simple
     tableName: "sessions",
   });
   return session({
