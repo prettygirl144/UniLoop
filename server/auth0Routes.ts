@@ -400,8 +400,10 @@ router.get('/accounts', (req, res) => {
   console.log('🔍 [ACCOUNTS-DEBUG] Session current account ID:', session?.currentAccountId);
   
   if (!session?.accounts || session.accounts.length === 0) {
-    console.log('🔍 [ACCOUNTS-DEBUG] No accounts found, returning 401');
-    return res.status(401).json({ message: 'No accounts in session' });
+    console.log('🔍 [ACCOUNTS-DEBUG] No accounts found');
+    console.log('🔍 [ACCOUNTS-DEBUG] Session data:', JSON.stringify(session, null, 2));
+    // Instead of 401, return empty array to see what frontend does
+    return res.json({ accounts: [], currentAccountId: null });
   }
   
   // Debug: Log the full account structure
