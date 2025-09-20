@@ -15,23 +15,54 @@ router.get('/login', (req, res) => {
   const auth0Domain = process.env.AUTH0_DOMAIN;
   const clientId = process.env.AUTH0_CLIENT_ID;
   const redirectUri = `https://${req.get('host')}/api/callback`;
+  const mode = req.query.mode || 'login'; // 'login' or 'add'
   
   console.log('Login redirect URI:', redirectUri);
+  console.log('Login mode:', mode);
   
-  const auth0Url = `https://${auth0Domain}/authorize?` +
+  // Build base auth URL
+  let auth0Url = `https://${auth0Domain}/authorize?` +
     `response_type=code&` +
     `client_id=${clientId}&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `scope=openid%20profile%20email&` +
     `connection=google-oauth2`;
+  
+  // For adding accounts, force account selection and don't use existing session
+  if (mode === 'add') {
+    auth0Url += '&prompt=select_account&max_age=0';
+    // Pass state to callback to indicate this is an add operation
+    const state = encodeURIComponent(JSON.stringify({ 
+      mode: 'add', 
+      returnTo: req.query.returnTo || '/' 
+    }));
+    auth0Url += `&state=${state}`;
+  }
     
   console.log('Auth0 URL:', auth0Url);
   res.redirect(auth0Url);
 });
 
+// Helper function to create user identity from Auth0 data
+function createIdentity(userInfo: any, user: any) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: `${user.firstName} ${user.lastName}`.trim(),
+    picture: user.profileImageUrl,
+    role: user.role,
+    permissions: user.permissions,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profileImageUrl: user.profileImageUrl,
+    batch: user.batch,
+    section: user.section,
+  };
+}
+
 // Auth0 callback route
 router.get('/callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   
   if (!code) {
     return res.status(400).json({ error: 'No authorization code provided' });
@@ -214,27 +245,62 @@ router.get('/callback', async (req, res) => {
       return res.redirect('/?error=auth_failed&message=Unable to process user authentication');
     }
 
-    // Always use the fresh user data from database (after upsert)
-    (req as any).session.user = {
-      id: user.id,
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
-      picture: user.profileImageUrl,
-      role: user.role, // Use database role
-      permissions: user.permissions, // Use database permissions
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileImageUrl: user.profileImageUrl,
-      batch: user.batch,
-      section: user.section,
-    };
-
-    console.log('User session created:', (req as any).session.user);
-    console.log('Admin access granted:', user.role === 'admin');
-    console.log('Database user retrieved:', user);
-
-    // Redirect to home page
-    res.redirect('/');
+    // Parse state to determine if this is an add operation
+    let parsedState = null;
+    try {
+      parsedState = state ? JSON.parse(decodeURIComponent(state as string)) : null;
+    } catch (e) {
+      console.log('Could not parse state parameter:', state);
+    }
+    
+    const isAddMode = parsedState?.mode === 'add';
+    const identity = createIdentity(userInfo, user);
+    
+    // Initialize or get existing session accounts - preserve before regeneration
+    const session = (req as any).session;
+    const prevAccounts = session.accounts || [];
+    
+    // Check if this identity already exists in the previous accounts
+    const existingAccountIndex = prevAccounts.findIndex((acc: any) => acc.id === identity.id);
+    
+    let updatedAccounts;
+    if (existingAccountIndex >= 0) {
+      // Update existing account
+      updatedAccounts = [...prevAccounts];
+      updatedAccounts[existingAccountIndex] = identity;
+      console.log('Updated existing account in session:', identity.email);
+    } else {
+      // Add new account
+      updatedAccounts = [...prevAccounts, identity];
+      console.log('Added new account to session:', identity.email);
+    }
+    
+    // Regenerate session for security but preserve accounts
+    session.regenerate((err: any) => {
+      if (err) {
+        console.error('Session regeneration error:', err);
+        return res.redirect('/?error=session_error');
+      }
+      
+      // Restore and update session data after regeneration
+      session.accounts = updatedAccounts;
+      session.currentAccountId = identity.id;
+      session.user = identity; // Maintain compatibility with existing code
+      
+      // Generate CSRF token for this session
+      const crypto = require('crypto');
+      session.csrfToken = crypto.randomBytes(32).toString('hex');
+      
+      console.log('Multi-account session created:', {
+        currentAccountId: session.currentAccountId,
+        totalAccounts: session.accounts.length,
+        accounts: session.accounts.map((acc: any) => ({ id: acc.id, email: acc.email }))
+      });
+      
+      // Redirect to appropriate page
+      const returnTo = parsedState?.returnTo || '/';
+      res.redirect(returnTo);
+    });
     
   } catch (error: any) {
     console.error('Auth0 callback error:', error);
@@ -308,6 +374,124 @@ router.get('/user', (req, res) => {
   }
   
   res.json(sessionUser);
+});
+
+// Multi-account management endpoints
+
+// Get all accounts in session
+router.get('/accounts', (req, res) => {
+  const session = (req as any).session;
+  
+  if (!session?.accounts || session.accounts.length === 0) {
+    return res.status(401).json({ message: 'No accounts in session' });
+  }
+  
+  res.json({
+    accounts: session.accounts,
+    currentAccountId: session.currentAccountId
+  });
+});
+
+// CSRF token endpoint
+router.get('/csrf-token', (req, res) => {
+  const session = (req as any).session;
+  if (!session?.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  if (!session.csrfToken) {
+    const crypto = require('crypto');
+    session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  
+  res.json({ csrfToken: session.csrfToken });
+});
+
+// CSRF validation middleware
+function validateCSRF(req: any, res: any, next: any) {
+  const session = req.session;
+  const providedToken = req.headers['x-csrf-token'];
+  
+  if (!session?.csrfToken || !providedToken || session.csrfToken !== providedToken) {
+    return res.status(403).json({ message: 'CSRF token validation failed' });
+  }
+  
+  next();
+}
+
+// Switch between accounts
+router.post('/switch-account', validateCSRF, (req, res) => {
+  const session = (req as any).session;
+  const { accountId } = req.body;
+  
+  if (!session?.accounts || session.accounts.length === 0) {
+    return res.status(401).json({ message: 'No accounts in session' });
+  }
+  
+  if (!accountId || typeof accountId !== 'string') {
+    return res.status(400).json({ message: 'Invalid accountId' });
+  }
+  
+  const targetAccount = session.accounts.find((acc: any) => acc.id === accountId);
+  if (!targetAccount) {
+    return res.status(404).json({ message: 'Account not found in session' });
+  }
+  
+  // Switch to the target account
+  session.currentAccountId = accountId;
+  session.user = targetAccount;
+  
+  console.log('Switched to account:', { id: accountId, email: targetAccount.email });
+  
+  res.json({
+    success: true,
+    currentAccount: targetAccount
+  });
+});
+
+// Logout current account (remove from session)
+router.post('/logout-current', validateCSRF, (req, res) => {
+  const session = (req as any).session;
+  
+  if (!session?.accounts || session.accounts.length === 0) {
+    return res.status(401).json({ message: 'No accounts in session' });
+  }
+  
+  const currentAccountId = session.currentAccountId;
+  
+  // Remove current account from session
+  session.accounts = session.accounts.filter((acc: any) => acc.id !== currentAccountId);
+  
+  if (session.accounts.length === 0) {
+    // No more accounts - full logout
+    session.destroy((err: any) => {
+      if (err) {
+        console.error('Session destruction error:', err);
+      }
+      
+      console.log('Full logout - no more accounts');
+      res.json({ 
+        fullyLoggedOut: true,
+        message: 'All accounts logged out'
+      });
+    });
+  } else {
+    // Switch to the first remaining account
+    const nextAccount = session.accounts[0];
+    session.currentAccountId = nextAccount.id;
+    session.user = nextAccount;
+    
+    console.log('Current account logged out, switched to:', { 
+      id: nextAccount.id, 
+      email: nextAccount.email 
+    });
+    
+    res.json({
+      fullyLoggedOut: false,
+      currentAccount: nextAccount,
+      message: 'Switched to another account'
+    });
+  }
 });
 
 export default router;

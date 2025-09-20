@@ -1,22 +1,17 @@
-import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Users, Plus, LogOut, UserCheck, ChevronDown, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { UserCheck, ChevronDown, LogOut, Plus, Users } from "lucide-react";
 
-interface LinkedAccount {
+interface SessionAccount {
   id: string;
   email: string;
+  name: string;
   role: string;
   permissions: {
     calendar?: boolean;
@@ -26,29 +21,27 @@ interface LinkedAccount {
     diningHostel?: boolean;
     postCreation?: boolean;
   };
-  accountType: string;
+  profileImageUrl?: string;
 }
 
 export default function AccountSwitcher() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newAccountForm, setNewAccountForm] = useState({
-    role: "committee_club",
-    permissions: {
-      calendar: false,
-      attendance: false,
-      gallery: false,
-      forumMod: false,
-      diningHostel: false,
-      postCreation: false,
-    }
-  });
 
-  // Fetch linked accounts
-  const { data: linkedAccounts = [] } = useQuery({
-    queryKey: ["/api/auth/linked-accounts"],
+  // Fetch session accounts
+  const { data: accountData } = useQuery({
+    queryKey: ["/api/auth/accounts"],
+    retry: false,
+    enabled: !!user,
+  });
+  
+  const accounts = accountData?.accounts || [];
+  const currentAccountId = accountData?.currentAccountId;
+
+  // Fetch CSRF token
+  const { data: csrfData } = useQuery({
+    queryKey: ["/api/auth/csrf-token"],
     retry: false,
     enabled: !!user,
   });
@@ -56,18 +49,30 @@ export default function AccountSwitcher() {
   // Switch account mutation
   const switchAccountMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      return await apiRequest("/api/auth/switch-account", {
+      const response = await fetch("/api/auth/switch-account", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfData?.csrfToken || "",
+        },
         body: JSON.stringify({ accountId }),
+        credentials: "include",
       });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`${response.status}: ${error}`);
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Account switched",
-        description: "Successfully switched to the selected account",
+        description: "Successfully switched accounts",
       });
-      // Refresh user data
+      // Refresh user data, accounts, and CSRF token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/csrf-token"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -82,39 +87,56 @@ export default function AccountSwitcher() {
     },
   });
 
-  // Create alternate account mutation
-  const createAccountMutation = useMutation({
+  // Logout current account mutation
+  const logoutCurrentMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/auth/create-alternate-account", {
+      const response = await fetch("/api/auth/logout-current", {
         method: "POST",
-        body: JSON.stringify({
-          role: newAccountForm.role,
-          permissions: newAccountForm.permissions,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfData?.csrfToken || "",
+        },
+        body: JSON.stringify({}),
+        credentials: "include",
       });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`${response.status}: ${error}`);
+      }
+      return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Alternate account created successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/linked-accounts"] });
-      setIsCreateDialogOpen(false);
+    onSuccess: (data) => {
+      if (data.fullyLoggedOut) {
+        toast({
+          title: "Logged out",
+          description: "You have been logged out completely",
+        });
+        window.location.href = "/";
+      } else {
+        toast({
+          title: "Account removed",
+          description: "Switched to another account",
+        });
+        // Refresh user data, accounts, and CSRF token
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/csrf-token"] });
+      }
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        window.location.href = "/api/login";
-        return;
-      }
       toast({
         title: "Error",
-        description: "Failed to create alternate account",
+        description: "Failed to logout current account",
         variant: "destructive",
       });
     },
   });
 
-  const handleLogout = () => {
+  const handleAddAccount = () => {
+    window.location.href = "/api/login?mode=add";
+  };
+  
+  const handleFullLogout = () => {
     window.location.href = "/api/logout";
   };
 
@@ -127,27 +149,33 @@ export default function AccountSwitcher() {
     }
   };
 
-  // Store active account in localStorage
-  useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem('activeAccountId', user.id);
-      localStorage.setItem('activeRole', user.role || 'student');
-    }
-  }, [user]);
+  if (!user) {
+    return null;
+  }
+
+  const currentAccount = accounts.find((acc: SessionAccount) => acc.id === currentAccountId) || user;
+  const otherAccounts = accounts.filter((acc: SessionAccount) => acc.id !== currentAccountId);
 
   return (
     <div className="flex items-center gap-2">
-      {/* Enhanced Account Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Badge variant={getRoleBadgeVariant(user?.role || 'student')} className="text-xs">
-                {user?.role?.replace('_', ' ') || 'Student'}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2 min-w-[180px]" 
+            data-testid="account-switcher-trigger"
+          >
+            <div className="flex items-center gap-2 flex-1">
+              <Badge 
+                variant={getRoleBadgeVariant(currentAccount.role || 'student')} 
+                className="text-xs"
+              >
+                {(currentAccount.role || 'student').replace('_', ' ')}
               </Badge>
-              {linkedAccounts.length > 1 && (
+              {accounts.length > 1 && (
                 <span className="text-xs text-muted-foreground">
-                  +{linkedAccounts.length - 1}
+                  +{accounts.length - 1}
                 </span>
               )}
             </div>
@@ -156,193 +184,78 @@ export default function AccountSwitcher() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           {/* Current Account */}
-          <div className="px-2 py-1.5">
-            <div className="flex items-center gap-2">
+          <div className="px-3 py-3 border-b">
+            <div className="flex items-center gap-3">
               <UserCheck className="h-4 w-4 text-primary" />
               <div className="flex-1">
-                <p className="text-sm font-medium">{user?.email}</p>
-                <p className="text-xs text-muted-foreground">Current Account</p>
+                <p className="text-sm font-medium" data-testid="text-current-email">
+                  {currentAccount.email}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Current Account
+                </p>
               </div>
             </div>
           </div>
           
-          <DropdownMenuSeparator />
-          
-          {/* Switch Account Options */}
-          {linkedAccounts.filter((account: LinkedAccount) => account.id !== user?.id).map((account: LinkedAccount) => (
-            <DropdownMenuItem 
-              key={account.id}
-              onClick={() => switchAccountMutation.mutate(account.id)}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <div className="flex-1">
-                <p className="text-sm font-medium">{account.email}</p>
-                <Badge variant={getRoleBadgeVariant(account.role)} className="text-xs mt-1">
-                  {account.role.replace('_', ' ')}
-                </Badge>
-              </div>
-            </DropdownMenuItem>
-          ))}
-          
-          <DropdownMenuSeparator />
-          
-          {/* Account Management */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Account
-              </DropdownMenuItem>
-            </DialogTrigger>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Account Management</DialogTitle>
-            <DialogDescription>
-              Switch between your accounts or create new ones
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Current Account */}
-            <Card className="border-primary/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" />
-                  Current Account
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{user?.email}</div>
-                    <Badge variant={getRoleBadgeVariant(user?.role || 'student')} className="mt-1">
-                      {user?.role?.replace('_', ' ') || 'Student'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Other Linked Accounts */}
-            {linkedAccounts.filter((account: LinkedAccount) => account.id !== user?.id).map((account: LinkedAccount) => (
-              <Card key={account.id} className="cursor-pointer hover:bg-muted/50" 
-                    onClick={() => switchAccountMutation.mutate(account.id)}>
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{account.email}</div>
-                      <Badge variant={getRoleBadgeVariant(account.role)} className="mt-1">
+          {/* Other Accounts */}
+          {otherAccounts.length > 0 && (
+            <>
+              <div className="px-3 py-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Switch Account</p>
+                {otherAccounts.map((account: SessionAccount) => (
+                  <DropdownMenuItem 
+                    key={account.id}
+                    onClick={() => switchAccountMutation.mutate(account.id)}
+                    className="flex items-center gap-3 cursor-pointer py-2" 
+                    data-testid={`switch-account-${account.id}`}
+                  >
+                    <Users className="h-4 w-4" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{account.email}</p>
+                      <Badge variant={getRoleBadgeVariant(account.role)} className="text-xs mt-1">
                         {account.role.replace('_', ' ')}
                       </Badge>
                     </div>
-                    <Button variant="outline" size="sm" disabled={switchAccountMutation.isPending}>
-                      {switchAccountMutation.isPending ? "Switching..." : "Switch"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Create New Account */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Card className="cursor-pointer hover:bg-muted/50 border-dashed">
-                  <CardContent className="pt-6 text-center">
-                    <Plus className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                    <div className="text-sm font-medium">Create Alternate Account</div>
-                    <div className="text-xs text-muted-foreground">
-                      Add committee or admin privileges
-                    </div>
-                  </CardContent>
-                </Card>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create Alternate Account</DialogTitle>
-                  <DialogDescription>
-                    Create an account with different role and permissions
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  {/* Role Selection */}
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select value={newAccountForm.role} onValueChange={(value) => 
-                      setNewAccountForm(prev => ({ ...prev, role: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="committee_club">Committee/Club</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Permissions (only for committee_club) */}
-                  {newAccountForm.role === 'committee_club' && (
-                    <div className="space-y-3">
-                      <Label>Permissions</Label>
-                      <div className="grid gap-3">
-                        {Object.entries(newAccountForm.permissions).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between">
-                            <Label htmlFor={key} className="text-sm">
-                              {key === 'forumMod' ? 'Forum Moderation' : 
-                               key === 'diningHostel' ? 'Dining & Hostel' :
-                               key === 'postCreation' ? 'Post Creation' :
-                               key.charAt(0).toUpperCase() + key.slice(1)}
-                            </Label>
-                            <Switch
-                              id={key}
-                              checked={value}
-                              onCheckedChange={(checked) => 
-                                setNewAccountForm(prev => ({ 
-                                  ...prev, 
-                                  permissions: { ...prev.permissions, [key]: checked }
-                                }))
-                              }
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={() => createAccountMutation.mutate()}
-                    disabled={createAccountMutation.isPending}
-                  >
-                    {createAccountMutation.isPending ? "Creating..." : "Create Account"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => createAccountMutation.mutate()}
-                  disabled={createAccountMutation.isPending}
-                >
-                  {createAccountMutation.isPending ? "Creating..." : "Create Account"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  </DropdownMenuItem>
+                ))}
+              </div>
+              <DropdownMenuSeparator />
+            </>
+          )}
           
-          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
+          {/* Account Actions */}
+          <DropdownMenuItem 
+            onClick={handleAddAccount}
+            className="cursor-pointer" 
+            data-testid="add-account"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Sign in with another account
           </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          {/* Logout Options */}
+          {accounts.length > 1 ? (
+            <DropdownMenuItem 
+              onClick={() => logoutCurrentMutation.mutate()}
+              className="cursor-pointer text-orange-600 hover:text-orange-700" 
+              data-testid="logout-current"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout current account
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem 
+              onClick={handleFullLogout}
+              className="cursor-pointer text-destructive" 
+              data-testid="logout-full"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
