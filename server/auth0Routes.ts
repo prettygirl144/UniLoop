@@ -392,7 +392,15 @@ router.get('/user', (req, res) => {
 router.get('/accounts', (req, res) => {
   const session = (req as any).session;
   
+  console.log('🔍 [ACCOUNTS-DEBUG] === ACCOUNTS ENDPOINT HIT ===');
+  console.log('🔍 [ACCOUNTS-DEBUG] Session exists:', !!session);
+  console.log('🔍 [ACCOUNTS-DEBUG] Session accounts exists:', !!session?.accounts);
+  console.log('🔍 [ACCOUNTS-DEBUG] Session accounts length:', session?.accounts?.length || 0);
+  console.log('🔍 [ACCOUNTS-DEBUG] Session user exists:', !!session?.user);
+  console.log('🔍 [ACCOUNTS-DEBUG] Session current account ID:', session?.currentAccountId);
+  
   if (!session?.accounts || session.accounts.length === 0) {
+    console.log('🔍 [ACCOUNTS-DEBUG] No accounts found, returning 401');
     return res.status(401).json({ message: 'No accounts in session' });
   }
   
