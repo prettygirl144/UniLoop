@@ -104,7 +104,7 @@ export interface IStorage {
   getUserRsvps(userId: string): Promise<EventRsvp[]>;
 
   // Community Board (Section 1)
-  getCommunityPosts(): Promise<CommunityPost[]>;
+  getCommunityPosts(userId?: string): Promise<CommunityPostWithVotes[]>;
   createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost>;
   getCommunityPostById(id: number): Promise<CommunityPost | undefined>;
   deleteCommunityPost(id: number, userId: string): Promise<void>;
@@ -851,14 +851,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Community Board (Section 1) - Reddit-like functionality
-  async getCommunityPosts(): Promise<CommunityPostWithVotes[]> {
+  async getCommunityPosts(userId?: string): Promise<CommunityPostWithVotes[]> {
     const posts = await db
       .select()
       .from(communityPosts)
       .where(eq(communityPosts.isDeleted, false))
       .orderBy(desc(communityPosts.createdAt));
 
-    // Add vote counts to each post
+    // Add vote counts and user vote state to each post
     const postsWithVotes = await Promise.all(
       posts.map(async (post) => {
         const upvotes = await db
@@ -871,10 +871,21 @@ export class DatabaseStorage implements IStorage {
           .from(communityVotes)
           .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'downvote')));
 
+        // Get user's current vote if userId is provided
+        let userVote = null;
+        if (userId) {
+          const [userVoteRecord] = await db
+            .select()
+            .from(communityVotes)
+            .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.userId, userId)));
+          userVote = userVoteRecord?.voteType || null;
+        }
+
         return {
           ...post,
           upvotes: Number(upvotes[0]?.count || 0),
           downvotes: Number(downvotes[0]?.count || 0),
+          userVote,
         } as CommunityPostWithVotes;
       })
     );

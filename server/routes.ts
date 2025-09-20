@@ -207,24 +207,41 @@ function broadcastToClients(message: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // CRITICAL: Configure trust proxy BEFORE session middleware
+  app.set('trust proxy', 1);
+  
   // CRITICAL: Serve static files FIRST for PWA installability
   const expressStaticImport = await import('express');
   app.use(expressStaticImport.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
   
-  // Session middleware for Auth0 with hardened persistence
-  const session = await import('express-session');
-  app.use(session.default({
-    secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    rolling: true, // Refresh expiry on activity
-    cookie: {
-      sameSite: 'none', // Allow cross-origin for PWA
-      secure: true,     // Require HTTPS (trust proxy handles this)
-      httpOnly: true,   // Prevent XSS attacks
-      maxAge: 1000 * 60 * 60 * 24 * 14 // 14 days
+  // Use the PostgreSQL session store from replitAuth.ts
+  const { getSession } = await import('./replitAuth');
+  app.use(getSession());
+  
+  // CSRF protection middleware for state-changing routes
+  const csrfProtection = (req: any, res: any, next: any) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+      return next();
     }
-  }));
+    
+    const origin = req.get('Origin');
+    const referer = req.get('Referer');
+    const host = req.get('Host');
+    
+    if (!origin && !referer) {
+      return res.status(403).json({ message: 'CSRF: Missing origin header' });
+    }
+    
+    const allowedOrigin = `https://${host}`;
+    const validOrigin = origin === allowedOrigin || 
+                       (referer && referer.startsWith(allowedOrigin));
+    
+    if (!validOrigin) {
+      return res.status(403).json({ message: 'CSRF: Invalid origin' });
+    }
+    
+    next();
+  };
 
   // Add Auth0 routes
   const auth0Routes = (await import('./auth0Routes')).default;
@@ -902,19 +919,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Community Board routes (Section 1) - Reddit-like functionality
-  app.get('/api/community/posts', async (req, res) => {
+  app.get('/api/community/posts', async (req: any, res) => {
     try {
       const { tag, limit, scope } = req.query;
       const requestId = `posts_get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log(`🔍 [FORUM-GET] Fetching posts - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Scope: ${scope || 'posts'}, RequestID: ${requestId}`);
+      // Get userId from session if available (for user vote state)
+      const userId = req.session?.user?.id;
+      
+      console.log(`🔍 [FORUM-GET] Fetching posts - Tag: ${tag || 'none'}, Limit: ${limit || 'none'}, Scope: ${scope || 'posts'}, UserID: ${userId || 'anonymous'}, RequestID: ${requestId}`);
       
       let allPosts = [];
       
       // If scope=all, get both community posts and announcements
       if (scope === 'all') {
         const [posts, announcements] = await Promise.all([
-          storage.getCommunityPosts(),
+          storage.getCommunityPosts(userId),
           storage.getCommunityAnnouncements()
         ]);
         
@@ -932,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allPosts = [...transformedPosts, ...transformedAnnouncements];
         console.log(`📊 [FORUM-GET] Combined ${posts.length} posts + ${announcements.length} announcements = ${allPosts.length}, RequestID: ${requestId}`);
       } else {
-        const posts = await storage.getCommunityPosts();
+        const posts = await storage.getCommunityPosts(userId);
         allPosts = posts.map(post => ({ ...post, source: 'forum' as const }));
         console.log(`📊 [FORUM-GET] Retrieved ${allPosts.length} community posts, RequestID: ${requestId}`);
       }
@@ -974,7 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts', authorize(), async (req: any, res) => {
+  app.post('/api/community/posts', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       const user = req.currentUser;
@@ -994,7 +1014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts/:id/vote', authorize(), async (req: any, res) => {
+  app.post('/api/community/posts/:id/vote', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1014,7 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/posts/:id', authorize(), async (req: any, res) => {
+  app.delete('/api/community/posts/:id', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1063,7 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts/:id/replies', checkAuth, async (req: any, res) => {
+  app.post('/api/community/posts/:id/replies', csrfProtection, checkAuth, async (req: any, res) => {
     try {
       const postId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1083,7 +1103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/replies/:id/vote', checkAuth, async (req: any, res) => {
+  app.post('/api/community/replies/:id/vote', csrfProtection, checkAuth, async (req: any, res) => {
     try {
       const replyId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1102,7 +1122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/replies/:id', authorize(), async (req: any, res) => {
+  app.delete('/api/community/replies/:id', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const replyId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1150,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/announcements', authorize(), async (req: any, res) => {
+  app.post('/api/community/announcements', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       const user = req.currentUser;
@@ -1175,7 +1195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/community/announcements/:id', authorize(), async (req: any, res) => {
+  app.delete('/api/community/announcements/:id', csrfProtection, authorize(), async (req: any, res) => {
     try {
       const announcementId = parseInt(req.params.id);
       const userId = req.session.user.id;
@@ -1201,7 +1221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Media upload endpoints for community posts and announcements
-  app.post('/api/community/posts/with-media', authorize(), upload.array('media', 5), async (req: any, res) => {
+  app.post('/api/community/posts/with-media', csrfProtection, authorize(), upload.array('media', 5), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       const user = req.currentUser;
@@ -1235,7 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/announcements/with-media', authorize(), upload.array('media', 5), async (req: any, res) => {
+  app.post('/api/community/announcements/with-media', csrfProtection, authorize(), upload.array('media', 5), async (req: any, res) => {
     try {
       const userId = req.session.user.id;
       const user = req.currentUser;

@@ -55,6 +55,7 @@ type CommunityPost = {
   score: number;
   upvotes: number;
   downvotes: number;
+  userVote: 'upvote' | 'downvote' | null;
   createdAt: string;
   mediaUrls?: string[];
 };
@@ -419,10 +420,63 @@ export default function Forum() {
     mutationFn: async ({ postId, voteType }: { postId: number; voteType: 'upvote' | 'downvote' }) => {
       return await apiRequest('POST', `/api/community/posts/${postId}/vote`, { voteType });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+    onMutate: async ({ postId, voteType }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/community/posts'] });
+      
+      // Snapshot the previous value
+      const previousPosts = queryClient.getQueryData(['/api/community/posts']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['/api/community/posts'], (old: any) => {
+        if (!old) return old;
+        
+        return old.map((post: CommunityPost) => {
+          if (post.id === postId) {
+            const currentVote = post.userVote;
+            let newUpvotes = post.upvotes;
+            let newDownvotes = post.downvotes;
+            let newUserVote: 'upvote' | 'downvote' | null = voteType;
+            
+            // Handle vote logic
+            if (currentVote === voteType) {
+              // Removing vote
+              newUserVote = null;
+              if (voteType === 'upvote') newUpvotes--;
+              else newDownvotes--;
+            } else if (currentVote === null) {
+              // Adding new vote
+              if (voteType === 'upvote') newUpvotes++;
+              else newDownvotes++;
+            } else {
+              // Switching vote
+              if (currentVote === 'upvote') newUpvotes--;
+              else newDownvotes--;
+              
+              if (voteType === 'upvote') newUpvotes++;
+              else newDownvotes++;
+            }
+            
+            return {
+              ...post,
+              upvotes: Math.max(0, newUpvotes),
+              downvotes: Math.max(0, newDownvotes),
+              userVote: newUserVote,
+              score: Math.max(0, newUpvotes) - Math.max(0, newDownvotes)
+            };
+          }
+          return post;
+        });
+      });
+      
+      return { previousPosts };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['/api/community/posts'], context.previousPosts);
+      }
+      
       if (isUnauthorizedError(error)) {
         toast({
           title: 'Unauthorized',
@@ -439,6 +493,10 @@ export default function Forum() {
         description: 'Failed to vote. Please try again.',
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      // Always refetch after success or error to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
     },
   });
 
@@ -1095,16 +1153,20 @@ export default function Forum() {
                       {/* Mobile-optimized voting section */}
                       <div className="flex flex-col items-center gap-2 min-w-12 lg:min-w-14">
                         <Button
-                          variant="ghost"
+                          variant={post.userVote === 'upvote' ? 'default' : 'ghost'}
                           size="sm"
-                          className="/* Mobile: larger tap target */
+                          className={`/* Mobile: larger tap target */
                                      h-9 w-9 p-0 
                                      /* Desktop: standard size */
                                      lg:h-8 lg:w-8
                                      /* Touch feedback */
                                      active:scale-90 transition-all duration-150
                                      /* Focus ring */
-                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20"
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                     /* Vote state colors */
+                                     ${post.userVote === 'upvote' 
+                                       ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                       : 'hover:bg-green-50 hover:text-green-600'}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isAuthenticated) {
@@ -1112,6 +1174,7 @@ export default function Forum() {
                             }
                           }}
                           aria-label="Upvote post"
+                          data-testid={`button-upvote-${post.id}`}
                         >
                           <ArrowUp className="h-4 w-4" />
                         </Button>
@@ -1120,11 +1183,15 @@ export default function Forum() {
                           <span className="text-small font-medium text-red-600">{post.downvotes || 0}</span>
                         </div>
                         <Button
-                          variant="ghost"
+                          variant={post.userVote === 'downvote' ? 'default' : 'ghost'}
                           size="sm"
-                          className="h-9 w-9 p-0 lg:h-8 lg:w-8
+                          className={`h-9 w-9 p-0 lg:h-8 lg:w-8
                                      active:scale-90 transition-all duration-150
-                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20"
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                     /* Vote state colors */
+                                     ${post.userVote === 'downvote' 
+                                       ? 'bg-red-500 hover:bg-red-600 text-white' 
+                                       : 'hover:bg-red-50 hover:text-red-600'}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isAuthenticated) {
@@ -1132,6 +1199,7 @@ export default function Forum() {
                             }
                           }}
                           aria-label="Downvote post"
+                          data-testid={`button-downvote-${post.id}`}
                         >
                           <ArrowDown className="h-4 w-4" />
                         </Button>

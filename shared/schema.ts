@@ -587,6 +587,7 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type CommunityPostWithVotes = CommunityPost & {
   upvotes: number;
   downvotes: number;
+  userVote: 'upvote' | 'downvote' | null;
 };
 
 export type CommunityReplyWithVotes = CommunityReply & {
