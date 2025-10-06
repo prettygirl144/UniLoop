@@ -1403,6 +1403,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add manual menu entry (RBAC protected)
+  app.post('/api/amenities/menu/manual', checkAuth, authorizeAmenities('menuUpload'), async (req: any, res) => {
+    try {
+      const userInfo = extractUser(req);
+      if (!userInfo) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { date, mealType, items } = req.body;
+
+      // Validation
+      if (!date || !mealType || !items) {
+        return res.status(400).json({ message: 'Date, meal type, and items are required' });
+      }
+
+      // Validate meal type
+      const validMealTypes = ['breakfast', 'lunch', 'eveningSnacks', 'dinner'];
+      if (!validMealTypes.includes(mealType)) {
+        return res.status(400).json({ message: 'Invalid meal type. Must be one of: breakfast, lunch, eveningSnacks, dinner' });
+      }
+
+      // Validate date format (YYYY-MM-DD)
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
+      }
+
+      // Process items: convert newlines to comma-separated
+      const processedItems = items.trim().split('\n').map((item: string) => item.trim()).filter((item: string) => item.length > 0).join(', ');
+
+      if (!processedItems) {
+        return res.status(400).json({ message: 'No valid menu items provided' });
+      }
+
+      console.log(`📝 [MENU-MANUAL] Adding manual entry - Date: ${date}, Meal: ${mealType}, Items: ${processedItems}`);
+
+      // Upsert menu entry
+      const result = await storage.upsertMenuEntry(date, mealType, processedItems, userInfo.id);
+
+      res.json({
+        message: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} menu added successfully for ${date}`,
+        data: result
+      });
+    } catch (error) {
+      console.error("Error adding manual menu entry:", error);
+      res.status(500).json({ message: "Failed to add menu entry" });
+    }
+  });
+
   // Edit individual menu items (RBAC protected)
   app.put('/api/amenities/menu/:id', checkAuth, authorizeAmenities('menuUpload'), async (req: any, res) => {
     try {

@@ -123,6 +123,7 @@ export interface IStorage {
   getWeeklyMenuByDate(date: string): Promise<WeeklyMenu | undefined>;
   getWeeklyMenuRange(dates: string[]): Promise<WeeklyMenu[]>;
   replaceAllMenu(menuData: InsertWeeklyMenu[], uploadedBy: string): Promise<WeeklyMenu[]>;
+  upsertMenuEntry(date: string, mealType: string, items: string, uploadedBy: string): Promise<WeeklyMenu>;
   bookSickFood(booking: InsertSickFoodBooking): Promise<SickFoodBooking>;
   getSickFoodBookings(date?: Date): Promise<SickFoodBooking[]>;
   getSickFoodBookingsWithUserData(startDate?: Date, endDate?: Date, userId?: string): Promise<Array<SickFoodBooking & { user: { firstName: string | null; lastName: string | null; rollNumber: string | null; email: string | null } }>>;
@@ -1178,6 +1179,37 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return created;
+  }
+
+  async upsertMenuEntry(date: string, mealType: string, items: string, uploadedBy: string): Promise<WeeklyMenu> {
+    // Build the data object with only the specified meal type
+    const mealData: any = {
+      date,
+      uploadedBy,
+      uploadedAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    // Set the specific meal type field
+    mealData[mealType] = items;
+    
+    // Build the update object for conflict resolution
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+    updateData[mealType] = items;
+    
+    // Upsert: insert if date doesn't exist, update the meal type if it does
+    const [result] = await db
+      .insert(weeklyMenu)
+      .values(mealData)
+      .onConflictDoUpdate({
+        target: weeklyMenu.date,
+        set: updateData,
+      })
+      .returning();
+    
+    return result;
   }
 
   async updateWeeklyMenu(id: number, updates: { mealType?: string; items?: string }): Promise<WeeklyMenu | undefined> {
