@@ -511,7 +511,7 @@ export default function Amenities() {
       setUploadedFile(null);
       toast({
         title: 'Success',
-        description: `Weekly menu uploaded successfully! ${result.data?.length || 0} entries added.`,
+        description: result.message || 'Menu uploaded successfully!',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/amenities/menu'] });
     },
