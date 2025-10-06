@@ -469,34 +469,41 @@ export default function Amenities() {
 
   const menuUploadMutation = useMutation({
     mutationFn: async (data: MenuUploadForm) => {
-      if (!uploadedFile) {
-        throw new Error('Please select an Excel file to upload');
+      // Check if this is a file upload or manual entry
+      if (uploadedFile) {
+        // File upload path
+        console.log('Starting menu upload with file:', uploadedFile.name);
+        
+        const formData = new FormData();
+        formData.append('menuFile', uploadedFile);
+        
+        console.log('FormData created, sending request...');
+        
+        const response = await fetch('/api/amenities/menu/upload', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+        
+        console.log('Upload response status:', response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Upload failed with error:', errorData);
+          throw new Error(errorData.message || 'Failed to upload menu');
+        }
+        
+        const result = await response.json();
+        console.log('Upload successful:', result);
+        return result;
+      } else {
+        // Manual entry path
+        console.log('Starting manual menu entry:', data);
+        
+        const response = await apiRequest('POST', '/api/amenities/menu/manual', data);
+        console.log('Manual entry successful:', response);
+        return response;
       }
-      
-      console.log('Starting menu upload with file:', uploadedFile.name);
-      
-      const formData = new FormData();
-      formData.append('menuFile', uploadedFile);
-      
-      console.log('FormData created, sending request...');
-      
-      const response = await fetch('/api/amenities/menu/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-      
-      console.log('Upload response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Upload failed with error:', errorData);
-        throw new Error(errorData.message || 'Failed to upload menu');
-      }
-      
-      const result = await response.json();
-      console.log('Upload successful:', result);
-      return result;
     },
     onSuccess: (result: any) => {
       setShowMenuUploadDialog(false);
