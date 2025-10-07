@@ -853,45 +853,68 @@ export class DatabaseStorage implements IStorage {
 
   // Community Board (Section 1) - Reddit-like functionality
   async getCommunityPosts(userId?: string): Promise<CommunityPostWithVotes[]> {
+    // Get all posts
     const posts = await db
       .select()
       .from(communityPosts)
       .where(eq(communityPosts.isDeleted, false))
       .orderBy(desc(communityPosts.createdAt));
 
-    // Add vote counts and user vote state to each post
-    const postsWithVotes = await Promise.all(
-      posts.map(async (post) => {
-        const upvotes = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(communityVotes)
-          .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'upvote')));
-        
-        const downvotes = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(communityVotes)
-          .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'downvote')));
+    if (posts.length === 0) return [];
 
-        // Get user's current vote if userId is provided
-        let userVote = null;
-        if (userId) {
-          const [userVoteRecord] = await db
-            .select()
-            .from(communityVotes)
-            .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.userId, userId)));
-          userVote = userVoteRecord?.voteType || null;
-        }
-
-        return {
-          ...post,
-          upvotes: Number(upvotes[0]?.count || 0),
-          downvotes: Number(downvotes[0]?.count || 0),
-          userVote,
-        } as CommunityPostWithVotes;
+    // Get all vote counts in a single aggregated query
+    const voteCounts = await db
+      .select({
+        postId: communityVotes.postId,
+        voteType: communityVotes.voteType,
+        count: sql<number>`count(*)::int`,
       })
-    );
+      .from(communityVotes)
+      .where(inArray(communityVotes.postId, posts.map(p => p.id)))
+      .groupBy(communityVotes.postId, communityVotes.voteType);
 
-    return postsWithVotes;
+    // Get user's votes in a single query if userId is provided
+    let userVotes: Map<number, string> = new Map();
+    if (userId) {
+      const userVoteRecords = await db
+        .select()
+        .from(communityVotes)
+        .where(
+          and(
+            eq(communityVotes.userId, userId),
+            inArray(communityVotes.postId, posts.map(p => p.id))
+          )
+        );
+      userVoteRecords.forEach(vote => {
+        userVotes.set(vote.postId, vote.voteType);
+      });
+    }
+
+    // Create a map of vote counts for efficient lookup
+    const voteMap = new Map<number, { upvotes: number; downvotes: number }>();
+    posts.forEach(post => {
+      voteMap.set(post.id, { upvotes: 0, downvotes: 0 });
+    });
+    
+    voteCounts.forEach(vote => {
+      const current = voteMap.get(vote.postId)!;
+      if (vote.voteType === 'upvote') {
+        current.upvotes = Number(vote.count);
+      } else if (vote.voteType === 'downvote') {
+        current.downvotes = Number(vote.count);
+      }
+    });
+
+    // Combine all data
+    return posts.map(post => {
+      const votes = voteMap.get(post.id)!;
+      return {
+        ...post,
+        upvotes: votes.upvotes,
+        downvotes: votes.downvotes,
+        userVote: userVotes.get(post.id) || null,
+      } as CommunityPostWithVotes;
+    });
   }
 
   async createCommunityPost(post: InsertCommunityPost): Promise<CommunityPost> {
@@ -914,21 +937,27 @@ export class DatabaseStorage implements IStorage {
     
     if (!post) return undefined;
 
-    // Add vote counts
-    const upvotes = await db
-      .select({ count: sql<number>`count(*)` })
+    // Get vote counts in a single aggregated query
+    const voteCounts = await db
+      .select({
+        voteType: communityVotes.voteType,
+        count: sql<number>`count(*)::int`,
+      })
       .from(communityVotes)
-      .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'upvote')));
-    
-    const downvotes = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(communityVotes)
-      .where(and(eq(communityVotes.postId, post.id), eq(communityVotes.voteType, 'downvote')));
+      .where(eq(communityVotes.postId, post.id))
+      .groupBy(communityVotes.voteType);
+
+    let upvotes = 0;
+    let downvotes = 0;
+    voteCounts.forEach(vote => {
+      if (vote.voteType === 'upvote') upvotes = Number(vote.count);
+      else if (vote.voteType === 'downvote') downvotes = Number(vote.count);
+    });
 
     return {
       ...post,
-      upvotes: Number(upvotes[0]?.count || 0),
-      downvotes: Number(downvotes[0]?.count || 0),
+      upvotes,
+      downvotes,
     } as CommunityPostWithVotes;
   }
 
@@ -1018,28 +1047,45 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(communityReplies.postId, postId), eq(communityReplies.isDeleted, false)))
       .orderBy(desc(communityReplies.createdAt));
 
-    // Add vote counts to each reply
-    const repliesWithVotes = await Promise.all(
-      replies.map(async (reply) => {
-        const upvotes = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(communityVotes)
-          .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'upvote')));
-        
-        const downvotes = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(communityVotes)
-          .where(and(eq(communityVotes.replyId, reply.id), eq(communityVotes.voteType, 'downvote')));
+    if (replies.length === 0) return [];
 
-        return {
-          ...reply,
-          upvotes: Number(upvotes[0]?.count || 0),
-          downvotes: Number(downvotes[0]?.count || 0),
-        } as CommunityReplyWithVotes;
+    // Get all vote counts in a single aggregated query
+    const voteCounts = await db
+      .select({
+        replyId: communityVotes.replyId,
+        voteType: communityVotes.voteType,
+        count: sql<number>`count(*)::int`,
       })
-    );
+      .from(communityVotes)
+      .where(inArray(communityVotes.replyId, replies.map(r => r.id)))
+      .groupBy(communityVotes.replyId, communityVotes.voteType);
 
-    return repliesWithVotes;
+    // Create a map of vote counts for efficient lookup
+    const voteMap = new Map<number, { upvotes: number; downvotes: number }>();
+    replies.forEach(reply => {
+      voteMap.set(reply.id, { upvotes: 0, downvotes: 0 });
+    });
+    
+    voteCounts.forEach(vote => {
+      if (vote.replyId) {
+        const current = voteMap.get(vote.replyId)!;
+        if (vote.voteType === 'upvote') {
+          current.upvotes = Number(vote.count);
+        } else if (vote.voteType === 'downvote') {
+          current.downvotes = Number(vote.count);
+        }
+      }
+    });
+
+    // Combine all data
+    return replies.map(reply => {
+      const votes = voteMap.get(reply.id)!;
+      return {
+        ...reply,
+        upvotes: votes.upvotes,
+        downvotes: votes.downvotes,
+      } as CommunityReplyWithVotes;
+    });
   }
 
   async createCommunityReply(reply: InsertCommunityReply): Promise<CommunityReply> {
