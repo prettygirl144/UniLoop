@@ -93,17 +93,28 @@ export default function Home() {
   const upcomingEvents = getUpcomingEvents();
 
   const formatEventDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse the date from server (which is in UTC/ISO format)
+    const eventDate = new Date(dateStr);
+    
+    // Get today's date in local timezone at midnight
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get tomorrow's date in local timezone at midnight
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     
-    if (date.toDateString() === today.toDateString()) {
+    // Normalize event date to local timezone midnight for comparison
+    const eventDateNormalized = new Date(eventDate);
+    eventDateNormalized.setHours(0, 0, 0, 0);
+    
+    // Compare timestamps
+    if (eventDateNormalized.getTime() === today.getTime()) {
       return 'Today';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (eventDateNormalized.getTime() === tomorrow.getTime()) {
       return 'Tomorrow';
     } else {
-      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      return eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
   };
 
