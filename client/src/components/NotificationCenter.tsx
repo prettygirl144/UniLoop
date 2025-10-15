@@ -80,16 +80,14 @@ export function NotificationCenter() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch notifications
+  // Fetch notifications (will be updated via WebSocket)
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['/api/notifications'],
-    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Fetch unread count
+  // Fetch unread count (will be updated via WebSocket)
   const { data: unreadData } = useQuery({
     queryKey: ['/api/notifications/unread'],
-    refetchInterval: 10000, // Refetch every 10 seconds
   });
 
   // Fetch preferences
