@@ -161,8 +161,15 @@ export class NotificationQueueManager {
 
   /**
    * Main processing loop for individual notifications
+   * DISABLED: This was running every 100ms and consuming excessive compute units
+   * TODO: Convert to event-driven architecture when re-enabling
    */
   private startProcessingLoop(): void {
+    // DISABLED: This loop was checking every 100ms (10x per second) consuming ~60M compute units/month
+    // Will be replaced with event-driven notification system in the future
+    console.log('⚠️ Notification queue processing loop is DISABLED to reduce costs');
+    
+    /* ORIGINAL POLLING CODE - DISABLED
     setInterval(async () => {
       if (this.isProcessing || this.throttleQueue.length === 0) return;
       
@@ -192,6 +199,7 @@ export class NotificationQueueManager {
         this.isProcessing = false;
       }
     }, 100); // Check every 100ms
+    */
   }
 
   /**
