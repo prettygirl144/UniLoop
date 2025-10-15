@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Optional: Set up periodic heartbeat every 5 minutes for very active users
-    const interval = setInterval(heartbeat, 5 * 60 * 1000);
+    // Periodic heartbeat every 30 minutes (reduced from 5 min to save compute costs)
+    const interval = setInterval(heartbeat, 30 * 60 * 1000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
