@@ -195,7 +195,7 @@ let wss: WebSocketServer;
 const connectedClients = new Set<WebSocket>();
 
 // Broadcast function for real-time updates
-function broadcastToClients(message: any) {
+export function broadcastToClients(message: any) {
   const messageString = JSON.stringify(message);
   connectedClients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {

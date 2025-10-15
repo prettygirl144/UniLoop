@@ -37,6 +37,12 @@ export function useWebSocket() {
               queryClient.invalidateQueries({ queryKey: ['/api/amenities/menu'] });
               console.log('🍽️ [WEBSOCKET] Menu updated, refreshing data');
               break;
+            case 'NEW_NOTIFICATION':
+              // Invalidate notification queries to refresh the data
+              queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread'] });
+              console.log('🔔 [WEBSOCKET] New notification received, refreshing data');
+              break;
             case 'CONNECTED':
               console.log('📡 [WEBSOCKET] Welcome:', message.message);
               break;

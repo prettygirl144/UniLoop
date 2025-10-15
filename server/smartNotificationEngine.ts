@@ -5,6 +5,7 @@ import {
   User
 } from "@shared/schema";
 import { storage } from "./storage";
+import { broadcastToClients } from "./routes";
 
 export interface NotificationContext {
   userId: string;
@@ -410,7 +411,20 @@ export class SmartNotificationEngine {
       }
     };
     
-    return await storage.createSmartNotification(enhancedNotification);
+    const created = await storage.createSmartNotification(enhancedNotification);
+    
+    // Broadcast notification to all connected clients via WebSocket
+    broadcastToClients({
+      type: 'NEW_NOTIFICATION',
+      data: {
+        notificationId: created.id,
+        recipientUserId: created.recipientUserId,
+        category: created.category,
+        priority: created.priority
+      }
+    });
+    
+    return created;
   }
 
   /**
