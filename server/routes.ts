@@ -214,8 +214,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const expressStaticImport = await import('express');
   app.use(expressStaticImport.default.static(path.resolve(import.meta.dirname, '..', 'client', 'public')));
   
-  // Use the PostgreSQL session store from replitAuth.ts
-  const { getSession } = await import('./replitAuth');
+  // Use the PostgreSQL session store (platform-independent)
+  const { getSession } = await import('./sessionConfig');
   app.use(getSession());
   
   // CSRF protection middleware for state-changing routes
