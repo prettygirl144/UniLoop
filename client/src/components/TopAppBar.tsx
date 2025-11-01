@@ -1,6 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
 import CompactAccountSwitcher from './CompactAccountSwitcher';
-import { NotificationCenter } from './NotificationCenter';
 import uniloopLogomark from '@assets/uniloop logomark_1753618415583.png';
 
 export default function TopAppBar() {
@@ -42,12 +41,6 @@ export default function TopAppBar() {
         
         {/* Right section: Actions and profile */}
         <div className="flex items-center space-x-2 lg:space-x-3 flex-shrink-0">
-          {/* Smart Notification Center */}
-          <div className="text-white [&_button]:text-white [&_button:hover]:bg-white [&_button:hover]:bg-opacity-10 
-                         [&_button]:border-white [&_button]:border-opacity-30">
-            <NotificationCenter />
-          </div>
-          
           {/* Account Switcher with responsive positioning */}
           <div className="relative z-50">
             <CompactAccountSwitcher />
