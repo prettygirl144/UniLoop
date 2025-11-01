@@ -20,7 +20,6 @@ import {
   studentUploadLogs,
   triathlonTeams,
   triathlonPointHistory,
-  pushSubscriptions,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
