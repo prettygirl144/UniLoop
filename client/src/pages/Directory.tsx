@@ -62,14 +62,10 @@ export default function Directory() {
     const newQuery = updates.query !== undefined ? updates.query : searchQuery;
     const newPage = updates.page !== undefined ? updates.page : currentPage;
 
-<<<<<<< HEAD
     // Include 'All' in URL to make it explicit
     if (newBatch) {
       params.set('batch', newBatch);
     }
-=======
-    if (newBatch && newBatch !== 'All') params.set('batch', newBatch);
->>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
     if (newQuery) params.set('q', newQuery);
     if (newPage > 1) params.set('page', newPage.toString());
 
@@ -109,12 +105,20 @@ export default function Directory() {
       }
     }
     // If no URL param and no selection yet, default to user's batch
+    // If URL explicitly has 'All', use that
+    if (urlParams.batch === 'All') {
+      if (selectedBatch !== 'All') {
+        setSelectedBatch('All');
+      }
+    }
+    // If URL has a specific batch, use that
+    else if (urlParams.batch && urlParams.batch !== 'All') {
+      if (selectedBatch !== urlParams.batch) {
+        setSelectedBatch(urlParams.batch);
+      }
+    }
+    // If no URL param and no selection yet, default to user's batch
     else if (myDirectoryInfo?.batch && !selectedBatch && !urlParams.batch) {
-=======
-  // Set default batch filter to user's batch
-  useEffect(() => {
-    if (myDirectoryInfo?.batch && !selectedBatch && !urlParams.batch) {
->>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
       setSelectedBatch(myDirectoryInfo.batch);
     }
   }, [myDirectoryInfo, selectedBatch, urlParams.batch]);
@@ -122,11 +126,7 @@ export default function Directory() {
   // Fetch student directory list
   const { data: studentList, isLoading: studentsLoading } = useQuery<StudentListResponse>({
     queryKey: ['directory', 'list', { 
-<<<<<<< HEAD
       batch: selectedBatch || 'All', 
-=======
-      batch: selectedBatch || myDirectoryInfo?.batch || 'All', 
->>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
       query: searchQuery, 
       page: currentPage 
     }],
@@ -136,19 +136,12 @@ export default function Directory() {
         limit: '20',
       });
       
-<<<<<<< HEAD
       // Only send batch parameter if a specific batch is selected (not 'All' or empty)
       if (selectedBatch && selectedBatch !== 'All') {
         params.set('batch', selectedBatch);
       } else {
         // Explicitly set batch to 'All' to search across all batches
         params.set('batch', 'All');
-=======
-      if (selectedBatch && selectedBatch !== 'All') {
-        params.set('batch', selectedBatch);
-      } else if (myDirectoryInfo?.batch && selectedBatch !== 'All') {
-        params.set('batch', myDirectoryInfo.batch);
->>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
       }
       
       if (searchQuery) {
