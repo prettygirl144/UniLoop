@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Subject: Persisting issue — “Sick Food Bookings” still not visible after cache/diagnostics fixes (need targeted Replit-side triage)
 
 Project
@@ -130,4 +131,138 @@ DB model/query used by both routes.
 Current run command and any proxy affecting API_BASE_URL.
 
 Goal
+=======
+Subject: Persisting issue — “Sick Food Bookings” still not visible after cache/diagnostics fixes (need targeted Replit-side triage)
+
+Project
+
+PWA with frontend query caching and backend API
+
+Running on Replit (Preview/Run and/or Deploy)
+
+Urgency: Records view must reflect newly created bookings
+
+Issue summary
+Despite implementing the following fixes, newly created “Sick Food” bookings are not appearing in the Records view:
+
+Cache/query alignment: unified query keys for filtered/unfiltered lists; explicit invalidation on create.
+
+Frontend diagnostics: endpoint verification, requestId correlation, detailed fetch logs and error tracking.
+
+Backend diagnostics: auth middleware tracing, session/user logging, DB query logs (counts+samples), request/response timing.
+
+Observed behavior
+
+Booking creation appears successful client-side.
+
+Records page shows “No bookings found.”
+
+Console/logs show end-to-end traces, but the list remains empty.
+
+Requested actions (Replit-focused, step-by-step)
+
+Confirm runtime and artifact consistency
+
+Ensure the running instance serves the latest build/bundle and API (no stale preview or cached SW assets).
+
+Restart the run process and verify that recent code (with diagnostics) is active by checking for the new log markers on startup.
+
+Trace a single booking across layers using requestId
+
+In Console, capture the requestId emitted on POST /bookings (e.g., bk-<timestamp>).
+
+Verify server logs show:
+
+Route entry with the same requestId.
+
+DB insert attempt and result (insertedId/rowCount) for that requestId.
+
+Immediately after, verify the GET records call includes:
+
+The same user/session context and any filter params.
+
+A DB result count >0 or explicit empty with sample data preview.
+
+Validate query key parity on the running build
+
+Print the exact query keys used by:
+
+The list fetch (filtered/unfiltered).
+
+The invalidation after create.
+
+Confirm that the keys match byte-for-byte (including default values, date formats, and param ordering) in the running logs.
+
+Eliminate service worker interference for this route
+
+Temporarily bypass SW for /bookings endpoints:
+
+Confirm fetches for POST/GET are network-first and not cached.
+
+Verify the SW activate event has run (new version string visible) before the test.
+
+Verify API base URL and CORS under current origin
+
+Log the resolved API_BASE_URL in both client and server on this run.
+
+Confirm CORS allows the current origin and that the GET is not downgraded/blocked (no opaque or 204 with empty body).
+
+Database targeting and read path
+
+On server startup, log the effective DB name/schema and table/collection used for “sick food” bookings.
+
+Run a server-side “last 5 bookings” debug log immediately after a successful insert (same connection) to confirm read-after-write visibility.
+
+If available, execute a direct read query for the test requestId and log the row/document.
+
+Filter normalization on Records view
+
+Log the final filter object used for GET (date format, timezone, user scope).
+
+Normalize to ISO 8601 dates and ensure backend uses the same timezone boundaries.
+
+Verify that an unfiltered GET (no date filter) returns the new booking; if yes, log the exact filtered params causing exclusion.
+
+Auth/session scope alignment
+
+Log which userId/tenant/context is used on POST vs GET.
+
+Confirm that GET is not scoped to a different campus/tenant/role than the POST.
+
+If role-based filtering applies, temporarily bypass it for diagnostics and confirm records appear.
+
+Return explicit diagnostics to the client
+
+Modify the GET response (dev mode only) to include:
+
+totalCount, appliedFilters, sampleIds, and the first/last created_at values.
+
+Ensure the client logs these fields so discrepancies are visible without server access.
+
+Deliverables to confirm within one test submission
+
+POST shows insertedId and requestId in server logs.
+
+Immediate GET (same user/context) logs totalCount>0 and includes the inserted booking when unfiltered.
+
+With the Records filter applied, either:
+
+The booking appears, or
+
+Logs clearly show why it is filtered out (date boundary, scope, role).
+
+If file inspection is needed, specify exact snippets to share
+
+Records list query key construction and invalidation call.
+
+Service worker fetch handler around /bookings.
+
+Server routes for POST /bookings and GET /bookings (filter parsing, auth scoping).
+
+DB model/query used by both routes.
+
+Current run command and any proxy affecting API_BASE_URL.
+
+Goal
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 Within one guided run, identify whether the failure is due to stale runtime, SW caching, query key mismatch at runtime, filter/date normalization, auth scoping, or DB read-after-write visibility—and provide the minimal code/config change to make new “Sick Food” bookings reliably appear in the Records section.

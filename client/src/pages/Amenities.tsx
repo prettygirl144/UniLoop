@@ -1129,6 +1129,7 @@ export default function Amenities() {
 
               {/* Tomorrow's Menu */}
               <TabsContent value="tomorrow" className="space-y-4">
+<<<<<<< HEAD
                 {(() => {
                   const tomorrowMenu = getTomorrowMenu();
                   const tomorrowDate = getDateOffset(1);
@@ -1226,10 +1227,18 @@ export default function Amenities() {
                     </Card>
                   );
                 })()}
+=======
+                <WeeklyMenuCard 
+                  title="Tomorrow's Menu"
+                  menu={getTomorrowMenu()}
+                  date={getDateOffset(1)}
+                />
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
               </TabsContent>
 
               {/* Day After Tomorrow's Menu */}
               <TabsContent value="dayafter" className="space-y-4">
+<<<<<<< HEAD
                 {(() => {
                   const dayAfterMenu = getDayAfterMenu();
                   const dayAfterDate = getDateOffset(2);
@@ -1327,6 +1336,13 @@ export default function Amenities() {
                     </Card>
                   );
                 })()}
+=======
+                <WeeklyMenuCard 
+                  title="Day After Tomorrow's Menu"
+                  menu={getDayAfterMenu()}
+                  date={getDateOffset(2)}
+                />
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
               </TabsContent>
 
               {/* Next 7 Days Menu */}
@@ -1336,13 +1352,17 @@ export default function Amenities() {
                     <CardTitle className="flex items-center gap-2">
                       <CalendarDays className="h-5 w-5" />
                       Next 7 Days Menu
+<<<<<<< HEAD
                       {canEditMenu && (
                         <Badge variant="secondary" className="text-xs ml-2">Click meal types to edit</Badge>
                       )}
+=======
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
+<<<<<<< HEAD
                       {getNext7DaysMenu().map((dayMenu: any, index: number) => {
                         const dayMenuData = (weeklyMenuData as any[])?.find(m => m.date === dayMenu.dateStr);
                         return (
@@ -1421,6 +1441,19 @@ export default function Amenities() {
                           </div>
                         );
                       })}
+=======
+                      {getNext7DaysMenu().map((dayMenu: any, index: number) => (
+                        <div key={dayMenu.dateStr} className="border-b pb-4 last:border-b-0 last:pb-0">
+                          <h3 className="text-medium mb-3 font-medium">{dayMenu.displayDate}</h3>
+                          <div className="space-y-0">
+                            <MealSection title="Breakfast" items={dayMenu.breakfast} />
+                            <MealSection title="Lunch" items={dayMenu.lunch} />
+                            <MealSection title="Evening Snacks" items={dayMenu.eveningSnacks} />
+                            <MealSection title="Dinner" items={dayMenu.dinner} />
+                          </div>
+                        </div>
+                      ))}
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
                     </div>
                   </CardContent>
                 </Card>
@@ -1983,7 +2016,11 @@ export default function Amenities() {
           <DialogHeader>
             <DialogTitle>
               {editingMenu?.mealType && editingMenu.mealType !== 'all' 
+<<<<<<< HEAD
                 ? `Edit ${editingMenu.mealType.charAt(0).toUpperCase() + editingMenu.mealType.slice(1)} - ${formatDateDisplay(editingMenu.date)}`
+=======
+                ? `Edit ${editingMenu.mealType.charAt(0).toUpperCase() + editingMenu.mealType.slice(1)} - Today's Menu`
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
                 : `Edit Menu - ${editingMenu?.mealType}`
               }
             </DialogTitle>

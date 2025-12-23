@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Subject: Add dynamic “Triathlon News Snippets” on Home → Triathlon subpage (combine Events + Forum posts tagged “Triathlon”)
 
 Goal
@@ -93,4 +94,101 @@ Files to add/change (adjust paths)
 
 Notes
 - Tag value normalized as lowercase “triathlon”; server should case-insensitively match “Triathlon”.
+=======
+Subject: Add dynamic “Triathlon News Snippets” on Home → Triathlon subpage (combine Events + Forum posts tagged “Triathlon”)
+
+Goal
+- On the Triathlon subpage (which already shows the leaderboard), add a compact “News Snippets” section that automatically lists the latest 5 items combined from:
+  - Events/Calendar items tagged with the Triathlon category
+  - Forum posts (Community + Official Announcements) tagged “Triathlon”
+- Items should be deduplicated, sorted by createdAt/startsAt descending, and link to the original detail pages.
+
+Requirements
+
+UI/UX
+- Placement: below the existing Triathlon Leaderboard block on the Home → Triathlon subpage.
+- Section header: “Triathlon News”
+- List of up to 5 snippets, each row shows:
+  - Source pill: Event or Forum
+  - Title (one line, ellipsized)
+  - Meta: relative time (e.g., “2h ago”) + absolute date (e.g., “22 Aug 2025”)
+  - Optional: small icon (calendar for Events, chat/megaphone for Forum/Announcement)
+- Click row to navigate to the event detail or forum thread.
+- Empty state: “No recent triathlon updates yet.”
+- “View all” small link goes to:
+  - A filtered listing page for each source using the Triathlon tag (optional, if listings exist).
+
+Data and API
+
+Add two read endpoints if not present (or reuse existing with filters):
+- Events:
+  - GET /api/events?tag=triathlon&limit=5
+  - Response items need: id, title, startsAt (or createdAt), url/path, source: 'event'
+- Forum (community posts + official announcements):
+  - GET /api/forum?tag=triathlon&limit=5&scope=all
+  - Response items need: id, title, createdAt, url/path, source: 'forum' | 'announcement'
+
+Aggregation client hook
+- Create a React Query hook useTriathlonSnippets():
+  - Fetch in parallel the two lists above (limit 5 each).
+  - Transform to a unified shape:
+    { id, title, date: startsAt || createdAt, source: 'event'|'forum'|'announcement', href }
+  - Deduplicate by id+source (in case cross-posted).
+  - Sort by date desc.
+  - Slice to 5 final items.
+  - Cache key: ['triathlon','snippets'] with staleTime: 60s.
+
+Server support (if filtering not available)
+- Add server-side tag filtering for both endpoints:
+  - Events: WHERE tags includes 'triathlon' (case-insensitive) OR category = 'Triathlon'
+  - Forum: WHERE tags includes 'triathlon' across both community posts and announcements; scope=all returns both categories or union them server-side.
+- Index tags field for faster lookups if dataset grows.
+
+Implementation steps
+
+Frontend
+1) Component: TriathlonNews.tsx
+- Uses useTriathlonSnippets hook.
+- Renders the header and list UI described above.
+- Handles loading skeleton (5 placeholder rows) and empty state.
+- Optional dev diagnostic: console.debug with counts from each source.
+
+2) Add TriathlonNews right under the leaderboard in the Triathlon subpage component.
+
+3) Link targets
+- For each item, construct route:
+  - Events → /events/:id (or existing event detail path)
+  - Forum/Announcements → /forum/:threadId (or /announcements/:id if separate)
+- Ensure navigate() uses SPA links (<Link to={href}>).
+
+Backend
+4) Extend events list to accept tag and limit params (if not present).
+5) Extend forum list to accept tag, scope=all, and limit params (if not present).
+6) Return only fields required by the snippets; keep admin-only fields out.
+7) Add requestId logging and result counts for observability.
+
+Performance and caching
+8) Limit to 5 results per source; do the final sort client-side.
+9) staleTime: 60s; refetchOnWindowFocus: false to avoid excessive requests.
+10) Ensure service worker is network-first for this small feed or uses a short max-age.
+
+Acceptance criteria
+- Triathlon subpage shows the “Triathlon News” list beneath the leaderboard.
+- It displays up to 5 most recent items across Events + Forum/Announcements tagged Triathlon, correctly sorted by date.
+- Clicking an item routes to the correct detail page.
+- If no triathlon-tagged content exists, the empty state appears.
+- Performance: initial render fetch completes quickly; no flicker after cache warmup.
+- Admin and non-admin users see the same read-only feed (no moderation actions).
+
+Files to add/change (adjust paths)
+- client/features/triathlon/TriathlonNews.tsx (new)
+- client/features/triathlon/hooks/useTriathlonSnippets.ts (new)
+- client/api/events.ts: add listByTag(tag, limit)
+- client/api/forum.ts: add listByTag(tag, limit, scope='all')
+- server/routes/events.list.ts: support tag and limit
+- server/routes/forum.list.ts: support tag, scope=all, and limit
+
+Notes
+- Tag value normalized as lowercase “triathlon”; server should case-insensitively match “Triathlon”.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 - If events use startsAt while forum uses createdAt, use the best available date for sorting; include both fields in the transformation.

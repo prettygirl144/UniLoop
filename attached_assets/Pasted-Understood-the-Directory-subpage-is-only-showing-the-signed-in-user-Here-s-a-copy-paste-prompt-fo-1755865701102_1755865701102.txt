@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Understood — the Directory subpage is only showing the signed‑in user. Here’s a copy‑paste prompt for Replit to implement the full classmates listing while still showing “Me” at the top.
 
 Subject: Directory subpage — show full student list (classmates) with Roll Number and Batch, not just “me”
@@ -88,4 +89,96 @@ Acceptance criteria
 - Directory subpage shows:
   - Top: “My Profile” (me).
   - Below: a searchable, paginated list of other students (by default, same batch).
+=======
+Understood — the Directory subpage is only showing the signed‑in user. Here’s a copy‑paste prompt for Replit to implement the full classmates listing while still showing “Me” at the top.
+
+Subject: Directory subpage — show full student list (classmates) with Roll Number and Batch, not just “me”
+
+Goal
+- Keep the top “My Profile” card (name/photo/email/roll/batch).
+- Below it, render a searchable, paginated list of students from the Admin Student Directory (same batch by default, with filters to change).
+- Data comes from the Admin-uploaded Student Directory store.
+
+Implement exactly
+
+1) Server: list endpoint(s)
+- Add/confirm a read endpoint that returns directory rows (no PII beyond what’s needed):
+  - GET /api/directory/list?batch=PGP%202025&page=1&limit=20&query=&section=&program=
+  - Supports:
+    - batch: default to the current user’s batch; if missing, return all.
+    - query: case-insensitive substring match on name, email, rollNumber.
+    - pagination: page, limit (max 50).
+    - optional filters: program, section.
+  - Response:
+    {
+      data: Array<{ id, fullName, email, rollNumber, batch, program?, section?, hostel? }>,
+      total: number,
+      page: number,
+      limit: number
+    }
+- Authorization:
+  - Any authenticated user can read list; optionally scope to same campus/tenant.
+  - Write endpoints remain admin/staff only (RBAC unchanged).
+
+2) Server: me endpoint remains
+- GET /api/directory/me already returns joined fields for the signed‑in user (keep as-is for the top card).
+
+3) Client: Directory subpage layout
+- Top: “My Profile” card (existing) using /api/directory/me.
+- Below: “Class Directory” section with:
+  - Controls row:
+    - Batch dropdown (default = my batch; also include “All”)
+    - Search input (debounced 300 ms) → query param
+  - List:
+    - Paginated list (20 per page) using React Query with key:
+      ['directory','list',{ batch, page, limit, query, section, program }]
+    - Each row shows:
+      - Avatar (from email gravatar if no photo)
+      - fullName
+      - rollNumber (monospace)
+      - batch (muted)
+      - optional program/section tags
+  - Pagination footer with page/total; disable during fetch
+  - Empty state: “No students found for this filter”
+
+4) Client: default scoping and filters
+- On first load, set batch filter to myBatch from /api/directory/me. If null, default to “All”.
+- Preserve state in URL (e.g., /directory?batch=PGP%202025&q=rahul&page=2) so reloads keep filters.
+
+5) Performance and UX
+- Debounce search input (300 ms).
+- Use keepPreviousData for pagination to avoid list flicker.
+- Limit fields rendered to what’s needed (no admin-only columns).
+- Optional: client-side alphabet quick jump.
+
+6) Security/privacy
+- Do not expose phone numbers or sensitive data unless policy allows.
+- If policy requires scoping to same batch by default, allow “All” only for admin/staff; otherwise keep accessible to all students per your policy.
+
+7) Testing checklist
+- Log in as a student:
+  - “My Profile” shows roll/batch.
+  - Class Directory lists classmates in the same batch.
+  - Search by name/email/roll works.
+  - Changing batch filter shows other batches (if allowed).
+  - Pagination moves through results correctly.
+- Log in as admin/staff:
+  - Same behavior; may see “All batches” by default if desired.
+
+8) Files to change/add (adapt paths)
+- Server
+  - routes/directory.list.ts (new)
+  - routes/directory.me.ts (already present)
+- Client
+  - pages/DirectoryPage.tsx (subpage opened from Home button)
+    - Add filter controls, list, pagination
+  - api/directory.ts
+    - getMe()
+    - list({ batch, page, limit, query, section, program })
+
+Acceptance criteria
+- Directory subpage shows:
+  - Top: “My Profile” (me).
+  - Below: a searchable, paginated list of other students (by default, same batch).
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 - The list reflects Admin uploads and supports batch filter + search + pagination.

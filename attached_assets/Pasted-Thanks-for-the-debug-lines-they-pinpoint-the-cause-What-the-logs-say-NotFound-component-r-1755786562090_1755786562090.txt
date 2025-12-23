@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Thanks for the debug lines — they pinpoint the cause.
 
 What the logs say
@@ -52,4 +53,60 @@ Acceptance criteria
 - Navigating to a non-existent route (e.g., /xyz) renders NotFound; “/” and known paths render normally.
 - No 404 banner at the bottom of pages.
 
+=======
+Thanks for the debug lines — they pinpoint the cause.
+
+What the logs say
+- ❌ NotFound component rendering at: / — your client router is matching “/” to the NotFound route.
+- Network has no 404s, so this is not a server/static-file issue; it’s a client-side route config problem.
+- SW logs are fine; it’s bypassing cache for API routes (expected).
+
+Action for Replit (prescriptive)
+
+Subject: Fix client router matching — NotFound renders at “/” even when authenticated
+
+Tasks
+1) Route order and path specificity
+- Ensure the NotFound route is last.
+- Use exact matching for “/”.
+  - React Router v6 example:
+    <Routes>
+      <Route path="/" element={<Home />} />
+      …other concrete routes…
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  - If using v5:
+    <Switch>
+      <Route exact path="/" component={Home} />
+      …other routes…
+      <Route component={NotFound} />
+    </Switch>
+
+2) Guard logic around auth/layout
+- If routes are wrapped in a ProtectedRoute, confirm the guard returns children when isAuthenticated=true and isLoading=false. Do not fall through to NotFound.
+- Add one-time logs inside the guard:
+  console.debug('Guard', { isAuthenticated, isLoading, path: location.pathname });
+
+3) Basename and leading slashes
+- If the app uses a basename (e.g., <BrowserRouter basename="/app">), ensure all links and route paths include/omit the prefix consistently. Otherwise “/” will not match the intended route and fall to “*”.
+- Print router base at startup.
+
+4) Remove accidental catch-all above real routes
+- Search for any wildcard like <Route path="*" …> or regex-like patterns that appear before your main routes.
+
+5) Link usage
+- Replace <a href="/"> for internal navigation with <Link to="/"> or navigate('/') so the router resolves correctly.
+- Verify no programmatic navigate('*') or navigate('/404') runs on mount.
+
+6) Service worker overlay (just in case)
+- Ensure the NotFound UI isn’t being injected by the SW. It shouldn’t be; but bump SW version and hard reload once after fixing routes.
+
+Acceptance criteria
+- At startup, console shows:
+  🔍 Router Debug … isAuthenticated: true … currentPath: "/"
+  Home component renders (no NotFound render at “/”).
+- Navigating to a non-existent route (e.g., /xyz) renders NotFound; “/” and known paths render normally.
+- No 404 banner at the bottom of pages.
+
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 If you share the router snippet (App.tsx routes + any ProtectedRoute wrapper), I can mark the exact lines to change.

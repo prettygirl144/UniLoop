@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Subject: Remove phantom 404 rendering across ALL routes (user, admin, and every subpage/tab), keep real 404 only for invalid URLs
 
 Context
@@ -103,4 +104,111 @@ Acceptance criteria
 - No 404 card on any valid user/admin page or tab, including Triathlon Leaderboard and all Amenities/Forum tabs.
 - Invalid URLs still display the single proper 404 page.
 - No “NOTFOUND_RENDER” logs on valid routes; exactly one on invalid ones.
+=======
+Subject: Remove phantom 404 rendering across ALL routes (user, admin, and every subpage/tab), keep real 404 only for invalid URLs
+
+Context
+- Valid pages render but a 404 card appears appended at the bottom.
+- Fixed on home; still appears on subpages: Gallery, Forum, Amenities (and their tabs), Triathlon Leaderboard, Admin (and its sections), etc.
+- Network shows no 404 → issue is client render/layout or duplicate wildcard, not server.
+
+Objective
+- Eliminate any stray 404 render on every valid route (including nested routes and tabs).
+- Preserve exactly one legitimate 404 page for truly invalid URLs under both / and /admin.
+
+Scope (examples, expand to actual)
+- User: /, /gallery, /gallery/:id, /forum, /forum/:topicId, /amenities, /amenities/records, /amenities/services, /amenities/weekly, /triathlon, /triathlon/leaderboard, /hostel/leave, /hostel/leave/records, /community, /events, etc.
+- Admin: /admin, /admin/users, /admin/amenities, /admin/amenities/records, /admin/forum, /admin/triathlon, /admin/events, /admin/announcements, /admin/leave, etc.
+
+Action plan (do all)
+
+1) Single top‑level wildcard only
+- In the main router file:
+  - Define every concrete route (user + admin) and nested routes first.
+  - Add exactly one catch‑all as the very last route:
+    <Route path="*" element={<NotFound />} />
+- Remove every other wildcard (“*”) route anywhere else (including inside Admin and section layouts).
+
+2) Purge NotFound from layouts and shared shells
+- Open all layout components used anywhere (user and admin):
+  - AppLayout, GalleryLayout, ForumLayout, AmenitiesLayout, TriathlonLayout, AdminLayout, any TabbedLayout.
+- Ensure they render only:
+  <Header />
+  <Outlet />
+  <Footer />
+- Delete any <NotFound /> inside layouts, footers, tab containers, or shared wrappers.
+- Remove nested <Routes> declarations from layouts; route trees should live only at the top level.
+
+3) Correct guards so they never append 404
+- Review all guards (auth/role/tenant):
+  - Allowed: return children.
+  - Loading: return Spinner/Skeleton.
+  - Blocked:
+    - User routes → <Unauthorized /> or redirect.
+    - Admin routes → <AdminUnauthorized /> or redirect.
+  - Do NOT render <NotFound /> from guards, and do not render children and a fallback in parallel.
+
+4) Define explicit nested routes for tabs and subpages
+- Forum tabs:
+  <Route path="/forum" element={<ForumLayout/>}>
+    <Route index element={<ForumHome/>}/>
+    <Route path="topics/:topicId" element={<Topic/>}/>
+    <Route path="my-posts" element={<MyPosts/>}/>
+  </Route>
+- Amenities tabs:
+  <Route path="/amenities" element={<AmenitiesLayout/>}>
+    <Route index element={<WeeklyMenu/>}/>
+    <Route path="records" element={<Records/>}/>
+    <Route path="services" element={<Services/>}/>
+  </Route>
+- Triathlon:
+  <Route path="/triathlon" element={<TriathlonLayout/>}>
+    <Route index element={<TriathlonHome/>}/>
+    <Route path="leaderboard" element={<Leaderboard/>}/>
+  </Route>
+- Admin (single layout + nested):
+  <Route path="/admin" element={<AdminGuard><AdminLayout/></AdminGuard>}>
+    <Route index element={<AdminDashboard/>}/>
+    <Route path="users" element={<AdminUsers/>}/>
+    <Route path="amenities" element={<AdminAmenities/>}/>
+    <Route path="amenities/records" element={<AdminAmenitiesRecords/>}/>
+    <Route path="forum" element={<AdminForum/>}/>
+    <Route path="triathlon" element={<AdminTriathlon/>}/>
+    <Route path="events" element={<AdminEvents/>}/>
+    <Route path="announcements" element={<AdminAnnouncements/>}/>
+    <Route path="leave" element={<AdminLeave/>}/>
+  </Route>
+
+5) Normalize navigation links everywhere (tabs, navbars, admin sidebar)
+- Replace internal <a href> with <Link to> or navigate().
+- Ensure link paths match the defined routes exactly (lowercase, no trailing slash unless defined).
+- For tab components, ensure they update the URL (to="/amenities/services") and do not render a second router.
+
+6) Basename and deep‑link fallback
+- If deployed under a subpath, set basename and align links.
+- Server should always serve index.html for non‑API paths (SPA fallback) — confirm already configured.
+
+7) Service worker/cache hygiene
+- Bump SW version.
+- Unregister SW once, Clear site data, reload.
+- SW fetch handler must not cache or inject a 404 HTML shell.
+
+8) Temporary verification signature (remove after)
+- In NotFound component, temporarily:
+  console.warn('NOTFOUND_RENDER', window.location.pathname);
+  return <div id="__nf__" data-path={window.location.pathname}>…</div>;
+- Visit each valid route listed in Scope (including all tabs). Expect:
+  - No NOTFOUND_RENDER logs
+  - document.querySelector('#__nf__') === null
+- Visit invalid URLs: /nope, /admin/nope, /amenities/nothing → expect exactly one NOTFOUND_RENDER and the 404 page.
+
+9) Prevent regression (dev-only)
+- Maintain a canonical route list (all valid paths and tab routes).
+- On app start in dev, if location.pathname is in that list and #__nf__ exists, console.error('Stray 404 mounted', location.pathname).
+
+Acceptance criteria
+- No 404 card on any valid user/admin page or tab, including Triathlon Leaderboard and all Amenities/Forum tabs.
+- Invalid URLs still display the single proper 404 page.
+- No “NOTFOUND_RENDER” logs on valid routes; exactly one on invalid ones.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 - Network shows no 404s during normal navigation.

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Subject: Stop duplicate rendering across the PWA and eliminate the appended 404 card (keep real 404 only)
 
 Context
@@ -68,4 +69,76 @@ Deliverables to confirm in PR/console
 - Screenshot or console logs showing no APP_MOUNTED_TWICE.
 - List of removed duplicate mounts/routers/providers (files touched).
 - Confirmation that only one catch‑all 404 remains at the end of the route tree.
+=======
+Subject: Stop duplicate rendering across the PWA and eliminate the appended 404 card (keep real 404 only)
+
+Context
+- Every page appears twice (sections repeat). A 404 card sometimes shows at the bottom of valid pages.
+- Goal: ensure the app mounts and renders exactly once, use a single router tree and a single catch‑all 404, and prevent dev/StrictMode or layout issues from duplicating UI.
+
+Tasks (apply all)
+
+1) Single mount point and single render
+- index.html: ensure exactly one root node exists:
+  <div id="root"></div>
+  Remove any second root (e.g., <div id="app"> or modal root rendering the whole app).
+- index.tsx:
+  - Create the root once and render once:
+    const root = createRoot(document.getElementById('root')!);
+    const app = <App />;
+    root.render(import.meta.env.DEV ? <React.StrictMode>{app}</React.StrictMode> : app);
+  - Search the codebase and remove any additional createRoot/ReactDOM.render calls that render App (or large shells) again.
+
+2) One router provider only
+- Ensure there is exactly one Router provider (e.g., BrowserRouter/RouterProvider) at the app top level.
+- Remove any Router providers created inside pages, layouts, tab components, or admin shells.
+
+3) One query/client/provider instance only
+- Ensure there is only one instance each of global providers (e.g., QueryClientProvider, Theme, Redux, Toast/Modal providers). Do not re-wrap pages or layouts with these providers a second time.
+
+4) Fix dev double-invocations and effect leaks
+- StrictMode stays only in development (already handled above).
+- Search for effects that append DOM/portals without cleanup (body.appendChild, creating toasts/modals, banners). Add proper cleanup in useEffect return and ensure these are mounted once at the top shell, not per page.
+
+5) Prevent double service worker registration
+- In the SW registration code, guard against multiple registrations:
+  if ((window as any).__SW_REGISTERED__) return;
+  (window as any).__SW_REGISTERED__ = true;
+- Ensure registration is called from a single place (not inside pages/layouts).
+
+6) Ensure only one render tree for tabs/sections
+- Remove nested <Routes> from layouts and tab containers. Tabs should be simple links (Link to="…") and content rendered via nested routes declared at the top-level route file using <Outlet/>.
+- Layout components must return only:
+  <Header /><Outlet /><Footer />
+  No wildcard routes or NotFound inside layouts or tab shells.
+
+7) Keep exactly one catch‑all 404 route (at the end)
+- In the main route file, list all concrete routes (user, admin, all subpages), then a single last route:
+  <Route path="*" element={<NotFound />} />
+- Remove every other wildcard (“*”) route anywhere, including admin or tab layouts.
+- Guards (auth/role) must not render NotFound; when blocked, render Unauthorized or redirect.
+
+8) Add temporary detection to prove the fix (remove after)
+- In App.tsx (top level):
+  if ((window as any).__APP_MOUNTED__) console.error('APP_MOUNTED_TWICE');
+  (window as any).__APP_MOUNTED__ = true;
+- In NotFound.tsx temporarily:
+  console.warn('NOTFOUND_RENDER', window.location.pathname);
+- After fix, load a few pages: no APP_MOUNTED_TWICE logs; NOTFOUND_RENDER appears only on truly invalid URLs.
+
+9) Run/deploy hygiene
+- Ensure the run command launches only one server that serves the built app. Do not start both a dev server and a static server concurrently.
+- Bump the service worker version, unregister it once, and clear site data; reload to drop any cached old shell that might duplicate content.
+
+Acceptance criteria
+- Each page (home, gallery, forum, amenities and its tabs, triathlon leaderboard, admin and all admin subpages) renders once—no duplicated sections.
+- The 404 page shows only on invalid URLs; it never appears appended under valid pages.
+- Console shows no APP_MOUNTED_TWICE; NOTFOUND_RENDER only on invalid paths.
+- Network shows no unexpected 404s during normal navigation.
+
+Deliverables to confirm in PR/console
+- Screenshot or console logs showing no APP_MOUNTED_TWICE.
+- List of removed duplicate mounts/routers/providers (files touched).
+- Confirmation that only one catch‑all 404 remains at the end of the route tree.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 - Service worker version bumped and verified.

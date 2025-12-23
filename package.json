@@ -66,14 +66,23 @@
     "memorystore": "^1.6.7",
     "multer": "^2.0.2",
     "nanoid": "^5.1.5",
+<<<<<<< HEAD
     "next": "^16.1.1",
+=======
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
     "next-themes": "^0.4.6",
     "openid-client": "^6.6.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+<<<<<<< HEAD
     "react": "^19.2.3",
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.2.3",
+=======
+    "react": "^18.3.1",
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^18.3.1",
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
     "react-hook-form": "^7.55.0",
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",

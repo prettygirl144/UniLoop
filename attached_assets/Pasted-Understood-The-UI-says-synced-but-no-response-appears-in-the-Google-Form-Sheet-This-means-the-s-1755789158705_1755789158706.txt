@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Understood. The UI says “synced,” but no response appears in the Google Form/Sheet. This means the server post to /formResponse isn’t actually accepted as a valid submission. Give Replit the following prescriptive checklist to make the Google Forms relay truly succeed and surface exact failures.
 
 Subject: Make Google Forms relay truly submit (server-side) and expose concrete failure reasons
@@ -78,4 +79,86 @@ Required actions
 - A previously failed record can be retried via the admin button and then appears in the Sheet.
 - For invalid payloads, googleStatus shows “skipped:validation” with reasons; no network attempt made.
 
+=======
+Understood. The UI says “synced,” but no response appears in the Google Form/Sheet. This means the server post to /formResponse isn’t actually accepted as a valid submission. Give Replit the following prescriptive checklist to make the Google Forms relay truly succeed and surface exact failures.
+
+Subject: Make Google Forms relay truly submit (server-side) and expose concrete failure reasons
+
+Objectives
+- Ensure POST to Google Forms is valid and accepted.
+- Handle date/email field formats and multi-part date items.
+- Treat 200 and 302 only when the payload is valid; surface real errors otherwise.
+- Log exact mapped keys and a redacted payload; add a one-click “Retry” that uses the same body.
+
+Required actions
+
+1) Verify endpoint, method, headers, and redirect handling
+- Endpoint: https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/formResponse
+- Method: POST
+- Headers: Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+- Follow redirects: allow 302 → 200. Capture final status and final URL.
+- Disallow client-side posting; call only from server.
+
+2) Enforce required fields and formats before POST
+- Required (per current form): email, reason, leaveFrom, leaveTo, leaveCity.
+- Normalize:
+  - Email: RFC5322 basic validation, lowercase.
+  - Dates: Honor Google Form’s expected format:
+    - If the item is a single date input: dd-mm-yyyy exactly as the form UI shows.
+    - If it’s a “Date” item that splits internally, the HTML names look like entry.X_year, entry.X_month, entry.X_day. Detect and send all three; do not send a single combined field.
+- Add a formatter:
+  - toGoogleDateParts(dateStrDdMmYyyy) → { day, month, year }.
+
+3) Build a deterministic mapping layer
+- server/config/googleFormMap.json must include exact entry keys:
+  {
+    "email": "entry.AAAAAAAA",
+    "reason": "entry.BBBBBBBB",
+    "leaveFrom": { "year": "entry.C_year", "month": "entry.C_month", "day": "entry.C_day" },
+    "leaveTo":   { "year": "entry.D_year", "month": "entry.D_month", "day": "entry.D_day" },
+    "leaveCity": "entry.EEEEEEEE",
+    "correlationId": "entry.FFFFFFFF"
+  }
+- If the Leave From/To fields are NOT split (single field), map as a single "entry.NNNNNNNNN" instead. Confirm by viewing form HTML or generating a pre-filled link in the Form UI.
+
+4) Implement robust submitToGoogleForm
+- Input: payload (typed), map (above), formId.
+- Build URLSearchParams body:
+  - If a field is an object with year/month/day, append each subkey.
+  - Always include correlationId.
+- Call fetch with redirect: 'follow', timeout 10s.
+- Treat success only if:
+  - Final status is 200 or 302 AND the response URL contains “formResponse” or “/formResponse?” OR the body does NOT include known error strings (“This is a required question”, “Your response has been recorded” absent).
+- Save googleStatus = { ok, statusCode, finalUrl, latencyMs, attempt, bodySnippet }.
+  - bodySnippet: first 200 chars of text, but only when status != 200/302 or when it contains “required question”.
+
+5) Add a dry-run preview endpoint for diagnostics
+- GET /api/leave/google-preview/:id
+  - Returns the exact URL-encoded body, the resolved endpoint, and the parsed map used.
+  - Do not include full email; mask except first 2 and last 2 chars.
+
+6) Improve failure observability and retries
+- On failure:
+  - Log: requestId, correlationId, status, finalUrl, bodySnippet (trimmed), keys posted (list of entry.*), and which required fields were empty after normalization.
+  - Queue for retry with exponential backoff (1m, 5m, 30m, 3h, 24h; max 5).
+- Add a “Retry Google Sync” button in the admin UI that calls POST /api/leave/:id/google-sync and shows the new status.
+
+7) Confirm mapping correctness with a prefill probe (one-time)
+- Build a prefilled URL to validate IDs:
+  - https://docs.google.com/forms/d/e/<FORM_ID>/viewform?usp=pp_url&entry.AAAAAAAA=test%40mail.com&entry.BBBBBBBB=Test+Reason&entry.C_year=2025&entry.C_month=08&entry.C_day=25&entry.D_year=2025&entry.D_month=08&entry.D_day=28&entry.EEEEEEEE=Kolkata
+- Open it manually once; ensure fields appear prefilled. If they do, IDs are correct.
+
+8) Guard against anti-bot mitigations
+- Add a small randomized User-Agent header and Referer: https://docs.google.com/; Accept: text/html.
+- Add a 300–800ms jitter delay before POST to avoid rate spikes.
+- If submissions are very frequent, consider 429 backoff handling.
+
+9) Acceptance criteria
+- A fresh PWA submission results in:
+  - googleStatus.ok = true, statusCode 200 or 302, latency < 2s;
+  - A new row appears in the Form’s linked Sheet with exact values and correlationId.
+- A previously failed record can be retried via the admin button and then appears in the Sheet.
+- For invalid payloads, googleStatus shows “skipped:validation” with reasons; no network attempt made.
+
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 If you provide one failing googleStatus log line (statusCode, finalUrl, and the first 150 chars of bodySnippet) and your current googleFormMap.json for the date fields, I can tell you immediately whether the form expects split date parts or a single entry key and adjust the mapping accordingly.

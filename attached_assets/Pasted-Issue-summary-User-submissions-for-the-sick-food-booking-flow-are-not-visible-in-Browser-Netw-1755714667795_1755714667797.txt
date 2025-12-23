@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Issue summary
 User submissions for the “sick food” booking flow are not visible in:
 
@@ -121,4 +122,129 @@ DB client initialization (redacted connection values).
 Any proxy configuration affecting API_BASE_URL.
 
 Goal
+=======
+Issue summary
+User submissions for the “sick food” booking flow are not visible in:
+
+Browser Network responses (suspected)
+
+Server runtime logs
+
+Database tables/collections
+
+Objective
+Provide a Replit-focused diagnostic and remediation workflow to determine whether bookings are being blocked at:
+
+Client → API (request not sent, CORS, SW interception)
+
+API route (handler not invoked, payload/validation failure)
+
+Database layer (insert rejected, wrong schema/DB, uncommitted transaction)
+
+Requested actions (step-by-step, Replit-specific)
+
+Confirm API requests reach the running process
+
+Instruct how to open and monitor the Replit Console in real time while submitting the booking.
+
+Add temporary structured logs around the booking route:
+
+On request entry: method, path, requestId, userId (if present).
+
+Body snapshot (safe fields only).
+
+Before DB insert: payload fields validated.
+
+After DB call: insertedId/rowCount.
+
+On error: full stack trace.
+
+Ensure logs flush immediately (no buffering).
+
+Validate client → server path and CORS
+
+Confirm the app’s resolved API base URL in the current run (print it at server startup and in client console).
+
+If CORS blocks are detected, add the app origin to allowed origins; log the Origin and CORS decision per request.
+
+Eliminate service worker interference
+
+Temporarily disable service worker registration in the client during troubleshooting, or configure the SW fetch handler to:
+
+Never cache or short-circuit POST/PUT/PATCH/DELETE.
+
+Bypass cache for requests to /bookings endpoints.
+
+Instruct to bump the SW version and verify activation to ensure the new behavior is active.
+
+Direct endpoint verification from Replit Shell
+
+Provide a command to invoke the booking endpoint with a minimal valid payload using curl from within the Replit Shell.
+
+Expectation: 200/201 with insertedId/rowCount in JSON.
+
+If this fails, the issue is server/DB-side; proceed to step 5.
+
+Database connectivity and target verification
+
+Log the effective DB connection parameters at server startup (host, db/schema name — redact secrets).
+
+Add a quick health check route (GET /db/health) that performs a trivial read to confirm the server can access the intended DB.
+
+Run a direct DB query in Replit Shell to list the last 10 bookings ordered by created_at DESC to confirm whether inserts land in the expected table/collection.
+
+Schema and validation alignment
+
+Ensure server-side validation matches the client payload (required fields: e.g., bookingType='sick_food', date/time, user/device identifier, quantity, notes).
+
+If validation fails, return explicit 4xx with human-readable details and log them; do not swallow errors.
+
+Authentication/authorization handling
+
+Confirm that the route accepts and validates the Authorization header if required.
+
+If the token is missing/expired, return 401/403 and emit a clear log line; ensure the client surfaces the error (avoid silent failures).
+
+Instrumentation to trace individual bookings
+
+Generate a requestId on the client (e.g., bk-<timestamp>) and include it in payload.
+
+Log requestId consistently in server logs and return it in the API response.
+
+Optionally store requestId in the DB row/document for cross-layer correlation.
+
+Replit run/deploy consistency checks
+
+Verify the run command serves the current build and API simultaneously, or clarify split processes if applicable.
+
+If using Deploys, confirm the deployed artifact is current and not serving stale assets (document steps to force a fresh deploy and clear CDN cache, if any).
+
+Provide guidance to quickly switch the .replit run command to a production-serve mode for realistic testing, then revert.
+
+Deliverables
+
+A minimal diagnostic checklist visible in the Console output (what to look for per submission).
+
+Exact Shell commands to:
+
+Hit the booking endpoint with a sample payload.
+
+Query the DB for most recent bookings.
+
+Concrete instructions to adjust CORS, service worker fetch behavior, and logging so that the next booking attempt definitively shows up in either logs or DB, or returns a precise error.
+
+If file inspection is needed, specify the exact snippets to share:
+
+Server route for bookings (handler signature and insert logic).
+
+Service worker fetch event code touching POSTs.
+
+Environment/run configuration (.replit, run command).
+
+DB client initialization (redacted connection values).
+
+Any proxy configuration affecting API_BASE_URL.
+
+Goal
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 Within one test submission, determine the failing layer and provide a targeted fix so that “sick food” bookings reliably appear in server logs and are persisted in the intended database.

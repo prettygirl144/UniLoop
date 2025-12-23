@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Certainly. Below is the **natural language markdown** version of the prompt, broken down into two clearly scoped steps for the Replit agent, following prompt engineering best practices:
 
 ---
@@ -41,3 +42,48 @@ Certainly. Below is the **natural language markdown** version of the prompt, bro
 ---
 
 Please confirm this part before moving to **Step 2: Enable Roll Number Use in Event Creation Workflows**.
+=======
+Certainly. Below is the **natural language markdown** version of the prompt, broken down into two clearly scoped steps for the Replit agent, following prompt engineering best practices:
+
+---
+
+## Step 1: Student Directory – End-to-End Roll Number Integration
+
+**Objective**: Extend the existing student directory system by incorporating roll numbers as a **secondary identifier**, while preserving the current logic that uses **email as the primary key** for all database operations.
+
+### Requirements:
+
+1. **Database Schema Update**:
+
+   * Add a new field `roll_number` to the student table in the database.
+   * Ensure that roll number is **optional**, but can be used for lookups and matching purposes.
+   * Email will remain the **unique primary key**.
+
+2. **Upload Workflow Enhancements (Admin Panel)**:
+
+   * Update the Upload Students feature to allow parsing and storing of roll numbers in addition to name, email, batch, and section.
+   * During uploads:
+
+     * If a student with the same email exists and no roll number is stored, add the roll number.
+     * If the roll number exists for another email, skip and flag for manual review.
+   * Ensure that the rest of the upload logic (batch and section assignment) is **left unchanged** and continues to function as-is.
+
+3. **Roll Number Matching Logic**:
+
+   * Implement backend logic to allow searching for a student using their roll number.
+   * This does not replace email-based operations, but enables identifying the associated student record using roll number.
+
+4. **Validation and Conflict Handling**:
+
+   * Ensure roll numbers are not duplicated across different emails unless explicitly overridden.
+   * If conflicts are found during upload (duplicate roll number, mismatch, or missing fields), return a clean error message or a downloadable log of unresolved rows.
+
+5. **No Changes to Frontend Display**:
+
+   * Roll number need not be shown or editable from the frontend UI for now unless specifically queried.
+   * Prioritize storing roll numbers correctly in the backend so they can be used in subsequent workflows like event creation.
+
+---
+
+Please confirm this part before moving to **Step 2: Enable Roll Number Use in Event Creation Workflows**.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b

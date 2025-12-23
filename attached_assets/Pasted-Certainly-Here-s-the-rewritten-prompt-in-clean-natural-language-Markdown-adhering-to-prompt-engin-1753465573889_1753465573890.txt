@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Certainly. Here's the rewritten prompt in clean, natural language Markdown, adhering to prompt engineering principles:
 
 ---
@@ -41,3 +42,48 @@ This update should ensure that users can accurately target event participants ba
 ---
 
 Let me know if you'd like this adapted to a GitHub issue, Notion task, or documentation format.
+=======
+Certainly. Here's the rewritten prompt in clean, natural language Markdown, adhering to prompt engineering principles:
+
+---
+
+### Developer Prompt: Fix Section Selection Logic for Multiple Batches in Event Creation
+
+**Issue Overview:**
+In the "Create Event" configuration form, when a user selects multiple batches that happen to have sections with the same name (e.g., A, B, C, D, E, BA, HRM), the section selection is not working independently per batch. Selecting a section for one batch results in that section being auto-selected for the other batches as well, even if the user has not explicitly selected it for those batches.
+
+**Expected Behavior:**
+Each batch should maintain an independent list of section selections. That means:
+
+* Selecting Section A for Batch X should not affect the sections selected for Batch Y.
+* The section input should allow the user to choose sections specific to each batch independently.
+* The final submission should store the mapping of batches to their respective sections correctly.
+
+**Implementation Guidelines:**
+
+* Modify the frontend logic so that section selections are tracked per batch.
+* Use a batch-keyed object structure to store selections. For example:
+
+  ```json
+  {
+    "MBA 2024-26": ["A", "B"],
+    "MBA 2025-27": ["D", "E"]
+  }
+  ```
+* Ensure that selecting or deselecting a section under one batch does not update any other batch's section selections.
+* When editing an existing event, the UI should correctly prepopulate the section selections for each batch independently.
+* Update the UI to clearly show batch-specific section inputs. These can either be grouped under batch headings or displayed as separate section input fields per selected batch.
+
+**Test Scenario:**
+
+1. User selects Batch A and selects Section A.
+2. User adds Batch B which also has Section A.
+3. Section A should be unchecked for Batch B until the user explicitly selects it.
+4. If Batch A is removed, selections for Batch B must remain unaffected.
+
+This update should ensure that users can accurately target event participants batch-wise and section-wise without unintended overlaps due to naming collisions.
+
+---
+
+Let me know if you'd like this adapted to a GitHub issue, Notion task, or documentation format.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b

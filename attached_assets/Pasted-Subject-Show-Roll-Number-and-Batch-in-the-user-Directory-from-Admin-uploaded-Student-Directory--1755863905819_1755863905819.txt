@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Subject: Show Roll Number and Batch in the user Directory (from Admin-uploaded Student Directory) + add RBAC for uploads
 
 Goal
@@ -58,4 +59,66 @@ Implement this
 - After Admin uploads a CSV, users see Roll Number and Batch on their Directory card after next login/refresh.
 - Existing users are linked by backfill.
 - Upload endpoints are callable only by admin/staff per RBAC; destructive actions are admin-only.
+=======
+Subject: Show Roll Number and Batch in the user Directory (from Admin-uploaded Student Directory) + add RBAC for uploads
+
+Goal
+- Home → Directory card should display Roll Number and Batch pulled from the Admin-uploaded Student Directory.
+- Only authorized roles can upload/modify the Student Directory (role-based access control).
+
+Implement this
+
+1) Store the Admin directory
+- On CSV upload, upsert rows into StudentDirectory.
+- Required fields: email, rollNumber, batch. Normalize email to lowercase; rollNumber to uppercase.
+- Create fast lookups:
+  - byEmail[emailLower] -> studentId
+  - byRoll[rollUpper] -> studentId
+
+2) Link users on login
+- After sign-in:
+  - Try match by user.email (lowercased) → directory row.
+  - If not found and user has entered a roll number, try match by roll (uppercased).
+- If matched, save on user profile: directoryId, rollNumber, batch.
+- Run a one-time backfill to link existing users by email.
+
+3) API for the Directory card
+- GET /api/directory/me (auth required) returns:
+  { name, email, photoUrl, rollNumber, batch }
+  Values come from the linked directory record; null if not linked.
+
+4) UI update (Home → Directory card)
+- Keep avatar, name, email.
+- Add:
+  - Roll Number: <value or “—”>
+  - Batch: <value or “—”>
+- If not linked, show “Not found in directory. Contact Admin.” Optional: “Add Roll Number” dialog that links only if roll+email match a directory row.
+
+5) RBAC for Student Directory upload (and edits)
+- Define roles: admin, staff, student.
+- Authorization rules:
+  - admin: can upload/replace CSV, upsert rows, and view upload logs.
+  - staff (optional): can upload and upsert, but cannot delete all records.
+  - student: no write access; read only to their own joined info.
+- Enforce on server:
+  - All upload/update endpoints require role in {admin, staff}.
+  - Delete/replace-all allowed for admin only.
+  - Read endpoints for the directory list remain admin/staff; /api/directory/me is for any authenticated user.
+- Add guard middleware:
+  - requireRole('admin') for destructive actions (replace/delete).
+  - requireAnyRole(['admin','staff']) for upsert/upload.
+- UI gating:
+  - Show the “Upload Directory” button and page only if user has admin or staff role.
+  - Hide from navigation for others.
+
+6) Audit and safety
+- Log every upload with: requestId, actorId, role, rows inserted/updated/skipped, timestamp.
+- Validate CSV headers and row count limits; reject malformed files with clear errors.
+- Prevent accidental full wipes: require a confirm step for admin-only replace-all.
+
+7) Acceptance
+- After Admin uploads a CSV, users see Roll Number and Batch on their Directory card after next login/refresh.
+- Existing users are linked by backfill.
+- Upload endpoints are callable only by admin/staff per RBAC; destructive actions are admin-only.
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 - Non-admin users cannot see upload controls or modify directory data.

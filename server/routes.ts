@@ -2539,6 +2539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batch, page: pageNum, limit: limitNum, query, section, program
       });
 
+<<<<<<< HEAD
       // Determine batch filter: if 'All' or empty, search across all batches (undefined)
       // Otherwise use the specified batch
       let filterBatch: string | undefined;
@@ -2550,6 +2551,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use the specified batch
         filterBatch = batch;
       }
+=======
+      // Get the current user's batch for default filtering
+      const userId = req.session.user.id;
+      const user = await storage.getUser(userId);
+      const userBatch = user?.batch || '';
+
+      // Use user's batch as default if no batch specified
+      const filterBatch = batch || userBatch;
+>>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
 
       const result = await storage.getStudentDirectoryList({
         batch: filterBatch,
