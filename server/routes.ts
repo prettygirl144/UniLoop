@@ -2539,7 +2539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batch, page: pageNum, limit: limitNum, query, section, program
       });
 
-<<<<<<< HEAD
       // Determine batch filter: if 'All' or empty, search across all batches (undefined)
       // Otherwise use the specified batch
       let filterBatch: string | undefined;
