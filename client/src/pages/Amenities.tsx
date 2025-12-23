@@ -1129,7 +1129,6 @@ export default function Amenities() {
 
               {/* Tomorrow's Menu */}
               <TabsContent value="tomorrow" className="space-y-4">
-<<<<<<< HEAD
                 {(() => {
                   const tomorrowMenu = getTomorrowMenu();
                   const tomorrowDate = getDateOffset(1);
@@ -1231,7 +1230,6 @@ export default function Amenities() {
 
               {/* Day After Tomorrow's Menu */}
               <TabsContent value="dayafter" className="space-y-4">
-<<<<<<< HEAD
                 {(() => {
                   const dayAfterMenu = getDayAfterMenu();
                   const dayAfterDate = getDateOffset(2);
@@ -1345,7 +1343,6 @@ export default function Amenities() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-<<<<<<< HEAD
                       {getNext7DaysMenu().map((dayMenu: any, index: number) => {
                         const dayMenuData = (weeklyMenuData as any[])?.find(m => m.date === dayMenu.dateStr);
                         return (
@@ -1424,19 +1421,6 @@ export default function Amenities() {
                           </div>
                         );
                       })}
-=======
-                      {getNext7DaysMenu().map((dayMenu: any, index: number) => (
-                        <div key={dayMenu.dateStr} className="border-b pb-4 last:border-b-0 last:pb-0">
-                          <h3 className="text-medium mb-3 font-medium">{dayMenu.displayDate}</h3>
-                          <div className="space-y-0">
-                            <MealSection title="Breakfast" items={dayMenu.breakfast} />
-                            <MealSection title="Lunch" items={dayMenu.lunch} />
-                            <MealSection title="Evening Snacks" items={dayMenu.eveningSnacks} />
-                            <MealSection title="Dinner" items={dayMenu.dinner} />
-                          </div>
-                        </div>
-                      ))}
->>>>>>> 59dec97e5be7abb329e79d6f7171866c4e3f255b
                     </div>
                   </CardContent>
                 </Card>

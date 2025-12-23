@@ -89,22 +89,8 @@ export default function Directory() {
     refetchOnWindowFocus: true,
   });
 
-<<<<<<< HEAD
   // Set default batch filter to user's batch (only if no URL param and no selection)
   useEffect(() => {
-    // If URL explicitly has 'All', use that
-    if (urlParams.batch === 'All') {
-      if (selectedBatch !== 'All') {
-        setSelectedBatch('All');
-      }
-    }
-    // If URL has a specific batch, use that
-    else if (urlParams.batch && urlParams.batch !== 'All') {
-      if (selectedBatch !== urlParams.batch) {
-        setSelectedBatch(urlParams.batch);
-      }
-    }
-    // If no URL param and no selection yet, default to user's batch
     // If URL explicitly has 'All', use that
     if (urlParams.batch === 'All') {
       if (selectedBatch !== 'All') {
