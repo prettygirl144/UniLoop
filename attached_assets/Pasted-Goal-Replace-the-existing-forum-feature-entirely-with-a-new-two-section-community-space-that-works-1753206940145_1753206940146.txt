@@ -1,0 +1,40 @@
+Goal  
+Replace the existing forum feature entirely with a new two‑section community space that works much like Reddit but is simpler to use. The space must be fully functional end‑to‑end (storage, moderation, image handling, search, and UI). Everyone who signs up can participate.
+
+Section 1 – Community Board  
+• Any signed‑in user can create a main post.  
+• Post content types:  
+  – Text (support **bold**, *italic*, and _underline_ only).  
+  – Single image, GIF, or an image carousel of up to 5 pictures.  
+  – Text plus image(s) in the same post.  
+• Each post must show:  
+  – Author name (or “Anonymous” if anonymity is chosen).  
+  – An automatic “OP” badge beside the author on all their own comments.  
+  – Total score (up‑votes minus down‑votes).  
+• Other users can:  
+  – Up‑vote or down‑vote any post or reply (one vote per user, toggle allowed).  
+  – Write replies on any post.  
+  – Up‑vote or down‑vote any reply.  
+• Replies nest one level deep only.  
+• A search bar filters posts by words in the title or body.  
+• Users may choose to publish a post “truly anonymously,” meaning it shows “Anonymous” everywhere and stores no publicly visible link to their profile.  
+• Admins can delete any post or reply at any time.
+
+Section 2 – Announcements  
+• A separate page reachable from the main navigation.  
+• Only users with an admin or club/committee role may create or edit announcement posts.  
+• Announcements use the same formatting and media options as Community Board posts.  
+• Regular users can read and search announcements but cannot react or comment.
+
+General Rules  
+• Keep the posting and voting workflow intuitive and fast.  
+• Provide a clear indicator when an action succeeds or fails (e.g., toast messages).  
+• Ensure image upload, storage, and retrieval work for every allowed media type.  
+• Limit any single image to a reasonable size so uploads complete quickly.  
+• Make the interface responsive so users on phones and desktop enjoy the same experience.  
+• Enforce a simple rate‑limit so no one can spam posts or votes.  
+• Preserve every vote, post, reply, and deletion in permanent storage.  
+• Remove the current forum implementation completely before adding this new one so there is only one community system in the app.
+
+Deliverable  
+A fully working community feature with these exact behaviors, no more and no less. No technical explanations needed here—focus on the steps, the permissions, and the user interactions so the system knows precisely what to build.

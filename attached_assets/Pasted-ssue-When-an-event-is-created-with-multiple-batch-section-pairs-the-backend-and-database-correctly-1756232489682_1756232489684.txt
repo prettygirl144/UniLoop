@@ -1,0 +1,46 @@
+ssue:
+When an event is created with multiple batch-section pairs, the backend and database correctly generate an attendance sheet for each pair. However, on the Admin Attendance Sheet page, only one section (the first or default) is displayed. There is no option in the UI to view or switch between other batch-section sheets belonging to the same event.
+
+🛠️ What I Need
+Diagnosis:
+
+Review the frontend code responsible for rendering the Attendance Sheet page.
+
+Is it fetching all attendance sheets for a given event from the API or just the first one?
+
+Does the UI support multiple sections per event, or is it hardcoded for a single attendance sheet?
+
+Paste the code or describe the logic being used to fetch and display attendance sheets.
+
+Bug Identification:
+
+Explain if and why the frontend is not set up to display or switch between multiple batch-sections for the same event.
+
+Identify whether this is a limitation of the fetch/request logic, state handling, component rendering, or missing UI elements (such as tabs or a dropdown).
+
+Fix & Enhancement:
+
+Update the frontend logic so that:
+
+ALL attendance sheets for the selected event are fetched from the API.
+
+A suitable UI element (tabs, dropdown, button group, etc.) is shown, allowing users to easily switch between different sections’ attendance sheets for that event.
+
+The displayed sheet updates according to the admin’s selection, showing the correct list of students and their status for each section.
+
+Show the updated React (TypeScript) component code or pseudo-code explaining the necessary changes.
+
+Testing Steps:
+
+Describe or script how to test that:
+
+Creating an event with multiple sections now results in all relevant attendance sheets being accessible/visible from the frontend.
+
+Correct student counts and data appear for each section.
+
+No regressions occur for single-section events.
+
+Be exhaustive and step-by-step in your response—print all relevant frontend code, diagnoses, and changes.
+
+Goal:
+After your fix, an admin can easily view and switch between all batch-section attendance sheets tied to any given event, with data accurately loading per selection.

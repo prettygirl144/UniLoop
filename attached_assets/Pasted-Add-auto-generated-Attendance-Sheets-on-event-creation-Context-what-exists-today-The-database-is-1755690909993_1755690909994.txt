@@ -1,0 +1,91 @@
+Add auto-generated Attendance Sheets on event creation
+
+Context (what exists today)
+
+The database is already set up; Batch ↔ Section ↔ Student relationships are fully mapped.
+
+On the Events page, we can already create an event by choosing a Batch and one of its Sections.
+
+Goal (what I want you to build)
+
+When I create an event with a given batchId and sectionId, automatically create an Attendance Sheet for that event that includes every student in that section.
+
+This sheet should be visible to authorized users, and editable only by RBAC: Admin, who can mark each student Present / Absent / Late.
+
+Attendance sheets and records must be stored/persisted and viewable later.
+
+What to implement
+
+Auto-create sheet after event creation
+
+After successfully creating an Event (with valid batchId + sectionId), create exactly one Attendance Sheet tied to that event, and pre-fill one Attendance Record per student in the selected section.
+
+Default status for each record: UNMARKED.
+
+Make this operation idempotent (never create duplicate sheets for the same event).
+
+RBAC
+
+Only Admin can update attendance statuses or notes.
+
+Non-admin users can view the sheet if they already have view permissions consistent with our current app rules.
+
+UI on Events page
+
+After an event is created, either redirect to the event’s Attendance Sheet page or show a “View Attendance” button.
+
+Table columns: Roll No | Student Name | Status (select: Present/Absent/Late) | Note | Marked By | Marked At.
+
+Bulk actions: “Mark all Present”, “Mark all Absent”, “Clear all”.
+
+Add a CSV export button for the sheet.
+
+Edge cases
+
+If the section roster changes after the event is created, expose an “Sync Students” action (Admin) that:
+
+Adds records for newly added students (as UNMARKED).
+
+Optionally archives records for students no longer in that section (do not hard-delete).
+
+Prevent duplicates on sync.
+
+Persistence & constraints
+
+Use the existing schema wherever possible (the DB already maps batch/section/student).
+
+Enforce uniqueness so there’s one sheet per event, and one record per (sheet, student).
+
+Wrap event→sheet→records creation in a transaction.
+
+Deliverables
+
+The server/controller logic that triggers sheet generation on successful event creation.
+
+Read endpoint/view to fetch the sheet with records.
+
+Update endpoint for Admin to submit status changes (single and bulk).
+
+Optional sync endpoint/action and CSV export.
+
+UI changes on the Events page to access/operate the sheet.
+
+How to work (Replit best-practice style)
+
+Checkpoint the project after: (1) event→sheet creation, (2) listing students in the sheet, (3) Admin status editing, (4) CSV export, (5) Sync behavior. Keep each step independently testable. 
+
+Specify exact outputs and guardrails (idempotency, uniqueness, RBAC).
+
+Test with a sample section of ~20 students: create an event → verify a single sheet is created → verify 20 records are pre-filled → update a few statuses as Admin → export CSV → run sync after adding/removing a student and confirm behavior. 
+
+Acceptance criteria
+
+Creating an event with a valid batch/section always results in exactly one new Attendance Sheet and N student records (N = students in section at that moment).
+
+Only Admin can modify statuses/notes; others can view per existing rules.
+
+No duplicate sheets or duplicate student records.
+
+CSV export works and reflects the latest statuses.
+
+Sync correctly adds missing students and archives removed ones without data loss.

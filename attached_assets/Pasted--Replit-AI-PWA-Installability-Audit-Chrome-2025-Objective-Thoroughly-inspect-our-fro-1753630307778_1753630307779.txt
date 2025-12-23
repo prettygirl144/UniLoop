@@ -1,0 +1,74 @@
+## 🔍 Replit AI — PWA Installability Audit (Chrome 2025)
+
+**Objective**  
+Thoroughly inspect our front‑end code + live preview to confirm the app qualifies for Chrome’s Add‑to‑Home‑Screen prompt. Produce a structured audit table; DO NOT modify any files or dependencies.
+
+---
+
+### 1. Manifest review (`public/manifest.json`)
+| Check | Expected rule |
+|-------|---------------|
+| HTTPS reference | All icon / screenshot `src` paths begin with `/` or `https:` (no `http:`). |
+| `name` OR `short_name` | At least one present. |
+| `start_url` | Present & relative (`"."` or `"/"`). |
+| `display` | One of `standalone`, `minimal-ui`, or `fullscreen`. |
+| *Installable icon* | ≥ 144 × 144 px in **PNG, SVG, or WebP**; `sizes` attr set; `purpose` =`"any"` or omitted. :contentReference[oaicite:0]{index=0} |
+| *High‑res icon* | ≥ 512 × 512 px, same format & purpose. :contentReference[oaicite:1]{index=1} |
+| `id` (best practice) | Present and stable (e.g. `"/"`). |
+| Optional screenshots | At least one `form_factor:"wide"` to unlock Chrome desktop rich‑install UI (warning only). |
+
+*Action:* List pass/fail for each row and paste the offending JSON snippet if any fail.
+
+---
+
+### 2. Service‑worker verification
+1. Confirm `navigator.serviceWorker.register()` executes (inspect `src/index.(js|tsx)` or equivalent).
+2. Ensure the registered SW (`/sw.js`) contains a `fetch` event listener (Chrome needs **any** handler to mark the app “offline‑capable”). :contentReference[oaicite:2]{index=2}  
+3. Note the SW **scope** and whether requests within that scope are intercepted.
+
+*Action:* Summarise findings (✓/✗) and give file/line refs.
+
+---
+
+### 3. HTTPS delivery
+Run the preview URL; verify it resolves to **https://** (Chrome blocks install prompts on insecure origins, except `localhost`). :contentReference[oaicite:3]{index=3}
+
+*Action:* Record origin and scheme.
+
+---
+
+### 4. Automated headless check
+Use either:
+* `npx @pwabuilder/cli@latest <URL> --no-scan-fail` **or**  
+* `npx lighthouse@11 <URL> --only-categories=pwa --chrome-flags="--headless"` (v11 still contains PWA audits).  
+Capture JSON output.
+
+*Action:* Extract key failures/warnings into the final report; attach the raw JSON as a downloadable artifact if supported.
+
+---
+
+### 5. Runtime signal check
+In a live Chrome/Edge preview tab:
+1. Enable DevTools → **Application → Manifest**. Capture the “Installability” status chip (green ✅ or red ❌).
+2. In Console, listen for the `beforeinstallprompt` event:
+
+```js
+window.addEventListener('beforeinstallprompt', () => console.log('Install prompt fired'));
+Reload twice to see if it triggers.
+
+Action: State whether the event fired and paste console timestamp.
+
+6. Deliverable
+Create a Markdown report titled “PWA Installability Audit – <date>” with:
+
+Section	Result	Notes
+Manifest fields	Pass / Fail	Details
+Icons	Pass / Fail	Missing sizes etc.
+Service‑worker	Pass / Fail	No fetch handler etc.
+HTTPS	Pass / Fail	Hostname scheme
+Runtime install signal	Pass / Fail	beforeinstallprompt fired?
+Lighthouse / PWABuilder	Pass / Warn / Fail	Key findings
+
+Include screenshots (or link them) from steps 4 & 5.
+
+Important: This task is strictly read‑only. Do not modify code, configs, or package versions. Only report what you find.

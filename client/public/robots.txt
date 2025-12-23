@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# UniLoop@IIMR - University Communications App
+# This is a campus-specific application
+Sitemap: /sitemap.xml

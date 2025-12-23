@@ -1,0 +1,61 @@
+Sure! Here's a detailed **Replit prompt-engineered instruction** for building the **newly added functionality** based on your latest input:
+
+---
+
+**Prompt to Replit:**
+
+> Build a mobile-first full-stack app (Android-first, responsive for iOS) using React Native + Firebase/Express that supports the following extensions to the existing MVP:
+>
+> ### 🔁 Multi-Account Switcher
+>
+> Allow a logged-in user (via OAuth2.0 Google Sign-In) to:
+>
+> * Link multiple accounts to a single session (e.g., Student + Committee/Club).
+> * Switch between roles (Student, Committee/Club) from a dropdown or profile section without logging out.
+> * Each role switch should load distinct permission sets and dashboards without needing a full reload.
+> * Store active role in local storage or React context.
+>
+> ### 🧾 Login/Logout Management
+>
+> * OAuth 2.0 login via institutional Google email.
+> * JWT-based session persistence with refresh tokens.
+> * Logout should clear session and allow account re-login from landing page.
+> * Provide a sample `admin@institute.edu` account as default admin (can edit roles and permissions).
+>
+> ### 🖼 Media Upload for Events & Forum
+>
+> * Extend Event Creation and Forum Post forms to support:
+>
+>   * Upload of multiple media types (images/videos).
+>   * Preview before posting.
+>   * Store in Firebase Storage or mock upload path.
+>
+> ### 🗂 Media Gallery (Optimized for Storage)
+>
+> * Instead of direct storage, integrate with Google Drive:
+>
+>   * Embed folders using Drive’s public shareable “view-only” iframe links.
+>   * Allow folders to be categorized (e.g., Events, Celebrations, Competitions).
+>   * Admin can update folder links via a dashboard form.
+>
+> ### 🛡 Role-Based Permissions (Enhanced)
+>
+> * Admin has superior access:
+>
+>   * Override access to all features regardless of permission toggles.
+>   * Full control over assigning feature access to any email.
+> * User permission sets should be defined per email and per feature (Calendar, Gallery, Attendance, Hostel, Dining, Forum Mod, etc.).
+> * Admin panel should support visual toggling of permissions with update functionality.
+>
+> ### 📲 UX Requirements
+>
+> * Clean, modern UI optimized for mobile.
+> * Use card-style interface and bottom nav bar.
+> * Prioritize modular structure (e.g., separate components for Calendar, Forum, Account Switcher).
+> * Ensure UI state resets appropriately on account switch.
+>
+> Implement all features with scalability and modularity in mind for future expansion.
+
+---
+
+Let me know if you'd like the accompanying backend API definitions or component structure!

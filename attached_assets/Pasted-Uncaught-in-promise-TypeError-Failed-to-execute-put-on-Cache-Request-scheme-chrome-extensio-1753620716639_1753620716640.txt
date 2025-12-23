@@ -1,0 +1,71 @@
+Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:55:21
+76sw.js:55  Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:55:21
+(anonymous) @ sw.js:55
+react-dom.development.js:29895 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/:1  <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/:1  Error while trying to use the following icon from the Manifest: https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/icons/192.png (Download error or resource isn't a valid image)
+sw.js:55  Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:55:21
+(anonymous) @ sw.js:55
+Promise.then
+(anonymous) @ sw.js:54
+Promise.then
+(anonymous) @ sw.js:43
+Promise.then
+(anonymous) @ sw.js:34
+inject.bundle.js:71  WebSocket connection to 'ws://localhost:8098/' failed: 
+e @ inject.bundle.js:71
+(anonymous) @ inject.bundle.js:216
+(anonymous) @ inject.bundle.js:216
+(anonymous) @ inject.bundle.js:216
+sw.js:55  Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:55:21
+(anonymous) @ sw.js:55
+Promise.then
+(anonymous) @ sw.js:54
+Promise.then
+(anonymous) @ sw.js:43
+Promise.then
+(anonymous) @ sw.js:34
+queryClient.ts:81   GET https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/auth/user 401 (Unauthorized)
+(anonymous) @ queryClient.ts:81
+fetchFn @ query.ts:429
+run @ retryer.ts:153
+start @ retryer.ts:218
+fetch @ query.ts:540
+executeFetch_fn @ queryObserver.ts:346
+onSubscribe @ queryObserver.ts:108
+subscribe @ subscribable.ts:11
+(anonymous) @ useBaseQuery.ts:92
+subscribeToStore @ react-dom.development.js:16139
+commitHookEffectListMount @ react-dom.development.js:23189
+commitPassiveMountOnFiber @ react-dom.development.js:24965
+commitPassiveMountEffects_complete @ react-dom.development.js:24930
+commitPassiveMountEffects_begin @ react-dom.development.js:24917
+commitPassiveMountEffects @ react-dom.development.js:24905
+flushPassiveEffectsImpl @ react-dom.development.js:27078
+flushPassiveEffects @ react-dom.development.js:27023
+performSyncWorkOnRoot @ react-dom.development.js:26115
+flushSyncCallbacks @ react-dom.development.js:12042
+commitRootImpl @ react-dom.development.js:26998
+commitRoot @ react-dom.development.js:26721
+finishConcurrentRender @ react-dom.development.js:26020
+performConcurrentWorkOnRoot @ react-dom.development.js:25848
+workLoop @ scheduler.development.js:266
+flushWork @ scheduler.development.js:239
+performWorkUntilDeadline @ scheduler.development.js:533
+client:536  WebSocket connection to 'wss://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/?token=58obWbFrDqkv' failed: 
+setupWebSocket @ client:536
+(anonymous) @ client:531
+client:536  Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=58obWbFrDqkv' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+setupWebSocket @ client:536
+fallback @ client:509
+(anonymous) @ client:555
+537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/:1  Unchecked runtime.lastError: The message port closed before a response was received.
+36sw.js:55  Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:55:21

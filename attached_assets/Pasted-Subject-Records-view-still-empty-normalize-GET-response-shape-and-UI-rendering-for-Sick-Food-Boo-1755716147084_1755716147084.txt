@@ -1,0 +1,103 @@
+Subject: Records view still empty — normalize GET response shape and UI rendering for “Sick Food Bookings”
+
+Project
+- PWA with React Query-based caching
+- Records tab should display existing bookings (server logs show 11 rows)
+
+Issue summary
+The Records UI shows “No bookings found,” while diagnostics display “Type: object, Length: N/A, Filter: None.” This indicates the client receives a non-array payload (or array nested under a key), but the component expects a top-level array. Result: render path gates out the list despite successful API reads.
+
+Required actions (prescriptive)
+
+1) Normalize API response in the query function
+- Ensure the fetcher always returns an array of bookings regardless of server shape.
+
+Implementation (replace current fetcher):
+async function fetchSickFoodBookings(url) {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  // Accept common shapes: array | {data} | {rows} | {items}
+  const list = Array.isArray(json)
+    ? json
+    : Array.isArray(json?.data)
+    ? json.data
+    : Array.isArray(json?.rows)
+    ? json.rows
+    : Array.isArray(json?.items)
+    ? json.items
+    : [];
+  // Optional: expose total for pagination
+  const total =
+    json?.total ?? json?.count ?? (Array.isArray(list) ? list.length : 0);
+  console.debug('records payload', {
+    typeof: typeof json,
+    isArray: Array.isArray(json),
+    keys: Object.keys(json || {}),
+    sample: list,
+    total,
+  });
+  return list;
+}
+
+2) Harden the Records component renderer
+- Gate rendering only on a real array with length>0; otherwise show diagnostics plus empty state.
+
+Example:
+const hasData = Array.isArray(bookings) && bookings.length > 0;
+return (
+  <>
+    {!isLoading && !isError && hasData ? (
+      
+    ) : (
+      
+    )}
+  
+);
+
+3) Align React Query keys and invalidation
+- The list query key and the create-mutation invalidation key must match byte-for-byte, including default params.
+
+Standardize:
+const baseKey = ['sick-food', 'bookings', { date: null, scope: 'all' }];
+
+List:
+useQuery({
+  queryKey: baseKey,
+  queryFn: () => fetchSickFoodBookings('/api/sick-food/bookings'),
+  staleTime: 0,
+});
+
+Create mutation:
+const qc = useQueryClient();
+onSuccess: () => {
+  qc.invalidateQueries({ queryKey: baseKey, exact: true });
+  qc.invalidateQueries({ queryKey: ['sick-food','bookings'], exact: true }); // safety
+}
+
+4) Verify unfiltered GET returns data the UI uses
+- Ensure the server’s unfiltered endpoint returns a list compatible with step 1. If server returns an object, include both:
+  { data: Booking[], total: number }
+
+If adjusting the server is feasible, standardize:
+return res.json({ data: rows, total: rows.length });
+
+5) Disable any filter gating during triage
+- When no date filter is selected, call the unfiltered list endpoint and log the final params sent to the server.
+- Ensure date/tenant/role defaults do not exclude all rows.
+
+6) One-run cache/SW sanity
+- Bump the service worker version, hard reload with cache disabled, and confirm the console shows the new fetcher’s “records payload” log.
+
+Acceptance criteria
+- After a create, invalidation triggers a refetch of the exact list key.
+- The query function returns an array >0 length on the unfiltered path.
+- Records table renders the 11 existing bookings; diagnostics show array type and sample row.
+
+If file edits are needed, request:
+- The fetcher used by the Records tab
+- The React Query key used for the list and for invalidation
+- A sample server JSON for GET /api/sick-food/bookings (top-level keys only)
+
+Goal
+Make the list render path data-shape-agnostic and guarantee cache invalidation parity, so existing and newly created “Sick Food” bookings display immediately in the Records tab.

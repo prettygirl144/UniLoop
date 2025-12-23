@@ -1,0 +1,75 @@
+Issue Summary
+After a rollback, subsequent code changes are not appearing in the Replit Preview or the deployed app. Even trivial edits (e.g., adding a new event category on the Events page) fail to surface at runtime. Standard remediations (hard reload, cache clear, unregister service worker, workspace restart) have not resolved the issue.
+
+Objectives
+
+Diagnose why current edits are not reflected in the running Replit instance and deployed artifact.
+
+Provide a Replit-specific, minimal, reproducible diagnostic workflow.
+
+Restore reliable build, preview, and deployment behavior.
+
+Environment Artifacts Available on request
+
+.replit and replit.nix (run command, environment)
+
+package.json (scripts, build tool)
+
+Service worker file(s) and registration code
+
+Build tool config (Vite/Webpack)
+
+Server entry (if applicable) and deploy configuration
+
+Requested Guidance (Replit-specific)
+
+Run/Preview pipeline
+
+How to verify the Replit run command is serving the current build output (e.g., confirming hot-reload and file watchers are active).
+
+Steps to detect and remediate when the Preview serves stale artifacts.
+
+How to interpret Console output to confirm rebuilds on save.
+
+Service worker and asset caching
+
+Canonical versioning strategy on Replit to guarantee service worker updates (e.g., cache busting, skipWaiting/clientsClaim policy, cache name rotation).
+
+Procedure to temporarily disable service worker registration in Replit Preview to eliminate caching as a variable, and steps to confirm active worker scope/state.
+
+Deployment artifacts and cache
+
+How to verify which commit/branch Deploy is using and trigger a clean, fresh deploy bundle.
+
+Instructions to invalidate or clear any cached deploy/CDN assets tied to Replit Deploy.
+
+Database/API validation within Replit
+
+Commands to test API endpoints from the Replit Shell (e.g., curl/node) to create a new “event category,” validating write/read independently of the frontend.
+
+How to surface and monitor CORS/auth errors in Replit logs and associate them with incoming requests.
+
+Minimal reproduction and isolation
+
+Exact steps to:
+a) Add a trivial UI/text change and confirm it appears in Preview.
+b) If not visible, isolate whether the failure is in build, service worker, or deploy by toggling one variable at a time (e.g., remove SW registration, serve directly from dev server, bypass bundler).
+
+Recommended checkpoints to confirm each stage is using fresh assets (file hash checks, console markers, log timestamps).
+
+Additional Context
+
+Basic API/DB checks have been performed; functionality still blocked at the UI/feature level.
+
+The problem began after a rollback; significant changes have been made since, so rolling back again is not feasible.
+
+Please respond with:
+
+Step-by-step instructions specific to Replit (including which panel to use: Console, Shell, Deploy, Nix logs).
+
+Any known Replit caveats involving service workers, Preview, or Deploy caching.
+
+If file inspection is needed, list exact files/sections and what to look for (e.g., .replit run = ["npm run dev"], Vite config for SW, cache names, deploy settings).
+
+Goal
+Restore the ability for current code edits to appear reliably in Preview and Deployed environments to meet the deployment deadline.

@@ -1,0 +1,63 @@
+Step 1 — Harden Session Persistence (sticky, rolling, mobile-safe)
+
+Goal: keep users signed in across app restarts by using durable, secure session cookies that work in a PWA context.
+
+In the Express app:
+
+Ensure app.set('trust proxy', 1) (Replit runs behind a proxy; needed for Secure cookies).
+
+Configure express-session with:
+
+cookie: { sameSite: 'none', secure: true, httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 14 } (14 days; adjust if needed)
+
+rolling: true (refresh expiry on activity)
+
+saveUninitialized: false, resave: false (or your existing safe values)
+
+Keep the existing session store. Do not change store type.
+
+Implement a lightweight “heartbeat” endpoint:
+
+GET /api/auth/heartbeat → if session exists, renew it (touch) and return { ok: true }; else return { ok: false }.
+
+Frontend:
+
+On app mount and when the app returns to foreground, call /api/auth/heartbeat (e.g., on visibilitychange) to keep active sessions from expiring due to inactivity.
+
+Do not change any routes or RBAC guards.
+
+Checks:
+
+Log in on desktop and mobile PWA.
+
+Close the app/tab, reopen after a few minutes and after an hour; confirm still logged in.
+
+Verify developer tools → Application → Cookies show SameSite=None; Secure; HttpOnly; maxAge≈14d.
+
+Confirm Replit Preview renders correctly.
+
+Report results before proceeding.
+
+Step 2 — Optional Silent Re-login Fallback (only if required)
+
+Only implement if users still get logged out unexpectedly.
+
+Add a server endpoint POST /api/auth/refresh:
+
+If a long-lived httpOnly refresh cookie (e.g., refresh_id) exists and is valid (signed/JWT or store lookup), recreate the session and return user; else 401.
+
+This does not replace the session cookie; it only helps restore it silently when missing.
+
+Frontend:
+
+When /api/auth/user returns 401, try POST /api/auth/refresh; if success, retry /api/auth/user.
+
+If refresh also fails, show login.
+
+Checks:
+
+Manually delete the session cookie; confirm the app silently restores session via refresh (if the refresh cookie exists).
+
+Confirm normal flows unchanged.
+
+If Step 1 suffices, skip Step 2.

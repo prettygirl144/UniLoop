@@ -1,0 +1,43 @@
+{
+  "_comment": "Google Form field mapping for Hostel Leave Application Form ID: 1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ",
+  "_instructions": "To update these mappings: 1) Open the Google Form, 2) Inspect element on each field, 3) Find the 'entry.XXXXXXXXX' value in the name attribute, 4) Update the corresponding mapping below",
+  "_form_url": "https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/formResponse",
+  "_test_mode": false,
+  "_prefill_probe_url": "https://docs.google.com/forms/d/e/1FAIpQLScdAqB_-aEvPRBh4xJVmSPDv9tuYJWFAimPbspKZXwnLHEwFQ/viewform?usp=pp_url",
+  "mappings": {
+    "email": "entry.1240775897",
+    "reason": "entry.1297348808", 
+    "leaveFrom": {
+      "type": "split_date",
+      "year": "entry.1768223950_year",
+      "month": "entry.1768223950_month",
+      "day": "entry.1768223950_day"
+    },
+    "leaveTo": {
+      "type": "split_date",
+      "year": "entry.2081879686_year",
+      "month": "entry.2081879686_month",
+      "day": "entry.2081879686_day"
+    },
+    "leaveCity": "entry.963464051",
+    "correlationId": "entry.1956275049"
+  },
+  "_notes": {
+    "email": "Required field with email validation and 'Record as email included with response' helper text",
+    "reason": "Required textarea field for reason for leave",
+    "leaveFrom": "Required date picker field for leave start date",
+    "leaveTo": "Required date picker field for leave end date", 
+    "leaveCity": "Required text field for destination city",
+    "correlationId": "Short answer field for tracking submissions between PWA and Google Form",
+    "dateFormat": "If Google Form splits dates into separate year/month/day fields, additional mappings will be needed",
+    "troubleshooting": {
+      "401_error": "Form may not be public. Go to Form Settings > Responses > ensure 'Restrict to users in <domain>' is unchecked",
+      "validation_error": "Check entry IDs match form fields exactly. Use browser inspector on form to verify",
+      "missing_responses": "Verify form has linked Google Sheet and check Sheet permissions"
+    }
+  },
+  "_maintenance": {
+    "lastUpdated": "2025-08-21",
+    "howToRefresh": "When Google Form is edited: 1) View form source, 2) Copy new entry.* IDs, 3) Update mappings above, 4) Test with sample submission"
+  }
+}

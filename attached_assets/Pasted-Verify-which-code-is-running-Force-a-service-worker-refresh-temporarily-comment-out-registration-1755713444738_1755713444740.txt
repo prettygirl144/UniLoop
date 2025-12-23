@@ -1,0 +1,41 @@
+Verify which code is running
+
+Force a service worker refresh: temporarily comment out registration, reload, confirm changes show, then restore registration with a bumped version (e.g., CACHE_V4).
+
+Add an obvious UI marker: insert a console.log with a unique timestamp/version string and a small visible text change. Reload and confirm both appear. This proves the browser is executing the latest bundle.
+
+Restart the dev server: stop and start the Replit run task to ensure the active process is serving current code.
+
+Confirm actual database persistence
+
+Add server-side logging around the write endpoint: log request payload, DB result/insertId/ack, and any errors. Check Replit Console for each form submit.
+
+Read-after-write check: after submitting the form, fetch the newly created record by a unique key (e.g., a UUID added client-side) and display it. If it round-trips, it’s persisted.
+
+Inspect the DB directly:
+
+SQL: run a SELECT in the Replit Shell to find the last N rows with created_at DESC and confirm the new record.
+
+Mongo: use db.collection.find().sort({_id:-1}).limit(5) to see recent docs.
+
+Firebase/Firestore/Supabase: open the console and verify the new node/doc appears in the expected collection/path and project.
+
+Environment sanity: print the runtime DB connection string/host (mask secrets) or the database name/schema to the server logs on startup so it’s clear which environment (dev vs prod) is being written to.
+
+Guard against dev-mode illusions
+
+Disable any in-memory fallbacks: ensure error paths don’t write to a local array or mock store when DB fails.
+
+Check feature flags/env vars: verify NODE_ENV, REPLIT environment variables, and any “USE_MOCK_DB” or “LOCAL_ONLY” flags are off.
+
+CORS/auth differences: in dev mode, permissive settings can make requests “succeed” but not commit. Verify the server returns a 2xx and a concrete DB result (e.g., affectedRows>0, insertedId present). Handle non-2xx as errors.
+
+Simple instrumentation to add now
+
+Client: attach a unique requestId to each submit and show the server’s returned id/ack in the UI (e.g., “Saved as id: 8f2a…”).
+
+Server: return explicit success metadata {ok:true, id, rowCount} and log it.
+
+Health endpoint: expose GET /db/health that runs a trivial read query and returns ok:true. Call it on app start to confirm connectivity.
+
+If the form now works because the service worker stopped serving stale assets or the dev server rebuilt correctly, that’s fine—but the database verification steps above will give certainty. Once confirmed, lock it down: pin package versions, bump SW/cache versions on each deploy, and add a smoke test that creates and then reads a record to catch regressions early.

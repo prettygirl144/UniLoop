@@ -1,0 +1,42 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/:1 Unchecked runtime.lastError: The message port closed before a response was received.Understand this error
+2AuthContext.tsx:26 Uncaught Error: useAuthContext must be used within an AuthProvider
+    at useAuthContext (AuthContext.tsx:26:11)
+    at TopAppBar (TopAppBar.tsx:8:20)
+    at renderWithHooks (chunk-WERSD76P.js?v=c9cf3713:11548:26)
+    at mountIndeterminateComponent (chunk-WERSD76P.js?v=c9cf3713:14926:21)
+    at beginWork (chunk-WERSD76P.js?v=c9cf3713:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-WERSD76P.js?v=c9cf3713:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-WERSD76P.js?v=c9cf3713:3699:24)
+    at invokeGuardedCallback (chunk-WERSD76P.js?v=c9cf3713:3733:39)
+    at beginWork$1 (chunk-WERSD76P.js?v=c9cf3713:19765:15)
+    at performUnitOfWork (chunk-WERSD76P.js?v=c9cf3713:19198:20)Understand this error
+chunk-WERSD76P.js?v=c9cf3713:14032 The above error occurred in the <TopAppBar> component:
+
+    at TopAppBar (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/TopAppBar.tsx:25:20)
+    at div
+    at Layout (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/Layout.tsx:20:34)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c9cf3713:379:17)
+    at Router (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/App.tsx?v=ThqWirEEAfcvXqG_cXp8U:37:42)
+    at Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MAE4WKEQ.js?v=c9cf3713:38:15)
+    at TooltipProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c9cf3713:59:5)
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c9cf3713:2805:3)
+    at App
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c9cf3713:2805:3)
+    at Auth0Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@auth0_auth0-react.js?v=c9cf3713:1197:23)
+    at Auth0Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/auth/Auth0Provider.tsx?v=ThqWirEEAfcvXqG_cXp8U:18:41)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-WERSD76P.js?v=c9cf3713:14032Understand this error
+chunk-WERSD76P.js?v=c9cf3713:9129 Uncaught Error: useAuthContext must be used within an AuthProvider
+    at useAuthContext (AuthContext.tsx:26:11)
+    at TopAppBar (TopAppBar.tsx:8:20)
+    at renderWithHooks (chunk-WERSD76P.js?v=c9cf3713:11548:26)
+    at mountIndeterminateComponent (chunk-WERSD76P.js?v=c9cf3713:14926:21)
+    at beginWork (chunk-WERSD76P.js?v=c9cf3713:15914:22)
+    at beginWork$1 (chunk-WERSD76P.js?v=c9cf3713:19753:22)
+    at performUnitOfWork (chunk-WERSD76P.js?v=c9cf3713:19198:20)
+    at workLoopSync (chunk-WERSD76P.js?v=c9cf3713:19137:13)
+    at renderRootSync (chunk-WERSD76P.js?v=c9cf3713:19116:15)
+    at recoverFromConcurrentError (chunk-WERSD76P.js?v=c9cf3713:18736:28)

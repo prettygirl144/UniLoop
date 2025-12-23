@@ -1,0 +1,236 @@
+📊 [API-REQUEST] Response received - Status: 200, RequestID: api_1756921313810_waxncihad
+queryClient.ts:58 ✅ [API-REQUEST] Request successful - RequestID: api_1756921313810_waxncihad
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events
+chunk-RPCDYKBN.js?v=e7614ad7:521 Warning: React has detected a change in the order of Hooks called by Calendar. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useState                   useState
+2. useState                   useState
+3. useState                   useState
+4. useState                   useState
+5. useState                   useState
+6. useState                   useState
+7. useState                   useState
+8. useState                   useState
+9. useRef                     useRef
+10. useContext                useContext
+11. useState                  useState
+12. useEffect                 useEffect
+13. useContext                useContext
+14. useContext                useContext
+15. useContext                useContext
+16. useContext                useContext
+17. useEffect                 useEffect
+18. useState                  useState
+19. useCallback               useCallback
+20. useSyncExternalStore      useSyncExternalStore
+21. useEffect                 useEffect
+22. useContext                useContext
+23. useContext                useContext
+24. useContext                useContext
+25. useEffect                 useEffect
+26. useState                  useState
+27. useCallback               useCallback
+28. useSyncExternalStore      useSyncExternalStore
+29. useEffect                 useEffect
+30. useRef                    useRef
+31. useRef                    useRef
+32. useState                  useState
+33. useLayoutEffect           useLayoutEffect
+34. useEffect                 useEffect
+35. useEffect                 useEffect
+36. useEffect                 useEffect
+37. useEffect                 useEffect
+38. useEffect                 useEffect
+39. useEffect                 useEffect
+40. useContext                useContext
+41. useState                  useState
+42. useEffect                 useEffect
+43. useCallback               useCallback
+44. useSyncExternalStore      useSyncExternalStore
+45. useCallback               useCallback
+46. useContext                useContext
+47. useState                  useState
+48. useEffect                 useEffect
+49. useCallback               useCallback
+50. useSyncExternalStore      useSyncExternalStore
+51. useCallback               useCallback
+52. useContext                useContext
+53. useContext                useContext
+54. useContext                useContext
+55. useEffect                 useEffect
+56. useState                  useState
+57. useCallback               useCallback
+58. useSyncExternalStore      useSyncExternalStore
+59. useEffect                 useEffect
+60. useContext                useContext
+61. useContext                useContext
+62. useContext                useContext
+63. useEffect                 useEffect
+64. useState                  useState
+65. useCallback               useCallback
+66. useSyncExternalStore      useSyncExternalStore
+67. useEffect                 useEffect
+68. useContext                useContext
+69. useState                  useState
+70. useEffect                 useEffect
+71. useCallback               useCallback
+72. useSyncExternalStore      useSyncExternalStore
+73. useCallback               useCallback
+74. useContext                useContext
+75. useContext                useContext
+76. useContext                useContext
+77. useEffect                 useEffect
+78. useState                  useState
+79. useCallback               useCallback
+80. useSyncExternalStore      useSyncExternalStore
+81. useEffect                 useEffect
+82. useContext                useContext
+83. useContext                useContext
+84. useContext                useContext
+85. useEffect                 useEffect
+86. useState                  useState
+87. useCallback               useCallback
+88. useSyncExternalStore      useSyncExternalStore
+89. useEffect                 useEffect
+90. useContext                useContext
+91. useContext                useContext
+92. useContext                useContext
+93. useEffect                 useEffect
+94. useState                  useState
+95. useCallback               useCallback
+96. useSyncExternalStore      useSyncExternalStore
+97. useEffect                 useEffect
+98. useContext                useContext
+99. useContext                useContext
+100. useContext               useContext
+101. useEffect                useEffect
+102. useState                 useState
+103. useCallback              useCallback
+104. useSyncExternalStore     useSyncExternalStore
+105. useEffect                useEffect
+106. useContext               useContext
+107. useContext               useContext
+108. useContext               useContext
+109. useEffect                useEffect
+110. useState                 useState
+111. useCallback              useCallback
+112. useSyncExternalStore     useSyncExternalStore
+113. useEffect                useEffect
+114. useContext               useContext
+115. useContext               useContext
+116. useContext               useContext
+117. useEffect                useEffect
+118. useState                 useState
+119. useCallback              useCallback
+120. useSyncExternalStore     useSyncExternalStore
+121. useEffect                useEffect
+122. useContext               useContext
+123. useContext               useContext
+124. useContext               useContext
+125. useEffect                useEffect
+126. useState                 useState
+127. useCallback              useCallback
+128. useSyncExternalStore     useSyncExternalStore
+129. useEffect                useEffect
+130. useContext               useContext
+131. useContext               useContext
+132. useContext               useContext
+133. useEffect                useEffect
+134. useState                 useState
+135. useCallback              useCallback
+136. useSyncExternalStore     useSyncExternalStore
+137. useEffect                useEffect
+138. useContext               useContext
+139. useContext               useContext
+140. useContext               useContext
+141. useEffect                useEffect
+142. useState                 useState
+143. useCallback              useCallback
+144. useSyncExternalStore     useSyncExternalStore
+145. useEffect                useEffect
+146. useContext               useContext
+147. useContext               useContext
+148. useContext               useContext
+149. useEffect                useEffect
+150. useState                 useState
+151. useCallback              useCallback
+152. useSyncExternalStore     useSyncExternalStore
+153. useEffect                useEffect
+154. useContext               useContext
+155. useContext               useContext
+156. useContext               useContext
+157. useEffect                useEffect
+158. useState                 useState
+159. useCallback              useCallback
+160. useSyncExternalStore     useSyncExternalStore
+161. useEffect                useEffect
+162. useContext               useContext
+163. useContext               useContext
+164. useContext               useContext
+165. useEffect                useEffect
+166. useState                 useState
+167. useCallback              useCallback
+168. useSyncExternalStore     useSyncExternalStore
+169. useEffect                useEffect
+170. undefined                useContext
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    at Calendar (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/pages/Calendar.tsx?t=1756921121951:472:35)
+    at Route (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:323:16)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at div
+    at div
+    at div
+    at Layout (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/Layout.tsx:21:34)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at Router (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/App.tsx?t=1756921121951&v=2iTP4P0mHhUQFbay9XmWs:43:42)
+    at Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-VFYO4PQK.js?v=e7614ad7:38:15)
+    at TooltipProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e7614ad7:61:5)
+    at AuthProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/context/AuthContext.tsx:22:32)
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e7614ad7:2805:3)
+    at App
+printWarning @ chunk-RPCDYKBN.js?v=e7614ad7:521Understand this error
+2chunk-RPCDYKBN.js?v=e7614ad7:11678 Uncaught Error: Rendered more hooks than during the previous render.
+    at updateWorkInProgressHook (chunk-RPCDYKBN.js?v=e7614ad7:11678:21)
+    at updateEffectImpl (chunk-RPCDYKBN.js?v=e7614ad7:12074:22)
+    at updateEffect (chunk-RPCDYKBN.js?v=e7614ad7:12099:18)
+    at Object.useEffect (chunk-RPCDYKBN.js?v=e7614ad7:12703:22)
+    at Object.useEffect (chunk-QCHXOAYK.js?v=e7614ad7:1078:29)
+    at useClearResetErrorBoundary (@tanstack_react-query.js?v=e7614ad7:2871:10)
+    at useBaseQuery (@tanstack_react-query.js?v=e7614ad7:3010:3)
+    at useQuery (@tanstack_react-query.js?v=e7614ad7:3068:10)
+    at Calendar.tsx:1655:53
+    at Array.map (<anonymous>)Understand this error
+chunk-RPCDYKBN.js?v=e7614ad7:14032 The above error occurred in the <Calendar> component:
+
+    at Calendar (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/pages/Calendar.tsx?t=1756921121951:472:35)
+    at Route (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:323:16)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at div
+    at div
+    at div
+    at Layout (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/components/Layout.tsx:21:34)
+    at Switch (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7614ad7:379:17)
+    at Router (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/App.tsx?t=1756921121951&v=2iTP4P0mHhUQFbay9XmWs:43:42)
+    at Provider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-VFYO4PQK.js?v=e7614ad7:38:15)
+    at TooltipProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e7614ad7:61:5)
+    at AuthProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/src/context/AuthContext.tsx:22:32)
+    at QueryClientProvider (https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e7614ad7:2805:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-RPCDYKBN.js?v=e7614ad7:14032Understand this error
+chunk-RPCDYKBN.js?v=e7614ad7:9129 Uncaught Error: Rendered more hooks than during the previous render.
+    at updateWorkInProgressHook (chunk-RPCDYKBN.js?v=e7614ad7:11678:21)
+    at updateEffectImpl (chunk-RPCDYKBN.js?v=e7614ad7:12074:22)
+    at updateEffect (chunk-RPCDYKBN.js?v=e7614ad7:12099:18)
+    at Object.useEffect (chunk-RPCDYKBN.js?v=e7614ad7:12703:22)
+    at Object.useEffect (chunk-QCHXOAYK.js?v=e7614ad7:1078:29)
+    at useClearResetErrorBoundary (@tanstack_react-query.js?v=e7614ad7:2871:10)
+    at useBaseQuery (@tanstack_react-query.js?v=e7614ad7:3010:3)
+    at useQuery (@tanstack_react-query.js?v=e7614ad7:3068:10)
+    at Calendar.tsx:1655:53
+    at Array.map (<anonymous>)Understand this error

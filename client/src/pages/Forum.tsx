@@ -1,0 +1,2515 @@
+import React, { useState, useMemo } from 'react';
+import { useLocation, useRouter } from 'wouter';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { MessageSquare, Users, TrendingUp, ArrowUp, ArrowDown, Reply, Trash2, Plus, UserCheck, Flag, Search, Crown, Image, Filter, Calendar, User, Heart, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { apiRequest } from '@/lib/queryClient';
+import { isUnauthorizedError } from '@/lib/authUtils';
+import { RichTextEditor, FormattedText } from '@/components/ui/rich-text-editor';
+import { MediaUpload } from '@/components/ui/media-upload';
+
+// Zod schemas for form validation
+const CommunityPostSchema = z.object({
+  title: z.string().min(5, 'Title must be at least 5 characters').max(200, 'Title too long'),
+  content: z.string().min(10, 'Content must be at least 10 characters').max(5000, 'Content too long'),
+  category: z.string().min(1, 'Category is required'),
+  isAnonymous: z.boolean().default(false),
+  mediaUrls: z.array(z.string()).max(5, 'Maximum 5 images allowed').default([]),
+});
+
+const CommunityAnnouncementSchema = z.object({
+  title: z.string().min(5, 'Title must be at least 5 characters').max(200, 'Title too long'),
+  content: z.string().min(10, 'Content must be at least 10 characters').max(5000, 'Content too long'),
+  category: z.string().min(1, 'Category is required'),
+  mediaUrls: z.array(z.string()).max(5, 'Maximum 5 images allowed').default([]),
+});
+
+const ReplySchema = z.object({
+  content: z.string().min(5, 'Reply must be at least 5 characters').max(2000, 'Reply too long'),
+  isAnonymous: z.boolean().default(false),
+});
+
+type CommunityPost = {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  authorId: string | null;
+  authorName: string | null;
+  isAnonymous: boolean;
+  score: number;
+  upvotes: number;
+  downvotes: number;
+  userVote: 'upvote' | 'downvote' | null;
+  createdAt: string;
+  mediaUrls?: string[];
+};
+
+type CommunityAnnouncement = {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  mediaUrls?: string[];
+};
+
+type CommunityReply = {
+  id: number;
+  postId: number;
+  content: string;
+  authorId: string | null;
+  authorName: string | null;
+  isAnonymous: boolean;
+  score: number;
+  upvotes: number;
+  downvotes: number;
+  createdAt: string;
+};
+
+const CATEGORIES = [
+  'General Discussion',
+  'Academic Help',
+  'Campus Life',
+  'Events & Activities',
+  'Triathlon',
+  'Feedback & Suggestions',
+  'Technical Support',
+  'Clubs & Societies',
+  'Lost and Found'
+];
+
+const TIME_FILTERS = [
+  { label: 'All Time', value: 'all' },
+  { label: 'Today', value: 'today' },
+  { label: 'This Week', value: 'week' },
+  { label: 'This Month', value: 'month' },
+  { label: 'This Year', value: 'year' }
+];
+
+const SORT_OPTIONS = [
+  { label: 'Recent', value: 'recent' },
+  { label: 'Most Upvoted', value: 'upvotes' },
+  { label: 'Most Discussed', value: 'replies' },
+  { label: 'Trending', value: 'trending' }
+];
+
+// Helper function to get category colors
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'Triathlon':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'Academic Help':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'Campus Life':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'Events & Activities':
+      return 'bg-purple-100 text-purple-800 border-purple-200';
+    case 'Clubs & Societies':
+      return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    case 'Technical Support':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'Feedback & Suggestions':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'Lost and Found':
+      return 'bg-teal-100 text-teal-800 border-teal-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
+export default function Forum() {
+  const [location, navigate] = useLocation();
+  
+  // Determine current tab from URL
+  const getCurrentTab = () => {
+    if (location === '/forum/announcements') return 'announcements';
+    if (location === '/forum/posts') return 'posts';
+    return 'posts'; // default
+  };
+  
+  const currentTab = getCurrentTab();
+  
+  // Handle tab navigation
+  const handleTabChange = (tab: string) => {
+    switch (tab) {
+      case 'announcements':
+        navigate('/forum/announcements');
+        break;
+      default:
+        navigate('/forum/posts');
+    }
+  };
+  
+  const [activeTab, setActiveTab] = useState(currentTab);
+  const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
+  const [showPostDialog, setShowPostDialog] = useState(false);
+  const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [postsPage, setPostsPage] = useState(1);
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('recent');
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedPosts, setExpandedPosts] = useState<Set<number>>(new Set());
+  const [expandedAnnouncements, setExpandedAnnouncements] = useState<Set<number>>(new Set());
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const POSTS_PER_PAGE = 10;
+
+  // Queries
+  const { data: communityPosts = [], isLoading: postsLoading } = useQuery<CommunityPost[]>({
+    queryKey: ['/api/community/posts'],
+    retry: false,
+  });
+
+  const { data: communityAnnouncements = [], isLoading: announcementsLoading } = useQuery<CommunityAnnouncement[]>({
+    queryKey: ['/api/community/announcements'],
+    retry: false,
+  });
+
+  const { data: replies = [], isLoading: repliesLoading } = useQuery<CommunityReply[]>({
+    queryKey: ['/api/community/posts', selectedPost?.id, 'replies'],
+    enabled: !!selectedPost,
+    retry: false,
+  });
+
+  // Forms
+  const postForm = useForm({
+    resolver: zodResolver(CommunityPostSchema),
+    defaultValues: {
+      title: '',
+      content: '',
+      category: CATEGORIES[0],
+      isAnonymous: false,
+      mediaUrls: [],
+    },
+  });
+
+  const announcementForm = useForm({
+    resolver: zodResolver(CommunityAnnouncementSchema),
+    defaultValues: {
+      title: '',
+      content: '',
+      category: CATEGORIES[0],
+      mediaUrls: [],
+    },
+  });
+
+  const replyForm = useForm({
+    resolver: zodResolver(ReplySchema),
+    defaultValues: {
+      content: '',
+      isAnonymous: false,
+    },
+  });
+
+  // Mutations
+  const createPostMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof CommunityPostSchema>) => {
+      return await apiRequest('POST', '/api/community/posts', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      postForm.reset();
+      setShowPostDialog(false);
+      toast({
+        title: 'Success',
+        description: 'Your post has been created!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to create post. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const createAnnouncementMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof CommunityAnnouncementSchema>) => {
+      return await apiRequest('POST', '/api/community/announcements', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/announcements'] });
+      announcementForm.reset();
+      setShowAnnouncementDialog(false);
+      toast({
+        title: 'Success',
+        description: 'Announcement has been created!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to create announcement. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: async (announcementId: number) => {
+      return await apiRequest('DELETE', `/api/community/announcements/${announcementId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/announcements'] });
+      toast({
+        title: 'Success',
+        description: 'Announcement has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete announcement. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const createReplyMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof ReplySchema>) => {
+      return await apiRequest('POST', `/api/community/posts/${selectedPost?.id}/replies`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts', selectedPost?.id, 'replies'] });
+      replyForm.reset();
+      toast({
+        title: 'Success',
+        description: 'Your reply has been posted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to post reply. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      return await apiRequest('DELETE', `/api/community/posts/${postId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      toast({
+        title: 'Success',
+        description: 'Post has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete post. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteReplyMutation = useMutation({
+    mutationFn: async (replyId: number) => {
+      return await apiRequest('DELETE', `/api/community/replies/${replyId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts', selectedPost?.id, 'replies'] });
+      toast({
+        title: 'Success',
+        description: 'Reply has been deleted!',
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete reply. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const voteMutation = useMutation({
+    mutationFn: async ({ postId, voteType }: { postId: number; voteType: 'upvote' | 'downvote' }) => {
+      return await apiRequest('POST', `/api/community/posts/${postId}/vote`, { voteType });
+    },
+    onMutate: async ({ postId, voteType }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/community/posts'] });
+      
+      // Snapshot the previous value
+      const previousPosts = queryClient.getQueryData(['/api/community/posts']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['/api/community/posts'], (old: any) => {
+        if (!old) return old;
+        
+        return old.map((post: CommunityPost) => {
+          if (post.id === postId) {
+            const currentVote = post.userVote;
+            let newUpvotes = post.upvotes;
+            let newDownvotes = post.downvotes;
+            let newUserVote: 'upvote' | 'downvote' | null = voteType;
+            
+            // Handle vote logic
+            if (currentVote === voteType) {
+              // Removing vote
+              newUserVote = null;
+              if (voteType === 'upvote') newUpvotes--;
+              else newDownvotes--;
+            } else if (currentVote === null) {
+              // Adding new vote
+              if (voteType === 'upvote') newUpvotes++;
+              else newDownvotes++;
+            } else {
+              // Switching vote
+              if (currentVote === 'upvote') newUpvotes--;
+              else newDownvotes--;
+              
+              if (voteType === 'upvote') newUpvotes++;
+              else newDownvotes++;
+            }
+            
+            return {
+              ...post,
+              upvotes: Math.max(0, newUpvotes),
+              downvotes: Math.max(0, newDownvotes),
+              userVote: newUserVote,
+              score: Math.max(0, newUpvotes) - Math.max(0, newDownvotes)
+            };
+          }
+          return post;
+        });
+      });
+      
+      return { previousPosts };
+    },
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['/api/community/posts'], context.previousPosts);
+      }
+      
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Unauthorized',
+          description: 'You are logged out. Logging in again...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      toast({
+        title: 'Error',
+        description: 'Failed to vote. Please try again.',
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      // Always refetch after success or error to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+    },
+  });
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Helper functions for content expansion
+  const togglePostExpansion = (postId: number) => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAnnouncementExpansion = (announcementId: number) => {
+    setExpandedAnnouncements(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(announcementId)) {
+        newSet.delete(announcementId);
+      } else {
+        newSet.add(announcementId);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to check if content should be truncated
+  const shouldTruncateContent = (content: string) => {
+    return content.length > 200; // Adjust threshold as needed
+  };
+
+  // Helper function to get truncated content
+  const getTruncatedContent = (content: string) => {
+    if (content.length <= 200) return content;
+    return content.substring(0, 200) + '...';
+  };
+
+  const canCreateAnnouncement = (user as any)?.role === 'admin' || (user as any)?.role === 'committee_club';
+  const canDeletePosts = (user as any)?.role === 'admin';
+
+  // Helper function to check if user can delete a specific post
+  const canDeletePost = (post: CommunityPost) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can delete any post at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can delete their own posts within 1 hour
+    if (post.authorId === userId) {
+      const createdAt = new Date(post.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if user can delete a specific reply
+  const canDeleteReply = (reply: CommunityReply) => {
+    if (!user) return false;
+    const userRole = (user as any)?.role;
+    const userId = (user as any)?.id;
+    
+    // Admins can delete any reply at any time
+    if (userRole === 'admin') return true;
+    
+    // Users can delete their own replies within 1 hour
+    if (reply.authorId === userId) {
+      const createdAt = new Date(reply.createdAt);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      return createdAt >= oneHourAgo;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if date is within time filter
+  const isWithinTimeFilter = (dateString: string, filter: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (filter) {
+      case 'today':
+        return date >= today;
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return date >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        return date >= monthAgo;
+      case 'year':
+        const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        return date >= yearAgo;
+      default:
+        return true;
+    }
+  };
+
+  // Enhanced filter and sort posts
+  const filteredAndSortedPosts = useMemo(() => {
+    let filtered = [...communityPosts];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((post: CommunityPost) =>
+        post.title.toLowerCase().includes(query) ||
+        post.content.toLowerCase().includes(query) ||
+        (post.authorName && post.authorName.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply time filter
+    if (timeFilter !== 'all') {
+      filtered = filtered.filter((post: CommunityPost) => 
+        isWithinTimeFilter(post.createdAt, timeFilter)
+      );
+    }
+
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((post: CommunityPost) => 
+        post.category === categoryFilter
+      );
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'upvotes':
+        filtered.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+        break;
+      case 'replies':
+        // Would need reply count from backend, for now sort by upvotes
+        filtered.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+        break;
+      case 'trending':
+        // Basic trending algorithm: recent posts with high engagement
+        filtered.sort((a, b) => {
+          const aScore = (a.upvotes || 0) + (a.downvotes || 0) + 
+                        (isWithinTimeFilter(a.createdAt, 'week') ? 10 : 0);
+          const bScore = (b.upvotes || 0) + (b.downvotes || 0) + 
+                        (isWithinTimeFilter(b.createdAt, 'week') ? 10 : 0);
+          return bScore - aScore;
+        });
+        break;
+      case 'recent':
+      default:
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+    }
+
+    return filtered;
+  }, [communityPosts, searchQuery, timeFilter, categoryFilter, sortBy]);
+
+  // Enhanced filter announcements
+  const filteredAnnouncements = useMemo(() => {
+    let filtered = [...communityAnnouncements];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((announcement: CommunityAnnouncement) =>
+        announcement.title.toLowerCase().includes(query) ||
+        announcement.content.toLowerCase().includes(query) ||
+        announcement.authorName.toLowerCase().includes(query)
+      );
+    }
+
+    if (timeFilter !== 'all') {
+      filtered = filtered.filter((announcement: CommunityAnnouncement) => 
+        isWithinTimeFilter(announcement.createdAt, timeFilter)
+      );
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((announcement: CommunityAnnouncement) => 
+        announcement.category === categoryFilter
+      );
+    }
+
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [communityAnnouncements, searchQuery, timeFilter, categoryFilter]);
+
+  // Pagination logic
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (postsPage - 1) * POSTS_PER_PAGE;
+    const endIndex = startIndex + POSTS_PER_PAGE;
+    return filteredAndSortedPosts.slice(0, endIndex);
+  }, [filteredAndSortedPosts, postsPage]);
+
+  const paginatedAnnouncements = useMemo(() => {
+    const startIndex = (announcementsPage - 1) * POSTS_PER_PAGE;
+    const endIndex = startIndex + POSTS_PER_PAGE;
+    return filteredAnnouncements.slice(0, endIndex);
+  }, [filteredAnnouncements, announcementsPage]);
+
+  const hasMorePosts = filteredAndSortedPosts.length > paginatedPosts.length;
+  const hasMoreAnnouncements = filteredAnnouncements.length > paginatedAnnouncements.length;
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full min-h-screen
+                    /* Mobile: full width with minimal padding */
+                    px-4 py-4
+                    /* Desktop: centered with max width */
+                    lg:max-w-6xl lg:mx-auto lg:px-6 lg:py-8">
+      
+      {/* Mobile-optimized header section */}
+      <div className="mb-6 space-y-4 lg:mb-8">
+        {/* Mobile-first search and filter bar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+            <Input
+              placeholder="Search posts and announcements..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 text-small 
+                         /* Mobile: larger tap target */
+                         h-11 
+                         /* Desktop: standard height */
+                         lg:h-10
+                         /* Touch optimization */
+                         focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all duration-200"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-small
+                       /* Mobile: full width on small screens */
+                       w-full sm:w-auto
+                       /* Mobile: larger tap target */
+                       h-11 
+                       /* Desktop: standard height */
+                       lg:h-10
+                       /* Touch feedback */
+                       active:scale-98 transition-all duration-150"
+          >
+            <Filter className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>Filters</span>
+            <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+          </Button>
+        </div>
+
+        {/* Mobile-optimized advanced filters */}
+        {showFilters && (
+          <Card className="p-4 lg:p-6
+                           /* Mobile: rounded corners for modern feel */
+                           rounded-xl
+                           /* Animation for smooth expansion */
+                           animate-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-small font-medium block">Time Range</label>
+                <Select value={timeFilter} onValueChange={setTimeFilter}>
+                  <SelectTrigger className="text-small
+                                           /* Mobile: larger tap target */
+                                           h-11 lg:h-10
+                                           /* Touch optimization */
+                                           focus:ring-2 focus:ring-primary focus:ring-opacity-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="/* Mobile: larger dropdown items */
+                                           max-h-60 overflow-y-auto">
+                    {TIME_FILTERS.map((filter) => (
+                      <SelectItem 
+                        key={filter.value} 
+                        value={filter.value} 
+                        className="text-small
+                                   /* Mobile: larger tap targets */
+                                   py-3 lg:py-2
+                                   /* Touch feedback */
+                                   active:bg-primary active:bg-opacity-10"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span>{filter.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-small font-medium block">Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="text-small h-11 lg:h-10 focus:ring-2 focus:ring-primary focus:ring-opacity-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <SelectItem value="all" className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10">
+                      All Categories
+                    </SelectItem>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem 
+                        key={category} 
+                        value={category} 
+                        className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                      >
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                <label className="text-small font-medium block">Sort By</label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="text-small h-11 lg:h-10 focus:ring-2 focus:ring-primary focus:ring-opacity-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    {SORT_OPTIONS.map((option) => (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value} 
+                        className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                      >
+                        <div className="flex items-center gap-2">
+                          {option.value === 'upvotes' && <Heart className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'recent' && <Calendar className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'replies' && <Reply className="h-3 w-3 flex-shrink-0" />}
+                          {option.value === 'trending' && <TrendingUp className="h-3 w-3 flex-shrink-0" />}
+                          <span>{option.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Mobile-optimized filter summary and clear action */}
+            <div className="flex flex-col gap-3 mt-4 pt-4 border-t sm:flex-row sm:justify-between sm:items-center">
+              <div className="text-small text-gray-500 text-center sm:text-left">
+                Showing {paginatedPosts.length} of {filteredAndSortedPosts.length} posts
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setTimeFilter('all');
+                  setCategoryFilter('all');
+                  setSortBy('recent');
+                  setPostsPage(1);
+                  setAnnouncementsPage(1);
+                }}
+                className="text-small
+                           /* Mobile: full width */
+                           w-full sm:w-auto
+                           /* Touch feedback */
+                           active:scale-98 transition-all duration-150"
+              >
+                Clear All Filters
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
+      {/* Mobile-optimized tabs */}
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 
+                             /* Mobile: larger height for easier tapping */
+                             h-12 lg:h-10
+                             /* Mobile: rounded for modern feel */
+                             rounded-xl
+                             /* Mobile: better contrast */
+                             bg-gray-100 dark:bg-gray-800">
+          <TabsTrigger 
+            value="posts" 
+            className="flex items-center gap-2 
+                       /* Mobile: larger tap target */
+                       h-10 lg:h-8
+                       /* Touch feedback */
+                       active:scale-98 transition-all duration-150
+                       /* Typography */
+                       text-small font-medium
+                       /* Mobile: responsive text */
+                       data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <MessageSquare className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Community Board</span>
+            <span className="sm:hidden">Community</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="announcements" 
+            className="flex items-center gap-2 
+                       h-10 lg:h-8
+                       active:scale-98 transition-all duration-150
+                       text-small font-medium
+                       data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <Users className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Official Announcements</span>
+            <span className="sm:hidden">Announcements</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Mobile-optimized Community Board Tab */}
+        <TabsContent value="posts" className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <TrendingUp className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                <h2 className="text-medium font-medium truncate">Community Discussions</h2>
+                <Badge variant="secondary" className="text-small flex-shrink-0 
+                                                     /* Mobile: smaller badge */
+                                                     px-2 py-1">
+                  {filteredAndSortedPosts.length}
+                </Badge>
+              </div>
+              {isAuthenticated && (
+                <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="text-small flex-shrink-0 
+                                       /* Mobile: optimized spacing */
+                                       px-3 py-2 h-9
+                                       /* Desktop: standard spacing */
+                                       lg:px-4 lg:h-10
+                                       /* Touch feedback */
+                                       active:scale-95 transition-all duration-150">
+                      <Plus className="h-4 w-4 mr-1 flex-shrink-0" />
+                      <span className="hidden sm:inline">New Post</span>
+                      <span className="sm:hidden">Post</span>
+                    </Button>
+                  </DialogTrigger>
+                  {/* Mobile-optimized dialog content */}
+                  <DialogContent className="w-full max-w-md 
+                                           /* Mobile: full height with safe margins */
+                                           max-h-[95vh] min-h-[50vh]
+                                           /* Mobile: rounded corners */
+                                           rounded-xl
+                                           /* Scrolling for mobile */
+                                           overflow-y-auto
+                                           /* Touch optimization */
+                                           touch-pan-y">
+                    <DialogHeader className="space-y-3 pb-4 border-b">
+                      <DialogTitle className="text-medium font-medium text-center sm:text-left">
+                        Create New Post
+                      </DialogTitle>
+                      <DialogDescription className="text-small text-gray-600 text-center sm:text-left">
+                        Share your thoughts with the community. You can add text, images, and format your content.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {/* Mobile-optimized form */}
+                    <Form {...postForm}>
+                      <form 
+                        onSubmit={postForm.handleSubmit((data) => createPostMutation.mutate(data))} 
+                        className="space-y-5 pt-4"
+                      >
+                        <FormField
+                          control={postForm.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Title</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Enter post title" 
+                                  {...field} 
+                                  className="text-small 
+                                             /* Mobile: larger tap target */
+                                             h-11 lg:h-10
+                                             /* Touch optimization */
+                                             focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                             transition-all duration-200" 
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Category</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="text-small 
+                                                           h-11 lg:h-10
+                                                           focus:ring-2 focus:ring-primary focus:ring-opacity-20">
+                                    <SelectValue placeholder="Select a category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="max-h-60 overflow-y-auto">
+                                  {CATEGORIES.map((cat) => (
+                                    <SelectItem 
+                                      key={cat} 
+                                      value={cat} 
+                                      className="text-small py-3 lg:py-2 active:bg-primary active:bg-opacity-10"
+                                    >
+                                      {cat}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Content</FormLabel>
+                              <FormControl>
+                                <RichTextEditor
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Share your thoughts... Use **bold**, *italic*, and _underline_ for formatting"
+                                  minHeight="120px"
+                                  className="/* Mobile: touch-friendly */
+                                             focus-within:ring-2 focus-within:ring-primary focus-within:ring-opacity-20"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="mediaUrls"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel className="text-small font-medium">Media (Optional)</FormLabel>
+                              <FormControl>
+                                <MediaUpload
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  maxFiles={5}
+                                  maxSize={5}
+                                  accept="image/*,.gif"
+                                  className="/* Mobile: touch-friendly upload area */
+                                             min-h-[100px] border-2 border-dashed rounded-lg
+                                             hover:border-primary transition-colors duration-200"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-small" />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={postForm.control}
+                          name="isAnonymous"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between 
+                                                 /* Mobile: better spacing */
+                                                 py-3 px-4 bg-gray-50 rounded-lg">
+                              <div className="space-y-1">
+                                <FormLabel className="text-small font-medium">Post anonymously</FormLabel>
+                                <div className="text-small text-gray-600">Hide your identity from other users</div>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="/* Mobile: larger touch target */
+                                             data-[state=checked]:bg-primary"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Mobile-optimized submit button */}
+                        <div className="pt-4 border-t">
+                          <Button 
+                            type="submit" 
+                            className="w-full text-small font-medium
+                                       /* Mobile: larger tap target */
+                                       h-12 lg:h-10
+                                       /* Touch feedback */
+                                       active:scale-98 transition-all duration-150
+                                       /* Loading state */
+                                       disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={createPostMutation.isPending}
+                          >
+                            {createPostMutation.isPending ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Creating...
+                              </div>
+                            ) : (
+                              'Create Post'
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                </DialogContent>
+              </Dialog>
+            )}
+            </div>
+          </div>
+
+          {postsLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Mobile-optimized post grid */}
+              <div className="grid gap-4">
+                {paginatedPosts.map((post: CommunityPost) => (
+                <Card 
+                  key={post.id} 
+                  className="/* Mobile: enhanced touch interaction */
+                             hover:shadow-md active:scale-[0.99] transition-all duration-150 cursor-pointer
+                             /* Mobile: rounded corners for modern feel */
+                             rounded-xl
+                             /* Touch optimization */
+                             select-none" 
+                  onClick={() => setSelectedPost(post)}
+                >
+                  <CardContent className="/* Mobile: optimized padding */
+                                        p-4 lg:p-6">
+                    <div className="flex gap-3 lg:gap-4">
+                      {/* Mobile-optimized voting section */}
+                      <div className="flex flex-col items-center gap-2 min-w-12 lg:min-w-14">
+                        <Button
+                          variant={post.userVote === 'upvote' ? 'default' : 'ghost'}
+                          size="sm"
+                          className={`/* Mobile: larger tap target */
+                                     h-9 w-9 p-0 
+                                     /* Desktop: standard size */
+                                     lg:h-8 lg:w-8
+                                     /* Touch feedback */
+                                     active:scale-90 transition-all duration-150
+                                     /* Focus ring */
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                     /* Vote state colors */
+                                     ${post.userVote === 'upvote' 
+                                       ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                       : 'hover:bg-green-50 hover:text-green-600'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isAuthenticated) {
+                              voteMutation.mutate({ postId: post.id, voteType: 'upvote' });
+                            }
+                          }}
+                          aria-label="Upvote post"
+                          data-testid={`button-upvote-${post.id}`}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-small font-medium text-green-600">{post.upvotes || 0}</span>
+                          <span className="text-small font-medium text-red-600">{post.downvotes || 0}</span>
+                        </div>
+                        <Button
+                          variant={post.userVote === 'downvote' ? 'default' : 'ghost'}
+                          size="sm"
+                          className={`h-9 w-9 p-0 lg:h-8 lg:w-8
+                                     active:scale-90 transition-all duration-150
+                                     focus:ring-2 focus:ring-primary focus:ring-opacity-20
+                                     /* Vote state colors */
+                                     ${post.userVote === 'downvote' 
+                                       ? 'bg-red-500 hover:bg-red-600 text-white' 
+                                       : 'hover:bg-red-50 hover:text-red-600'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isAuthenticated) {
+                              voteMutation.mutate({ postId: post.id, voteType: 'downvote' });
+                            }
+                          }}
+                          aria-label="Downvote post"
+                          data-testid={`button-downvote-${post.id}`}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {/* Mobile-responsive post metadata */}
+                        <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:gap-2 sm:mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className={`text-small px-2 py-1 flex-shrink-0 ${getCategoryColor(post.category)}`}>
+                              {post.category}
+                            </Badge>
+                            <span className="text-small text-gray-500 truncate">
+                              by {post.isAnonymous ? 'Anonymous' : (post.authorName || 'Unknown')}
+                            </span>
+                          </div>
+                          <span className="text-small text-gray-400 flex-shrink-0">
+                            {formatDate(post.createdAt)}
+                          </span>
+                        </div>
+                        {/* Mobile-optimized title and actions */}
+                        <div className="flex items-start justify-between mb-3 gap-2">
+                          <h3 className="text-medium font-medium line-clamp-2 flex-1 break-words leading-snug">
+                            {post.title}
+                          </h3>
+                          {canDeletePost(post) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="/* Mobile: larger tap target */
+                                         h-8 w-8 p-0 
+                                         /* Desktop: smaller */
+                                         lg:h-6 lg:w-6
+                                         /* Styling */
+                                         text-red-500 hover:text-red-700 flex-shrink-0
+                                         /* Touch feedback */
+                                         active:scale-90 transition-all duration-150
+                                         /* Focus ring */
+                                         focus:ring-2 focus:ring-red-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this post?')) {
+                                  deletePostMutation.mutate(post.id);
+                                }
+                              }}
+                              disabled={deletePostMutation.isPending}
+                              aria-label="Delete post"
+                            >
+                              <Trash2 className="h-3 w-3 lg:h-3 lg:w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {/* Mobile-optimized content display */}
+                        <div className="text-gray-600 dark:text-gray-400 mb-3">
+                          <FormattedText 
+                            className={expandedPosts.has(post.id) ? "break-words text-small leading-relaxed" : "break-words line-clamp-3 text-small leading-relaxed"}
+                          >
+                            {expandedPosts.has(post.id) ? post.content : getTruncatedContent(post.content)}
+                          </FormattedText>
+                          {shouldTruncateContent(post.content) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePostExpansion(post.id);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-small mt-2 font-medium 
+                                         /* Mobile: larger tap target */
+                                         py-1 px-2 -mx-2 rounded
+                                         /* Touch feedback */
+                                         active:bg-blue-50 transition-all duration-150
+                                         /* Focus ring */
+                                         focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            >
+                              {expandedPosts.has(post.id) ? 'Show less' : 'Show more'}
+                            </button>
+                          )}
+                        </div>
+                        {post.mediaUrls && post.mediaUrls.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center gap-1">
+                              <Image className="h-3 w-3" />
+                              <span className="text-small text-gray-500">{post.mediaUrls.length} image{post.mediaUrls.length > 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {post.mediaUrls.map((url, index) => (
+                                <div key={index} className="relative aspect-square">
+                                  <img
+                                    src={url}
+                                    alt={`Post media ${index + 1}`}
+                                    className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Create enhanced zoomable image modal - same as announcements
+                                      const modal = document.createElement('div');
+                                      modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                                      
+                                      let scale = 1;
+                                      let isDragging = false;
+                                      let startX = 0, startY = 0;
+                                      let translateX = 0, translateY = 0;
+                                      
+                                      modal.innerHTML = `
+                                        <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                                          <div class="relative w-full h-full flex items-center justify-center">
+                                            <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                                 class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                                 style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                                 draggable="false" />
+                                          </div>
+                                          
+                                          <!-- Close button -->
+                                          <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                          </button>
+                                          
+                                          <!-- Zoom controls -->
+                                          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                            <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"></circle>
+                                                <path d="M21 21l-4.35-4.35"></path>
+                                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                                              </svg>
+                                            </button>
+                                            <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                              Reset
+                                            </button>
+                                            <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"></circle>
+                                                <path d="M21 21l-4.35-4.35"></path>
+                                                <line x1="11" y1="8" x2="11" y2="14"></line>
+                                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                                              </svg>
+                                            </button>
+                                          </div>
+                                          
+                                          <!-- Instructions -->
+                                          <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                            Scroll to zoom • Drag to pan
+                                          </div>
+                                        </div>
+                                      `;
+                                      
+                                      const img = modal.querySelector('#zoomableImage');
+                                      const closeBtn = modal.querySelector('#closeModal');
+                                      const zoomInBtn = modal.querySelector('#zoomIn');
+                                      const zoomOutBtn = modal.querySelector('#zoomOut');
+                                      const resetBtn = modal.querySelector('#resetZoom');
+                                      
+                                      // Update transform
+                                      const updateTransform = () => {
+                                        if (img) {
+                                          // Apply transform with proper origin
+                                          (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                          (img as HTMLImageElement).style.transformOrigin = 'center center';
+                                          (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                                          
+                                          // Ensure image stays within reasonable bounds when panning
+                                          if (scale > 1) {
+                                            const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                            const modalRect = modal.getBoundingClientRect();
+                                            
+                                            const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                            const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                            
+                                            translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                            translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                            
+                                            (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                          }
+                                        }
+                                      };
+                                      
+                                      // Close modal
+                                      closeBtn?.addEventListener('click', () => modal.remove());
+                                      modal.addEventListener('click', (e: MouseEvent) => {
+                                        if (e.target === modal) modal.remove();
+                                      });
+                                      
+                                      // Zoom controls
+                                      zoomInBtn?.addEventListener('click', () => {
+                                        scale = Math.min(scale * 1.5, 5);
+                                        updateTransform();
+                                      });
+                                      
+                                      zoomOutBtn?.addEventListener('click', () => {
+                                        scale = Math.max(scale / 1.5, 0.5);
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                      });
+                                      
+                                      resetBtn?.addEventListener('click', () => {
+                                        scale = 1;
+                                        translateX = 0;
+                                        translateY = 0;
+                                        updateTransform();
+                                      });
+                                      
+                                      // Mouse wheel zoom
+                                      modal.addEventListener('wheel', (e: WheelEvent) => {
+                                        e.preventDefault();
+                                        const zoomSpeed = 0.1;
+                                        const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                                        scale = Math.max(0.5, Math.min(5, scale + delta));
+                                        
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                      });
+                                      
+                                      // Mouse drag to pan
+                                      img?.addEventListener('mousedown', (e) => {
+                                        const mouseEvent = e as MouseEvent;
+                                        if (scale <= 1) return;
+                                        isDragging = true;
+                                        startX = mouseEvent.clientX - translateX;
+                                        startY = mouseEvent.clientY - translateY;
+                                        if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
+                                      });
+                                      
+                                      modal.addEventListener('mousemove', (e) => {
+                                        const mouseEvent = e as MouseEvent;
+                                        if (!isDragging || scale <= 1) return;
+                                        translateX = mouseEvent.clientX - startX;
+                                        translateY = mouseEvent.clientY - startY;
+                                        updateTransform();
+                                      });
+                                      
+                                      modal.addEventListener('mouseup', () => {
+                                        isDragging = false;
+                                        if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
+                                      });
+                                      
+                                      // Touch support for mobile
+                                      let lastTouchDistance = 0;
+                                      let initialScale = 1;
+                                      
+                                      modal.addEventListener('touchstart', (e: TouchEvent) => {
+                                        if (e.touches.length === 2) {
+                                          const touch1 = e.touches[0];
+                                          const touch2 = e.touches[1];
+                                          lastTouchDistance = Math.sqrt(
+                                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                                          );
+                                          initialScale = scale;
+                                        } else if (e.touches.length === 1 && scale > 1) {
+                                          isDragging = true;
+                                          startX = e.touches[0].clientX - translateX;
+                                          startY = e.touches[0].clientY - translateY;
+                                        }
+                                      });
+                                      
+                                      modal.addEventListener('touchmove', (e: TouchEvent) => {
+                                        e.preventDefault();
+                                        
+                                        if (e.touches.length === 2) {
+                                          const touch1 = e.touches[0];
+                                          const touch2 = e.touches[1];
+                                          const currentDistance = Math.sqrt(
+                                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                                          );
+                                          
+                                          scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                                          
+                                          if (scale <= 1) {
+                                            translateX = 0;
+                                            translateY = 0;
+                                          }
+                                          updateTransform();
+                                        } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                                          translateX = e.touches[0].clientX - startX;
+                                          translateY = e.touches[0].clientY - startY;
+                                          updateTransform();
+                                        }
+                                      });
+                                      
+                                      modal.addEventListener('touchend', () => {
+                                        isDragging = false;
+                                      });
+                                      
+                                      // Keyboard support
+                                      const handleKeyPress = (e: KeyboardEvent) => {
+                                        switch(e.key) {
+                                          case 'Escape':
+                                            modal.remove();
+                                            break;
+                                          case '=':
+                                          case '+':
+                                            scale = Math.min(scale * 1.2, 5);
+                                            updateTransform();
+                                            break;
+                                          case '-':
+                                          case '_':
+                                            scale = Math.max(scale / 1.2, 0.5);
+                                            if (scale <= 1) {
+                                              translateX = 0;
+                                              translateY = 0;
+                                            }
+                                            updateTransform();
+                                            break;
+                                          case '0':
+                                            scale = 1;
+                                            translateX = 0;
+                                            translateY = 0;
+                                            updateTransform();
+                                            break;
+                                        }
+                                      };
+                                      
+                                      document.addEventListener('keydown', handleKeyPress);
+                                      
+                                      // Cleanup on modal remove
+                                      const observer = new MutationObserver((mutations) => {
+                                        mutations.forEach((mutation) => {
+                                          if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                            Array.from(mutation.removedNodes).forEach((node) => {
+                                              if (node === modal) {
+                                                document.removeEventListener('keydown', handleKeyPress);
+                                                observer.disconnect();
+                                              }
+                                            });
+                                          }
+                                        });
+                                      });
+                                      
+                                      observer.observe(document.body, { childList: true });
+                                      document.body.appendChild(modal);
+                                      
+                                      // Focus for keyboard navigation
+                                      modal.focus();
+                                      modal.tabIndex = 0;
+                                    }}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMjEgMTktMi0yaDJWNWMwLTEuMS0uOS0yLTItMmgtOGMtMS4xIDAtMiAuOS0yIDJ2NGwtMi0yaDJWN0gzYy0xLjEgMC0yIC45LTIgMnYxMGMwIDEuMSAuOSAyIDIgMmgxOGMxLjEgMCAyLS45IDItMnptLTYtNi05LTktMS00IDEgOSA5eiIgZmlsbD0iIzk5OTk5OSIvPjwvc3ZnPg==';
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              </div>
+
+              {/* Load More Button for Posts */}
+              {hasMorePosts && (
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setPostsPage(postsPage + 1)}
+                    className="text-small"
+                  >
+                    Load More Posts ({filteredAndSortedPosts.length - paginatedPosts.length} remaining)
+                  </Button>
+                </div>
+              )}
+              {paginatedPosts.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-medium text-gray-500 mb-2">
+                      {searchQuery ? 'No posts found' : 'No posts yet'}
+                    </p>
+                    <p className="text-small text-gray-400">
+                      {searchQuery ? 'Try a different search term' : 'Be the first to start a discussion!'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Official Announcements Tab */}
+        <TabsContent value="announcements" className="space-y-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Flag className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <h2 className="text-medium font-medium truncate">Official Announcements</h2>
+                <Badge variant="secondary" className="text-small flex-shrink-0">
+                  {filteredAnnouncements.length}
+                </Badge>
+              </div>
+              {canCreateAnnouncement && (
+                <Dialog open={showAnnouncementDialog} onOpenChange={setShowAnnouncementDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="text-small flex-shrink-0 ml-[4px] mr-[4px] pl-[8px] pr-[8px]">
+                      <Plus className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">New Post</span>
+                      <span className="sm:hidden">Add</span>
+                    </Button>
+                  </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-medium">Create Official Announcement</DialogTitle>
+                    <DialogDescription className="text-small">
+                      Create an official announcement for the campus community. Only admins and committee members can create announcements.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...announcementForm}>
+                    <form onSubmit={announcementForm.handleSubmit((data) => createAnnouncementMutation.mutate(data))} className="space-y-4">
+                      <FormField
+                        control={announcementForm.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-small">Title</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter announcement title" {...field} className="text-small" />
+                            </FormControl>
+                            <FormMessage className="text-small" />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={announcementForm.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-small">Category</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="text-small">
+                                  <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {CATEGORIES.map((cat) => (
+                                  <SelectItem key={cat} value={cat} className="text-small">{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage className="text-small" />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={announcementForm.control}
+                        name="content"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-small">Content</FormLabel>
+                            <FormControl>
+                              <RichTextEditor
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Enter announcement content... Use **bold**, *italic*, and _underline_ for formatting"
+                                minHeight="120px"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-small" />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={announcementForm.control}
+                        name="mediaUrls"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-small">Media (Optional)</FormLabel>
+                            <FormControl>
+                              <MediaUpload
+                                value={field.value}
+                                onChange={field.onChange}
+                                maxFiles={5}
+                                maxSize={5}
+                                accept="image/*,.gif"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-small" />
+                          </FormItem>
+                        )}
+                      />
+                      <Button 
+                        type="submit" 
+                        className="w-full text-small"
+                        disabled={createAnnouncementMutation.isPending}
+                      >
+                        {createAnnouncementMutation.isPending ? 'Creating...' : 'Create Announcement'}
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
+            </div>
+          </div>
+
+          {announcementsLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                {paginatedAnnouncements.map((announcement: CommunityAnnouncement) => (
+                <Card key={announcement.id} className="border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <UserCheck className="h-4 w-4 text-green-600" />
+                      <Badge variant="outline" className={`text-small ${getCategoryColor(announcement.category)}`}>
+                        {announcement.category}
+                      </Badge>
+                      <span className="text-small text-gray-500">
+                        by {announcement.authorName}
+                      </span>
+                      <span className="text-small text-gray-400">
+                        {formatDate(announcement.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-medium font-medium flex-1 break-words line-clamp-2">
+                        {announcement.title}
+                      </h3>
+                      {canDeletePosts && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this announcement?')) {
+                              deleteAnnouncementMutation.mutate(announcement.id);
+                            }
+                          }}
+                          disabled={deleteAnnouncementMutation.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-400">
+                      <FormattedText 
+                        className={expandedAnnouncements.has(announcement.id) ? "break-words" : "break-words line-clamp-3"}
+                      >
+                        {expandedAnnouncements.has(announcement.id) ? announcement.content : getTruncatedContent(announcement.content)}
+                      </FormattedText>
+                      {shouldTruncateContent(announcement.content) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAnnouncementExpansion(announcement.id);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-small mt-1 font-medium"
+                        >
+                          {expandedAnnouncements.has(announcement.id) ? 'Show less' : 'Show more'}
+                        </button>
+                      )}
+                    </div>
+                    {announcement.mediaUrls && announcement.mediaUrls.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-1">
+                          <Image className="h-3 w-3 text-gray-500" />
+                          <span className="text-small text-gray-500">
+                            {announcement.mediaUrls.length} image{announcement.mediaUrls.length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {announcement.mediaUrls.map((url, index) => (
+                            <div key={index} className="relative aspect-square">
+                              <img
+                                src={url}
+                                alt={`Announcement media ${index + 1}`}
+                                className="w-full h-full object-cover rounded-md cursor-pointer hover:opacity-75 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Create enhanced zoomable image modal
+                                  const modal = document.createElement('div');
+                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                                  
+                                  let scale = 1;
+                                  let isDragging = false;
+                                  let startX = 0, startY = 0;
+                                  let translateX = 0, translateY = 0;
+                                  
+                                  modal.innerHTML = `
+                                    <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                                      <div class="relative w-full h-full flex items-center justify-center">
+                                        <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                             class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                             style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                             draggable="false" />
+                                      </div>
+                                      
+                                      <!-- Close button -->
+                                      <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                      </button>
+                                      
+                                      <!-- Zoom controls -->
+                                      <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                        <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <path d="M21 21l-4.35-4.35"></path>
+                                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                                          </svg>
+                                        </button>
+                                        <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                          Reset
+                                        </button>
+                                        <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <path d="M21 21l-4.35-4.35"></path>
+                                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                                          </svg>
+                                        </button>
+                                      </div>
+                                      
+                                      <!-- Instructions -->
+                                      <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                        Scroll to zoom • Drag to pan
+                                      </div>
+                                    </div>
+                                  `;
+                                  
+                                  const img = modal.querySelector('#zoomableImage');
+                                  const closeBtn = modal.querySelector('#closeModal');
+                                  const zoomInBtn = modal.querySelector('#zoomIn');
+                                  const zoomOutBtn = modal.querySelector('#zoomOut');
+                                  const resetBtn = modal.querySelector('#resetZoom');
+                                  
+                                  // Update transform
+                                  const updateTransform = () => {
+                                    if (img) {
+                                      // Apply transform with proper origin
+                                      (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                      (img as HTMLImageElement).style.transformOrigin = 'center center';
+                                      (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                                      
+                                      // Ensure image stays within reasonable bounds when panning
+                                      if (scale > 1) {
+                                        const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                        const modalRect = modal.getBoundingClientRect();
+                                        
+                                        const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                        const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                        
+                                        translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                        translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                        
+                                        (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                                      }
+                                    }
+                                  };
+                                  
+                                  // Close modal
+                                  closeBtn?.addEventListener('click', () => modal.remove());
+                                  modal.addEventListener('click', (e: MouseEvent) => {
+                                    if (e.target === modal) modal.remove();
+                                  });
+                                  
+                                  // Zoom controls
+                                  zoomInBtn?.addEventListener('click', () => {
+                                    scale = Math.min(scale * 1.5, 5);
+                                    updateTransform();
+                                  });
+                                  
+                                  zoomOutBtn?.addEventListener('click', () => {
+                                    scale = Math.max(scale / 1.5, 0.5);
+                                    if (scale <= 1) {
+                                      translateX = 0;
+                                      translateY = 0;
+                                    }
+                                    updateTransform();
+                                  });
+                                  
+                                  resetBtn?.addEventListener('click', () => {
+                                    scale = 1;
+                                    translateX = 0;
+                                    translateY = 0;
+                                    updateTransform();
+                                  });
+                                  
+                                  // Mouse wheel zoom
+                                  modal.addEventListener('wheel', (e: WheelEvent) => {
+                                    e.preventDefault();
+                                    const zoomSpeed = 0.1;
+                                    const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                                    scale = Math.max(0.5, Math.min(5, scale + delta));
+                                    
+                                    if (scale <= 1) {
+                                      translateX = 0;
+                                      translateY = 0;
+                                    }
+                                    updateTransform();
+                                  });
+                                  
+                                  // Mouse drag to pan
+                                  img?.addEventListener('mousedown', (e: MouseEvent) => {
+                                    if (scale <= 1) return;
+                                    isDragging = true;
+                                    startX = e.clientX - translateX;
+                                    startY = e.clientY - translateY;
+                                    if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
+                                  });
+                                  
+                                  modal.addEventListener('mousemove', (e: MouseEvent) => {
+                                    if (!isDragging || scale <= 1) return;
+                                    translateX = e.clientX - startX;
+                                    translateY = e.clientY - startY;
+                                    updateTransform();
+                                  });
+                                  
+                                  modal.addEventListener('mouseup', () => {
+                                    isDragging = false;
+                                    if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
+                                  });
+                                  
+                                  // Touch support for mobile
+                                  let lastTouchDistance = 0;
+                                  let initialScale = 1;
+                                  
+                                  modal.addEventListener('touchstart', (e: TouchEvent) => {
+                                    if (e.touches.length === 2) {
+                                      const touch1 = e.touches[0];
+                                      const touch2 = e.touches[1];
+                                      lastTouchDistance = Math.sqrt(
+                                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                                      );
+                                      initialScale = scale;
+                                    } else if (e.touches.length === 1 && scale > 1) {
+                                      isDragging = true;
+                                      startX = e.touches[0].clientX - translateX;
+                                      startY = e.touches[0].clientY - translateY;
+                                    }
+                                  });
+                                  
+                                  modal.addEventListener('touchmove', (e: TouchEvent) => {
+                                    e.preventDefault();
+                                    
+                                    if (e.touches.length === 2) {
+                                      const touch1 = e.touches[0];
+                                      const touch2 = e.touches[1];
+                                      const currentDistance = Math.sqrt(
+                                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                                      );
+                                      
+                                      scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                                      
+                                      if (scale <= 1) {
+                                        translateX = 0;
+                                        translateY = 0;
+                                      }
+                                      updateTransform();
+                                    } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                                      translateX = e.touches[0].clientX - startX;
+                                      translateY = e.touches[0].clientY - startY;
+                                      updateTransform();
+                                    }
+                                  });
+                                  
+                                  modal.addEventListener('touchend', () => {
+                                    isDragging = false;
+                                  });
+                                  
+                                  // Keyboard support
+                                  const handleKeyPress = (e: KeyboardEvent) => {
+                                    switch(e.key) {
+                                      case 'Escape':
+                                        modal.remove();
+                                        break;
+                                      case '=':
+                                      case '+':
+                                        scale = Math.min(scale * 1.2, 5);
+                                        updateTransform();
+                                        break;
+                                      case '-':
+                                      case '_':
+                                        scale = Math.max(scale / 1.2, 0.5);
+                                        if (scale <= 1) {
+                                          translateX = 0;
+                                          translateY = 0;
+                                        }
+                                        updateTransform();
+                                        break;
+                                      case '0':
+                                        scale = 1;
+                                        translateX = 0;
+                                        translateY = 0;
+                                        updateTransform();
+                                        break;
+                                    }
+                                  };
+                                  
+                                  document.addEventListener('keydown', handleKeyPress);
+                                  
+                                  // Cleanup on modal remove
+                                  const observer = new MutationObserver((mutations: MutationRecord[]) => {
+                                    mutations.forEach((mutation: MutationRecord) => {
+                                      if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                        Array.from(mutation.removedNodes).forEach((node) => {
+                                          if (node === modal) {
+                                            document.removeEventListener('keydown', handleKeyPress);
+                                            observer.disconnect();
+                                          }
+                                        });
+                                      }
+                                    });
+                                  });
+                                  
+                                  observer.observe(document.body, { childList: true });
+                                  document.body.appendChild(modal);
+                                  
+                                  // Focus for keyboard navigation
+                                  modal.focus();
+                                  modal.tabIndex = 0;
+                                }}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJtMjEgMTktMi0yaDJWNWMwLTEuMS0uOS0yLTItMmgtOGMtMS4xIDAtMiAuOS0yIDJ2NGwtMi0yaDJWN0gzYy0xLjEgMC0yIC45LTIgMnYxMGMwIDEuMSAuOSAyIDIgMmgxOGMxLjEgMCAyLS45IDItMnptLTYtNi05LTktMS00IDEgOSA5eiIgZmlsbD0iIzk5OTk5OSIvPjwvc3ZnPg==';
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+              </div>
+
+              {/* Load More Button for Announcements */}
+              {hasMoreAnnouncements && (
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAnnouncementsPage(announcementsPage + 1)}
+                    className="text-small"
+                  >
+                    Load More Announcements ({filteredAnnouncements.length - paginatedAnnouncements.length} remaining)
+                  </Button>
+                </div>
+              )}
+
+              {paginatedAnnouncements.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-medium text-gray-500 mb-2">
+                      {searchQuery ? 'No announcements found' : 'No announcements yet'}
+                    </p>
+                    <p className="text-small text-gray-400">
+                      {searchQuery ? 'Try a different search term' : 'Official updates will appear here'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+      {/* Post Detail Dialog */}
+      {selectedPost && (
+        <Dialog open={!!selectedPost} onOpenChange={() => setSelectedPost(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-medium">{selectedPost.title}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-small">
+                  {selectedPost.category}
+                </Badge>
+                <div className="flex items-center gap-1">
+                  <span className="text-small text-gray-500">
+                    by {selectedPost.isAnonymous ? 'Anonymous' : (selectedPost.authorName || 'Unknown')}
+                  </span>
+                  {!selectedPost.isAnonymous && (
+                    <Badge variant="secondary" className="text-small px-1 py-0">
+                      <Crown className="h-3 w-3 mr-1" />
+                      OP
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-small text-gray-400">
+                  {formatDate(selectedPost.createdAt)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <ArrowUp className="h-3 w-3 text-green-600" />
+                    <span className="text-small font-medium text-green-600">{selectedPost.upvotes || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <ArrowDown className="h-3 w-3 text-red-600" />
+                    <span className="text-small font-medium text-red-600">{selectedPost.downvotes || 0}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <FormattedText className="text-small break-words">
+                {selectedPost.content}
+              </FormattedText>
+              
+              {/* Media Display */}
+              {selectedPost.mediaUrls && selectedPost.mediaUrls.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedPost.mediaUrls.map((url, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={url}
+                        alt={`Post media ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          // Create enhanced zoomable image modal
+                          const modal = document.createElement('div');
+                          modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center';
+                          
+                          let scale = 1;
+                          let isDragging = false;
+                          let startX = 0, startY = 0;
+                          let translateX = 0, translateY = 0;
+                          
+                          modal.innerHTML = `
+                            <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+                              <div class="relative w-full h-full flex items-center justify-center">
+                                <img id="zoomableImage" src="${url}" alt="Full size image" 
+                                     class="max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab" 
+                                     style="transform: scale(1) translate(0px, 0px); transform-origin: center center;" 
+                                     draggable="false" />
+                              </div>
+                              
+                              <!-- Close button -->
+                              <button id="closeModal" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-75 transition-all z-10">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                              
+                              <!-- Zoom controls -->
+                              <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black bg-opacity-50 rounded-lg p-2">
+                                <button id="zoomOut" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="M21 21l-4.35-4.35"></path>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                  </svg>
+                                </button>
+                                <button id="resetZoom" class="text-white px-3 py-2 hover:bg-white hover:bg-opacity-20 rounded transition-all text-sm">
+                                  Reset
+                                </button>
+                                <button id="zoomIn" class="text-white p-2 hover:bg-white hover:bg-opacity-20 rounded transition-all">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="M21 21l-4.35-4.35"></path>
+                                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                  </svg>
+                                </button>
+                              </div>
+                              
+                              <!-- Instructions -->
+                              <div class="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-50 rounded px-3 py-2">
+                                Scroll to zoom • Drag to pan
+                              </div>
+                            </div>
+                          `;
+                          
+                          const img = modal.querySelector('#zoomableImage');
+                          const closeBtn = modal.querySelector('#closeModal');
+                          const zoomInBtn = modal.querySelector('#zoomIn');
+                          const zoomOutBtn = modal.querySelector('#zoomOut');
+                          const resetBtn = modal.querySelector('#resetZoom');
+                          
+                          // Update transform
+                          const updateTransform = () => {
+                            if (img) {
+                              // Apply transform with proper origin
+                              (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                              (img as HTMLImageElement).style.transformOrigin = 'center center';
+                              (img as HTMLImageElement).style.cursor = scale > 1 ? 'grab' : 'default';
+                              
+                              // Ensure image stays within reasonable bounds when panning
+                              if (scale > 1) {
+                                const imgRect = (img as HTMLImageElement).getBoundingClientRect();
+                                const modalRect = modal.getBoundingClientRect();
+                                
+                                const maxTranslateX = Math.max(0, (imgRect.width * scale - modalRect.width) / 2);
+                                const maxTranslateY = Math.max(0, (imgRect.height * scale - modalRect.height) / 2);
+                                
+                                translateX = Math.min(maxTranslateX, Math.max(-maxTranslateX, translateX));
+                                translateY = Math.min(maxTranslateY, Math.max(-maxTranslateY, translateY));
+                                
+                                (img as HTMLImageElement).style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                              }
+                            }
+                          };
+                          
+                          // Close modal
+                          closeBtn?.addEventListener('click', () => modal.remove());
+                          modal.addEventListener('click', (e: MouseEvent) => {
+                            if (e.target === modal) modal.remove();
+                          });
+                          
+                          // Zoom controls
+                          zoomInBtn?.addEventListener('click', () => {
+                            scale = Math.min(scale * 1.5, 5);
+                            updateTransform();
+                          });
+                          
+                          zoomOutBtn?.addEventListener('click', () => {
+                            scale = Math.max(scale / 1.5, 0.5);
+                            if (scale <= 1) {
+                              translateX = 0;
+                              translateY = 0;
+                            }
+                            updateTransform();
+                          });
+                          
+                          resetBtn?.addEventListener('click', () => {
+                            scale = 1;
+                            translateX = 0;
+                            translateY = 0;
+                            updateTransform();
+                          });
+                          
+                          // Mouse wheel zoom
+                          modal.addEventListener('wheel', (e: WheelEvent) => {
+                            e.preventDefault();
+                            const zoomSpeed = 0.1;
+                            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                            scale = Math.max(0.5, Math.min(5, scale + delta));
+                            
+                            if (scale <= 1) {
+                              translateX = 0;
+                              translateY = 0;
+                            }
+                            updateTransform();
+                          });
+                          
+                          // Mouse drag to pan
+                          img?.addEventListener('mousedown', (e: Event) => {
+                            const mouseEvent = e as MouseEvent;
+                            if (scale <= 1) return;
+                            isDragging = true;
+                            startX = mouseEvent.clientX - translateX;
+                            startY = mouseEvent.clientY - translateY;
+                            if (img) (img as HTMLImageElement).style.cursor = 'grabbing';
+                          });
+                          
+                          modal.addEventListener('mousemove', (e: MouseEvent) => {
+                            if (!isDragging || scale <= 1) return;
+                            translateX = e.clientX - startX;
+                            translateY = e.clientY - startY;
+                            updateTransform();
+                          });
+                          
+                          modal.addEventListener('mouseup', () => {
+                            isDragging = false;
+                            if (scale > 1 && img) (img as HTMLImageElement).style.cursor = 'grab';
+                          });
+                          
+                          // Touch support for mobile
+                          let lastTouchDistance = 0;
+                          let initialScale = 1;
+                          
+                          modal.addEventListener('touchstart', (e: TouchEvent) => {
+                            if (e.touches.length === 2) {
+                              const touch1 = e.touches[0];
+                              const touch2 = e.touches[1];
+                              lastTouchDistance = Math.sqrt(
+                                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                Math.pow(touch2.clientY - touch1.clientY, 2)
+                              );
+                              initialScale = scale;
+                            } else if (e.touches.length === 1 && scale > 1) {
+                              isDragging = true;
+                              startX = e.touches[0].clientX - translateX;
+                              startY = e.touches[0].clientY - translateY;
+                            }
+                          });
+                          
+                          modal.addEventListener('touchmove', (e: TouchEvent) => {
+                            e.preventDefault();
+                            
+                            if (e.touches.length === 2) {
+                              const touch1 = e.touches[0];
+                              const touch2 = e.touches[1];
+                              const currentDistance = Math.sqrt(
+                                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                                Math.pow(touch2.clientY - touch1.clientY, 2)
+                              );
+                              
+                              scale = Math.max(0.5, Math.min(5, initialScale * (currentDistance / lastTouchDistance)));
+                              
+                              if (scale <= 1) {
+                                translateX = 0;
+                                translateY = 0;
+                              }
+                              updateTransform();
+                            } else if (e.touches.length === 1 && isDragging && scale > 1) {
+                              translateX = e.touches[0].clientX - startX;
+                              translateY = e.touches[0].clientY - startY;
+                              updateTransform();
+                            }
+                          });
+                          
+                          modal.addEventListener('touchend', () => {
+                            isDragging = false;
+                          });
+                          
+                          // Keyboard support
+                          const handleKeyPress = (e: KeyboardEvent) => {
+                            switch(e.key) {
+                              case 'Escape':
+                                modal.remove();
+                                break;
+                              case '=':
+                              case '+':
+                                scale = Math.min(scale * 1.2, 5);
+                                updateTransform();
+                                break;
+                              case '-':
+                              case '_':
+                                scale = Math.max(scale / 1.2, 0.5);
+                                if (scale <= 1) {
+                                  translateX = 0;
+                                  translateY = 0;
+                                }
+                                updateTransform();
+                                break;
+                              case '0':
+                                scale = 1;
+                                translateX = 0;
+                                translateY = 0;
+                                updateTransform();
+                                break;
+                            }
+                          };
+                          
+                          document.addEventListener('keydown', handleKeyPress);
+                          
+                          // Cleanup on modal remove
+                          const observer = new MutationObserver((mutations: MutationRecord[]) => {
+                            mutations.forEach((mutation: MutationRecord) => {
+                              if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                Array.from(mutation.removedNodes).forEach((node) => {
+                                  if (node === modal) {
+                                    document.removeEventListener('keydown', handleKeyPress);
+                                    observer.disconnect();
+                                  }
+                                });
+                              }
+                            });
+                          });
+                          
+                          observer.observe(document.body, { childList: true });
+                          document.body.appendChild(modal);
+                          
+                          // Focus for keyboard navigation
+                          modal.focus();
+                          modal.tabIndex = 0;
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Replies Section */}
+              <div className="border-t pt-4">
+                <h4 className="text-medium font-medium mb-4">Replies</h4>
+                
+                {isAuthenticated && (
+                  <Form {...replyForm}>
+                    <form onSubmit={replyForm.handleSubmit((data) => createReplyMutation.mutate(data))} className="space-y-3 mb-4">
+                      <FormField
+                        control={replyForm.control}
+                        name="content"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Write a reply..."
+                                className="min-h-20 text-small"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage className="text-small" />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex items-center justify-between">
+                        <FormField
+                          control={replyForm.control}
+                          name="isAnonymous"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center gap-2">
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-small">Reply anonymously</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                        <Button 
+                          type="submit" 
+                          size="sm"
+                          className="text-small"
+                          disabled={createReplyMutation.isPending}
+                        >
+                          <Reply className="h-4 w-4 mr-2" />
+                          {createReplyMutation.isPending ? 'Posting...' : 'Reply'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
+                
+                {repliesLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <Skeleton key={i} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {replies.map((reply: CommunityReply) => (
+                      <Card key={reply.id} className="bg-gray-50 dark:bg-gray-800">
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              <span className="text-small text-gray-500">
+                                {reply.isAnonymous ? 'Anonymous' : (reply.authorName || 'Unknown')}
+                              </span>
+                              {!reply.isAnonymous && reply.authorId === selectedPost?.authorId && (
+                                <Badge variant="secondary" className="text-small px-1 py-0">
+                                  <Crown className="h-3 w-3 mr-1" />
+                                  OP
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-small text-gray-400">
+                              {formatDate(reply.createdAt)}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <ArrowUp className="h-3 w-3 text-green-600" />
+                                <span className="text-small font-medium text-green-600">{reply.upvotes || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <ArrowDown className="h-3 w-3 text-red-600" />
+                                <span className="text-small font-medium text-red-600">{reply.downvotes || 0}</span>
+                              </div>
+                              {canDeleteReply(reply) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 ml-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this reply?')) {
+                                      deleteReplyMutation.mutate(reply.id);
+                                    }
+                                  }}
+                                  disabled={deleteReplyMutation.isPending}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <FormattedText className="text-small break-words">
+                            {reply.content}
+                          </FormattedText>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {replies.length === 0 && (
+                      <p className="text-small text-gray-500 text-center py-4">
+                        No replies yet. Be the first to respond!
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}

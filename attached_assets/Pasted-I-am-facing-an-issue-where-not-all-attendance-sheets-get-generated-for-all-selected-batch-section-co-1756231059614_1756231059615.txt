@@ -1,0 +1,50 @@
+I am facing an issue where not all attendance sheets get generated for all selected batch-section combinations when creating an event in my UniLoop (Node.js/TypeScript/PostgreSQL) project. I need you to identify and fully troubleshoot the problem. Please provide the following in your Replit response:
+
+Relevant Code Sections:
+
+Show the full current implementation of the attendance sheet generation logic, including any async loops and DB insert queries for attendanceSheets and attendanceRecords.
+
+Include code from server/storage.ts and server/routes.ts (or wherever the logic is located).
+
+Loop Behavior and Data Trace:
+
+Print the input values of targetBatchSections and the batch-section variables for each iteration of the sheet creation loop.
+
+Log the result/status of each attendance sheet insert (success or error).
+
+Error Logs:
+
+Show any error messages or stack traces (from server logs or caught exceptions) that happen during the attendance sheet or record insert steps.
+
+If any database constraint or async errors pop up, include their full output.
+
+Database State Check:
+
+After creating an event, show the SQL query and output for:
+
+SELECT * FROM attendance_sheets WHERE event_id = [EVENT_ID];
+
+SELECT * FROM events WHERE id = [EVENT_ID];
+
+Frontend/UI Logs (If Any):
+
+If the frontend is filtering or only showing one section’s attendance sheet, please print the component code and logs for how attendance sheets are rendered in the UI for a given event.
+
+Root Cause Analysis:
+
+Based on the above, explain the exact logic flaw or obstacle preventing all attendance sheets from being created and/or displayed.
+
+If the issue is async-loop-related, unique constraint-related, or data-format-related, explain where and why.
+
+Complete Proposed Fix:
+
+Provide the corrected code for the attendance sheet generation logic (with recommended error handling and best-practice async patterns).
+
+If a frontend bug exists, provide corrected rendering logic or code.
+
+Include any relevant test case or curl command to verify the fix.
+
+Be verbose in all logs and responses—include full stack traces, all logging output, and print all relevant variables, so that nothing is left for guesswork.
+
+Use this structure to ensure you provide everything needed for a total, end-to-end fix. Please proceed with step-by-step logging, code trace, and detailed analysis until the bug is both located and patched fully.
+

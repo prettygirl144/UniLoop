@@ -1,0 +1,57 @@
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. Error Component Stack
+    at _c3 (dialog.tsx:35:6)
+    at Calendar (Calendar.tsx:300:35)
+    at Layout (Layout.tsx:11:34)
+    at Router (App.tsx:25:42)
+    at AuthProvider (AuthContext.tsx:13:32)
+
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod	@	hook.js:608
+(anonymous)	@	chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount	@	chunk-WERSD76P.js?v=97463f59:16915
+invokePassiveEffectMountInDEV	@	chunk-WERSD76P.js?v=97463f59:18324
+invokeEffectsInDev	@	chunk-WERSD76P.js?v=97463f59:19701
+commitDoubleInvokeEffectsInDEV	@	chunk-WERSD76P.js?v=97463f59:19686
+flushPassiveEffectsImpl	@	chunk-WERSD76P.js?v=97463f59:19503
+flushPassiveEffects	@	chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl	@	chunk-WERSD76P.js?v=97463f59:19416
+commitRoot	@	chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot	@	chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks	@	chunk-WERSD76P.js?v=97463f59:9119
+(anonymous)	@	chunk-WERSD76P.js?v=97463f59:18627
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. Error Component Stack
+    at _c3 (dialog.tsx:35:6)
+    at Calendar (Calendar.tsx:300:35)
+    at Layout (Layout.tsx:11:34)
+    at Router (App.tsx:25:42)
+    at AuthProvider (AuthContext.tsx:13:32)
+overrideMethod	@	hook.js:608
+(anonymous)	@	chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount	@	chunk-WERSD76P.js?v=97463f59:16915
+commitPassiveMountOnFiber	@	chunk-WERSD76P.js?v=97463f59:18156
+commitPassiveMountEffects_complete	@	chunk-WERSD76P.js?v=97463f59:18129
+commitPassiveMountEffects_begin	@	chunk-WERSD76P.js?v=97463f59:18119
+commitPassiveMountEffects	@	chunk-WERSD76P.js?v=97463f59:18109
+flushPassiveEffectsImpl	@	chunk-WERSD76P.js?v=97463f59:19490
+flushPassiveEffects	@	chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl	@	chunk-WERSD76P.js?v=97463f59:19416
+commitRoot	@	chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot	@	chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks	@	chunk-WERSD76P.js?v=97463f59:9119
+(anonymous)	@	chunk-WERSD76P.js?v=97463f59:18627
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod	@	hook.js:608
+(anonymous)	@	chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount	@	chunk-WERSD76P.js?v=97463f59:16915
+invokePassiveEffectMountInDEV	@	chunk-WERSD76P.js?v=97463f59:18324
+invokeEffectsInDev	@	chunk-WERSD76P.js?v=97463f59:19701
+commitDoubleInvokeEffectsInDEV	@	chunk-WERSD76P.js?v=97463f59:19686
+flushPassiveEffectsImpl	@	chunk-WERSD76P.js?v=97463f59:19503
+flushPassiveEffects	@	chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl	@	chunk-WERSD76P.js?v=97463f59:19416
+commitRoot	@	chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot	@	chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks	@	chunk-WERSD76P.js?v=97463f59:9119
+(anonymous)	@	chunk-WERSD76P.js?v=97463f59:18627
+﻿
+

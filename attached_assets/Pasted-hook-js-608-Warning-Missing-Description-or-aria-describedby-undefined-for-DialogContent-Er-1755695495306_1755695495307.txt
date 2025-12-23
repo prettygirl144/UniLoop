@@ -1,0 +1,136 @@
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. Error Component Stack
+    at DescriptionWarning (chunk-BZZRFDMP.js?v=97463f59:329:29)
+    at chunk-BZZRFDMP.js?v=97463f59:233:13
+    at chunk-BZZRFDMP.js?v=97463f59:156:58
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at chunk-BZZRFDMP.js?v=97463f59:147:64
+    at chunk-LXTJ4TFU.js?v=97463f59:79:13
+    at chunk-LXTJ4TFU.js?v=97463f59:56:13
+    at chunk-PALV7G7K.js?v=97463f59:42:13
+    at chunk-TTDR6I7E.js?v=97463f59:258:22
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at DialogPortal (chunk-BZZRFDMP.js?v=97463f59:109:11)
+    at _c3 (dialog.tsx:35:6)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at Dialog (chunk-BZZRFDMP.js?v=97463f59:50:5)
+    at div (<anonymous>)
+    at Calendar (Calendar.tsx:300:35)
+    at Route (wouter.js?v=0c54928d:323:16)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at Layout (Layout.tsx:11:34)
+    at Switch (wouter.js?v=0c54928d:379:17)
+    at Router (App.tsx:25:42)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=76c6091f:61:5)
+    at AuthProvider (AuthContext.tsx:13:32)
+    at QueryClientProvider (@tanstack_react-query.js?v=17d0114d:2805:3)
+    at App (<anonymous>)
+overrideMethod @ hook.js:608Understand this warning
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ hook.js:608Understand this warning
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. Error Component Stack
+    at DescriptionWarning (chunk-BZZRFDMP.js?v=97463f59:329:29)
+    at chunk-BZZRFDMP.js?v=97463f59:233:13
+    at chunk-BZZRFDMP.js?v=97463f59:156:58
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at chunk-BZZRFDMP.js?v=97463f59:147:64
+    at chunk-LXTJ4TFU.js?v=97463f59:79:13
+    at chunk-LXTJ4TFU.js?v=97463f59:56:13
+    at chunk-PALV7G7K.js?v=97463f59:42:13
+    at chunk-TTDR6I7E.js?v=97463f59:258:22
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at DialogPortal (chunk-BZZRFDMP.js?v=97463f59:109:11)
+    at _c3 (dialog.tsx:35:6)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at Dialog (chunk-BZZRFDMP.js?v=97463f59:50:5)
+    at div (<anonymous>)
+    at Calendar (Calendar.tsx:300:35)
+    at Route (wouter.js?v=0c54928d:323:16)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at Layout (Layout.tsx:11:34)
+    at Switch (wouter.js?v=0c54928d:379:17)
+    at Router (App.tsx:25:42)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=76c6091f:61:5)
+    at AuthProvider (AuthContext.tsx:13:32)
+    at QueryClientProvider (@tanstack_react-query.js?v=17d0114d:2805:3)
+    at App (<anonymous>)
+overrideMethod @ hook.js:608
+(anonymous) @ chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount @ chunk-WERSD76P.js?v=97463f59:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=97463f59:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=97463f59:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=97463f59:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=97463f59:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=97463f59:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl @ chunk-WERSD76P.js?v=97463f59:19416
+commitRoot @ chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=97463f59:9119
+(anonymous) @ chunk-WERSD76P.js?v=97463f59:18627Understand this warning
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ hook.js:608
+(anonymous) @ chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount @ chunk-WERSD76P.js?v=97463f59:16915
+invokePassiveEffectMountInDEV @ chunk-WERSD76P.js?v=97463f59:18324
+invokeEffectsInDev @ chunk-WERSD76P.js?v=97463f59:19701
+commitDoubleInvokeEffectsInDEV @ chunk-WERSD76P.js?v=97463f59:19686
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=97463f59:19503
+flushPassiveEffects @ chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl @ chunk-WERSD76P.js?v=97463f59:19416
+commitRoot @ chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=97463f59:9119
+(anonymous) @ chunk-WERSD76P.js?v=97463f59:18627Understand this warning
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. Error Component Stack
+    at DescriptionWarning (chunk-BZZRFDMP.js?v=97463f59:329:29)
+    at chunk-BZZRFDMP.js?v=97463f59:233:13
+    at chunk-BZZRFDMP.js?v=97463f59:156:58
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at chunk-BZZRFDMP.js?v=97463f59:147:64
+    at chunk-LXTJ4TFU.js?v=97463f59:79:13
+    at chunk-LXTJ4TFU.js?v=97463f59:56:13
+    at chunk-PALV7G7K.js?v=97463f59:42:13
+    at chunk-TTDR6I7E.js?v=97463f59:258:22
+    at Presence (chunk-67S4ACUD.js?v=97463f59:24:11)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at DialogPortal (chunk-BZZRFDMP.js?v=97463f59:109:11)
+    at _c3 (dialog.tsx:35:6)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at Dialog (chunk-BZZRFDMP.js?v=97463f59:50:5)
+    at div (<anonymous>)
+    at Calendar (Calendar.tsx:300:35)
+    at Route (wouter.js?v=0c54928d:323:16)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at div (<anonymous>)
+    at Layout (Layout.tsx:11:34)
+    at Switch (wouter.js?v=0c54928d:379:17)
+    at Router (App.tsx:25:42)
+    at Provider (chunk-EWHRHQGL.js?v=97463f59:38:15)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=76c6091f:61:5)
+    at AuthProvider (AuthContext.tsx:13:32)
+    at QueryClientProvider (@tanstack_react-query.js?v=17d0114d:2805:3)
+    at App (<anonymous>)
+overrideMethod @ hook.js:608
+(anonymous) @ chunk-BZZRFDMP.js?v=97463f59:337
+commitHookEffectListMount @ chunk-WERSD76P.js?v=97463f59:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=97463f59:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=97463f59:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=97463f59:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=97463f59:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=97463f59:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=97463f59:19447
+commitRootImpl @ chunk-WERSD76P.js?v=97463f59:19416
+commitRoot @ chunk-WERSD76P.js?v=97463f59:19277
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=97463f59:18895
+flushSyncCallbacks @ chunk-WERSD76P.js?v=97463f59:9119
+(anonymous) @ chunk-WERSD76P.js?v=97463f59:18627Understand this warning
+hook.js:608 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.

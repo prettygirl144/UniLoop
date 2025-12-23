@@ -1,0 +1,220 @@
+Absolutely. Here's a detailed and **production-grade Replit prompt** that integrates **all** the features you specified across prior messages, ensures **granular role-based permissions**, and follows **Replit Prompt Engineering principles**. This prompt is suitable for generating an Android-first (but cross-platform) **React Native (Expo)** app with a clean, modern UI and extensible architecture.
+
+---
+
+## 🛠️ REPLIT PROMPT: Build *Campus Connect* – Modular University Utility & Comms App (MVP)
+
+---
+
+### 📱 Platform:
+
+Build a mobile-first, responsive **React Native app** using **Expo**, with UI components styled cleanly using libraries like NativeBase or Tailwind-compatible solutions. The app should prioritize **Android**, but work on **iOS** as well.
+
+---
+
+## 🔧 Functional Modules (MVP Scope)
+
+Implement the following **modular features**, scoped for an MVP:
+
+---
+
+### 1. 🔐 Authentication & Role Management
+
+* **OAuth 2.0** login using **institutional email only** (Google preferred)
+* On successful login, fetch: `name`, `email`, and assign default role: `student`
+* Generate and persist **JWT token** with `email`, `role`, `permissions` (frontend + backend)
+* Roles:
+
+  * `student` (default)
+  * `admin`
+  * `committee_club` (custom granular access)
+* All new signups are `student` with view-only access
+* **Admin Control Panel** to assign feature-specific access by email
+
+  * e.g. `user1@domain.edu`: `calendar: true`, `gallery: false`, `diningHostel: true`
+
+```json
+{
+  "role": "committee_club",
+  "permissions": {
+    "calendar": true,
+    "attendance": false,
+    "gallery": false,
+    "forumMod": false,
+    "diningHostel": true
+  }
+}
+```
+
+---
+
+### 2. 📣 Communication Hub
+
+* Main Home Screen feed with **latest announcements** (card-style)
+* Posts are created manually in-app by users with `postCreation` access:
+
+  * Title
+  * Description
+  * Optional Image/Attachment
+  * **Tags**: `Academic`, `Event`, `Admin`
+  * Optional RSVP toggle (saves locally)
+* **Admin/Committee & Club** can post; students view only
+* Option to integrate **sync to email groups** (future module)
+
+---
+
+### 3. 🗓️ Events Calendar
+
+* Event listing in calendar format (grid or scrollable FlatList)
+* **Event card** includes:
+
+  * Title, Date & Time, Location
+  * Host Committee/Club
+  * RSVP status (if enabled)
+  * Category Tag
+* **Creation form (access-controlled)**:
+
+  * Form fields: title, date, time, location, host, RSVP toggle
+  * Check for **location-time clashes** → only allow same-time if location differs
+  * Auto-sync RSVP’d events with local device calendar (optional)
+* Event blocks **overwrite existing blocks** if at the same location & time
+
+---
+
+### 4. ✅ Attendance Logging
+
+* Only **POCs/authorized committee/club/admin users** see this module
+* Select Event from dropdown
+* Pull attendee list using:
+
+  * Preloaded section-wise student DB (dropdown)
+  * Manual Excel upload (CSV → name/email)
+  * RSVP responses (auto-populated list)
+* UI: Simple tick-box check-in interface
+* Data stored as:
+
+  ```json
+  {
+    "eventId": "xyz",
+    "attendees": ["email1", "email2"],
+    "timestamp": "..."
+  }
+  ```
+
+---
+
+### 5. 🍽️ Dining & Hostel Grievance Section
+
+* Mess Menu (JSON/static API based)
+* Sick Food Booking:
+
+  * Student fills form for specific day & meal
+* ITC Grievance & Menu Issues:
+
+  * Predefined dropdown options (e.g., undercooked, item missing)
+  * Text input for custom feedback
+* Hostel Leave Form:
+
+  * Student fills date-wise leave
+  * Simulates mail to office (mock with toast/confirmation modal)
+* Only `admin/ITC` role has access to update menu
+
+---
+
+### 6. 💬 Community Forum
+
+* Forum Feed:
+
+  * Anonymous or Named posts
+  * Post types: Text, Image, Video (via file picker or URL)
+  * Reactions: 👍 ❤️ 😂
+  * Comment system (threaded or flat)
+* Post Form:
+
+  * Title, Content, Optional Media, Anonymous toggle
+* Admin Panel:
+
+  * If post is flagged (by reaction threshold or manual flag):
+
+    * Admin sees real poster (even for anonymous)
+    * Admin can: `hide`, `delete`, `warn` (mock action for now)
+
+---
+
+### 7. 👥 Student Directory
+
+* Searchable directory with:
+
+  * Name, Email, Programme, Batch
+* “Ping” button → Opens short message form (not full chat)
+* Students can view/edit their profile (avatar, pronouns, phone optional)
+
+---
+
+### 8. 🔐 Admin Permissions Manager
+
+* UI Panel for Admin:
+
+  * Search by email or select from user list
+  * Toggle access to:
+
+    * Calendar (create/edit)
+    * Dining & Hostel
+    * Attendance
+    * Gallery (upload access)
+    * Forum Moderator
+  * Save to backend (mocked)
+
+```json
+{
+  "email": "abc@college.edu",
+  "permissions": {
+    "calendar": true,
+    "attendance": true,
+    "gallery": false,
+    "forumMod": false,
+    "diningHostel": true
+  }
+}
+```
+
+---
+
+### 9. 🧩 Other Features & Behavior
+
+* 🔐 **RBAC enforcement** on frontend (UI-level visibility) and backend (route access)
+* 🧱 Modular code: Keep features in isolated folders (e.g., `/calendar`, `/attendance`, `/forum`)
+* 🔄 LocalStorage for basic caching (e.g. RSVP status)
+* 🔔 Optional push notification or toast alert for updates
+
+---
+
+## ⚙️ Tech Stack
+
+* **Frontend**: React Native + Expo
+* **Auth**: Google OAuth 2.0
+* **State Management**: Context API or Redux
+* **Backend (Mock or Express API)**:
+
+  * Node.js + Express or Firebase Functions
+  * JWT-based authentication
+  * JSON files or Firebase for data store
+
+---
+
+## ✅ Success Criteria
+
+* Clean mobile UI, responsive and modular
+* MVP should run on Android & iOS simulators
+* Students only see view-based modules
+* Admin/Committee/Club members can manage based on assigned permissions
+* All data actions gated via permission layer
+
+---
+
+Let me know if you'd like:
+
+* UI wireframes for each module
+* Firebase schema template
+* API endpoints definition
+* Replit file structure guide for this app

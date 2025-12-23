@@ -1,0 +1,34 @@
+🚀 [API-REQUEST] Starting DELETE request - URL: /api/gallery/folders/4, RequestID: api_1756993831927_w3knkdvad
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/gallery/folders/4
+queryClient.ts:47  DELETE https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/api/gallery/folders/4 500 (Internal Server Error)
+apiRequest @ queryClient.ts:47
+mutationFn @ Gallery.tsx:112
+fn @ @tanstack_react-query.js?v=e7614ad7:1189
+run @ @tanstack_react-query.js?v=e7614ad7:494
+start @ @tanstack_react-query.js?v=e7614ad7:536
+execute @ @tanstack_react-query.js?v=e7614ad7:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=e7614ad7:2630
+(anonymous) @ @tanstack_react-query.js?v=e7614ad7:3295
+confirmDelete @ Gallery.tsx:148
+handleEvent @ chunk-VFYO4PQK.js?v=e7614ad7:93
+callCallback2 @ chunk-RPCDYKBN.js?v=e7614ad7:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=e7614ad7:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=e7614ad7:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=e7614ad7:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=e7614ad7:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=e7614ad7:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=e7614ad7:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=e7614ad7:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=e7614ad7:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=e7614ad7:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=e7614ad7:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=e7614ad7:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=e7614ad7:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=e7614ad7:5449Understand this error
+queryClient.ts:54 📊 [API-REQUEST] Response received - Status: 500, RequestID: api_1756993831927_w3knkdvad
+queryClient.ts:61 ❌ [API-REQUEST] Request failed - RequestID: api_1756993831927_w3knkdvad: Error: 500: {"message":"Failed to delete gallery folder"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:56:5)
+    at async Object.mutationFn (Gallery.tsx:112:24)

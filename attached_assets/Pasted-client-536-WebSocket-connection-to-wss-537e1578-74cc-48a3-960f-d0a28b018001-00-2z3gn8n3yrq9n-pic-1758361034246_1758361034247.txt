@@ -1,0 +1,30 @@
+client:536  WebSocket connection to 'wss://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev/?token=qdECS3vnbQRm' failed: 
+setupWebSocket @ client:536
+(anonymous) @ client:531
+client:536  Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=qdECS3vnbQRm' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+setupWebSocket @ client:536
+fallback @ client:509
+(anonymous) @ client:555
+react-dom.development.js:29895 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:8 🚀 Client App Started - 2025-09-20T09:36:44.777Z
+main.tsx:9 📍 Environment: development
+main.tsx:10 🌐 Base URL: https://537e1578-74cc-48a3-960f-d0a28b018001-00-2z3gn8n3yrq9n.picard.replit.dev
+main.tsx:11 📦 Service Worker: Supported
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/user
+2sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/heartbeat
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/unread
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/notifications/preferences
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/accounts
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/csrf-token
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/community/announcements
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/events
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/directory/me
+pushNotifications.ts:15 Service Worker registered for push notifications
+sw.js:47 🚫 [SERVICE-WORKER] Bypassing cache for API request: /api/auth/heartbeat
+(index):1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+(index):1  Unchecked runtime.lastError: The message port closed before a response was received.
+(index):1  Unchecked runtime.lastError: The message port closed before a response was received.
