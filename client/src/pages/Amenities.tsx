@@ -741,18 +741,127 @@ export default function Amenities() {
       
       // Get the CSV text content (remove BOM if present)
       const text = await response.text();
-      const csvContent = text.replace(/^\uFEFF/, ''); // Remove UTF-8 BOM for clipboard
+      const csvContent = text.replace(/^\uFEFF/, ''); // Remove UTF-8 BOM
+      
+      // Parse CSV and format as requested
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        toast({
+          title: 'No Data',
+          description: 'No entries found to copy.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Helper function to parse CSV line properly handling quoted fields
+      const parseCSVLine = (line: string): string[] => {
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            if (inQuotes && j + 1 < line.length && line[j + 1] === '"') {
+              // Escaped quote
+              current += '"';
+              j++; // Skip next quote
+            } else {
+              // Toggle quote state
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            // Field separator
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        // Add last field
+        values.push(current.trim());
+        return values;
+      };
+      
+      // Parse CSV header
+      const headerValues = parseCSVLine(lines[0]);
+      const headers = headerValues.map(h => {
+        // Remove surrounding quotes and handle escaped quotes
+        let value = h;
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+        value = value.replace(/""/g, '"');
+        return value.trim();
+      });
+      
+      // Find column indices
+      const nameIdx = headers.indexOf('Student Name');
+      const rollIdx = headers.indexOf('Roll Number');
+      const dateIdx = headers.indexOf('Date');
+      const mealIdx = headers.indexOf('Meal Type');
+      const roomIdx = headers.indexOf('Room Number');
+      const phoneIdx = headers.indexOf('Phone Number');
+      const specialIdx = headers.indexOf('Special Requirements');
+      
+      // Parse CSV rows and format
+      const formattedEntries: string[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const csvLine = lines[i];
+        if (!csvLine.trim()) continue;
+        
+        // Parse CSV row
+        const values = parseCSVLine(csvLine);
+        
+        // Extract values (remove surrounding quotes and handle escaped quotes)
+        const getValue = (idx: number) => {
+          if (idx === -1 || idx >= values.length) return '';
+          let value = values[idx];
+          // Remove surrounding quotes
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
+          }
+          // Replace escaped quotes
+          value = value.replace(/""/g, '"');
+          return value.trim();
+        };
+        
+        const studentName = getValue(nameIdx) || 'N/A';
+        const rollNo = getValue(rollIdx) || '';
+        const date = getValue(dateIdx) || '';
+        const mealType = getValue(mealIdx) || '';
+        const roomNo = getValue(roomIdx) || '';
+        const phoneNo = getValue(phoneIdx) || '';
+        const specialRequests = getValue(specialIdx) || '';
+        
+        // Format as requested
+        formattedEntries.push(
+          `Student Name: ${studentName}\n` +
+          `Roll No. : ${rollNo}\n` +
+          `Date: ${date}\n` +
+          `Meal Type: ${mealType}\n` +
+          `Room No.: ${roomNo}\n` +
+          `Phone No.: ${phoneNo}\n` +
+          `Special Requests: ${specialRequests}`
+        );
+      }
+      
+      // Join all entries with double newline separator
+      const formattedText = formattedEntries.join('\n\n');
       
       // Copy to clipboard
-      await navigator.clipboard.writeText(csvContent);
+      await navigator.clipboard.writeText(formattedText);
       
       const dateInfo = sickFoodDateFilter 
         ? ` for ${new Date(sickFoodDateFilter).toLocaleDateString()}`
         : ' (all entries)';
+      const count = formattedEntries.length;
       
       toast({
         title: 'Copied to Clipboard',
-        description: `Sick food bookings${dateInfo} copied successfully!`,
+        description: `${count} sick food booking${count !== 1 ? 's' : ''}${dateInfo} copied successfully!`,
       });
     } catch (error) {
       console.error('Error copying sick food bookings to clipboard:', error);
