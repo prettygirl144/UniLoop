@@ -33,7 +33,8 @@ import {
   History,
   Eye,
   EyeOff,
-  Info
+  Info,
+  Copy
 } from 'lucide-react';
 import { YourSubmissionsModal } from '@/components/YourSubmissionsModal';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -716,6 +717,51 @@ export default function Amenities() {
     setStartDate('');
     setEndDate('');
     setShowDateRangeDialog(true);
+  };
+
+  // Copy sick food entries to clipboard based on date filter
+  const copySickFoodToClipboard = async () => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      // If date filter is set, use it as both startDate and endDate (for that specific day)
+      if (sickFoodDateFilter) {
+        queryParams.set('startDate', sickFoodDateFilter);
+        queryParams.set('endDate', sickFoodDateFilter);
+      }
+      
+      const response = await fetch(`/api/amenities/sick-food/export?${queryParams.toString()}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to export: ${response.statusText}`);
+      }
+      
+      // Get the CSV text content (remove BOM if present)
+      const text = await response.text();
+      const csvContent = text.replace(/^\uFEFF/, ''); // Remove UTF-8 BOM for clipboard
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(csvContent);
+      
+      const dateInfo = sickFoodDateFilter 
+        ? ` for ${new Date(sickFoodDateFilter).toLocaleDateString()}`
+        : ' (all entries)';
+      
+      toast({
+        title: 'Copied to Clipboard',
+        description: `Sick food bookings${dateInfo} copied successfully!`,
+      });
+    } catch (error) {
+      console.error('Error copying sick food bookings to clipboard:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to copy to clipboard. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Download reports with optional date range
@@ -1688,15 +1734,27 @@ export default function Amenities() {
                           </Button>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDownloadDialog('sick-food')}
-                        className="flex items-center gap-1 h-8 px-2 justify-center"
-                      >
-                        <Download className="h-3 w-3" />
-                        <span className="hidden sm:inline">Download</span>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={copySickFoodToClipboard}
+                          className="flex items-center gap-1 h-8 px-2 justify-center"
+                          title={sickFoodDateFilter ? `Copy entries for ${new Date(sickFoodDateFilter).toLocaleDateString()}` : 'Copy all entries'}
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span className="hidden sm:inline">Copy</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDownloadDialog('sick-food')}
+                          className="flex items-center gap-1 h-8 px-2 justify-center"
+                        >
+                          <Download className="h-3 w-3" />
+                          <span className="hidden sm:inline">Download</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
