@@ -2203,6 +2203,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(triathlonPastWinners.announcedAt));
   }
 
+  async insertManualPastWinner(params: {
+    label?: string;
+    announcedAt?: Date;
+    academicFirstPlaceName: string;
+    culturalFirstPlaceName: string;
+    sportsFirstPlaceName: string;
+    overallFirstPlaceName: string;
+    announcedBy: string;
+  }): Promise<TriathlonPastWinner> {
+    const [inserted] = await db
+      .insert(triathlonPastWinners)
+      .values({
+        label: params.label ?? null,
+        announcedAt: params.announcedAt ?? new Date(),
+        academicFirstPlaceTeamId: null,
+        academicFirstPlaceName: params.academicFirstPlaceName,
+        culturalFirstPlaceTeamId: null,
+        culturalFirstPlaceName: params.culturalFirstPlaceName,
+        sportsFirstPlaceTeamId: null,
+        sportsFirstPlaceName: params.sportsFirstPlaceName,
+        overallFirstPlaceTeamId: null,
+        overallFirstPlaceName: params.overallFirstPlaceName,
+        announcedBy: params.announcedBy,
+      })
+      .returning();
+    return inserted!;
+  }
+
   // Attendance Sheets Management Implementation
   async createAttendanceSheet(sheet: InsertAttendanceSheet): Promise<AttendanceSheet> {
     const [created] = await db
