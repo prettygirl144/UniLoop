@@ -59,12 +59,15 @@ export function useAuth0Integration() {
     }
   };
 
+  // Post-logout redirect to main site login (not replit.app)
+  const logoutRedirectUrl = import.meta.env.VITE_LOGOUT_REDIRECT_URL || 'https://uniloop.site';
+
   // Enhanced logout function  
   const logout = async () => {
     if (isAuth0Configured) {
       return auth0.logout({
         logoutParams: {
-          returnTo: window.location.origin
+          returnTo: logoutRedirectUrl
         }
       });
     } else {

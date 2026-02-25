@@ -15,12 +15,11 @@ export function useAuth() {
   };
 }
 
-// Admin-specific hook following the guidance requirements
+// Admin-specific hook: admin role OR manageStudents RBAC can access Admin page
 export function useIsAdmin() {
   const { user, isLoading } = useAuth();
   
-  // Derive isAdmin flag once as specified in requirements
-  const isAdmin = !!user && user.role === 'admin';
+  const isAdmin = !!user && (user.role === 'admin' || !!user.permissions?.manageStudents);
   
   return { 
     isAdmin, 

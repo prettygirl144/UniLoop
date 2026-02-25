@@ -34,6 +34,7 @@ export const studentDirectory = pgTable("student_directory", {
   section: varchar("section").notNull(),
   rollNumber: varchar("roll_number"), // Optional secondary identifier
   phone: varchar("phone"), // Optional phone from Excel upload
+  linkedIn: varchar("linked_in"), // Optional; for alumni directory (no phone shown for alumni)
   uploadedBy: varchar("uploaded_by").notNull(), // Will be a user ID but not a foreign key due to circular refs
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -539,6 +540,14 @@ export const batchSections = pgTable("batch_sections", {
 }, (table) => ({
   uniqueBatchSection: unique().on(table.batch, table.section),
 }));
+
+// Archived (alumni) batches - excluded from events, directory, default notifications
+export const archivedBatches = pgTable("archived_batches", {
+  id: serial("id").primaryKey(),
+  batch: varchar("batch").notNull().unique(),
+  archivedAt: timestamp("archived_at").defaultNow().notNull(),
+  archivedBy: varchar("archived_by").notNull(),
+});
 
 // Student directory schemas
 export const insertStudentDirectorySchema = createInsertSchema(studentDirectory).omit({

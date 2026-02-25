@@ -2509,11 +2509,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all available batches from student directory
+  // Get all available batches from student directory (active only; Alumni is a special option)
   app.get('/api/directory/batches', checkAuth, async (req: any, res) => {
     try {
       const batches = await storage.getStudentDirectoryBatches();
-      res.json(['All', ...batches]);
+      res.json(['All', ...batches, 'Alumni']);
     } catch (error) {
       console.error('❌ [DIRECTORY-BATCHES] Error fetching batches:', error);
       res.status(500).json({ message: 'Failed to fetch batches' });
@@ -2923,6 +2923,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching student directory:", error);
       res.status(500).json({ message: "Failed to fetch student directory" });
+    }
+  });
+
+  // Get archived (alumni) batches
+  app.get('/api/archived-batches', manageStudentsOnly(), async (req: any, res) => {
+    try {
+      const batches = await storage.getArchivedBatches();
+      res.json(batches);
+    } catch (error) {
+      console.error("Error fetching archived batches:", error);
+      res.status(500).json({ message: "Failed to fetch archived batches" });
+    }
+  });
+
+  // Archive a batch (moves to alumni; excluded from events/directory/notifications unless tagged)
+  app.post('/api/archived-batches', manageStudentsOnly(), async (req: any, res) => {
+    try {
+      const { batch } = req.body;
+      if (!batch || typeof batch !== 'string' || !batch.trim()) {
+        return res.status(400).json({ message: "Batch name is required" });
+      }
+      await storage.archiveBatch(batch.trim(), req.currentUser.id);
+      res.json({ message: "Batch archived as alumni", batch: batch.trim() });
+    } catch (error) {
+      console.error("Error archiving batch:", error);
+      res.status(500).json({ message: "Failed to archive batch" });
+    }
+  });
+
+  // Update student directory record (e.g. LinkedIn for alumni)
+  app.patch('/api/admin/students/directory/:id', manageStudentsOnly(), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid directory id" });
+      const { linkedIn } = req.body;
+      const updated = await storage.updateStudentDirectory(id, { linkedIn: linkedIn ?? null });
+      if (!updated) return res.status(404).json({ message: "Directory record not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating directory record:", error);
+      res.status(500).json({ message: "Failed to update record" });
     }
   });
 

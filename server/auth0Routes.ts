@@ -340,6 +340,9 @@ router.get('/callback', async (req, res) => {
   }
 });
 
+// Post-logout redirect (must be in Auth0 dashboard Allowed Logout URLs)
+const LOGOUT_REDIRECT_URL = process.env.LOGOUT_REDIRECT_URL || 'https://uniloop.site';
+
 // Logout route
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
@@ -349,14 +352,12 @@ router.get('/logout', (req, res) => {
     
     const auth0Domain = process.env.AUTH0_DOMAIN;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const returnTo = `${req.protocol}://${req.get('host')}`;
     
     console.log('Auth0 logout - Domain:', auth0Domain);
     console.log('Auth0 logout - Client ID:', clientId);
-    console.log('Auth0 logout - Return To:', returnTo);
+    console.log('Auth0 logout - Return To:', LOGOUT_REDIRECT_URL);
     
-    // Simple logout without returnTo to avoid Auth0 configuration issues
-    const logoutUrl = `https://${auth0Domain}/v2/logout?client_id=${clientId}`;
+    const logoutUrl = `https://${auth0Domain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(LOGOUT_REDIRECT_URL)}`;
     
     console.log('Auth0 logout URL:', logoutUrl);
     res.redirect(logoutUrl);

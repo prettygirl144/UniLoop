@@ -64,13 +64,14 @@ import {
   type AttendanceRecord,
   type InsertAttendanceRecord,
   batchSections,
+  archivedBatches,
   type BatchSection,
   type InsertBatchSection,
   type CommunityPostWithVotes,
   type CommunityReplyWithVotes,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, or, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, sql, inArray, notInArray } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -1566,12 +1567,25 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(studentDirectory).orderBy(desc(studentDirectory.createdAt));
   }
 
+  async getArchivedBatches(): Promise<string[]> {
+    const rows = await db.select({ batch: archivedBatches.batch }).from(archivedBatches).orderBy(archivedBatches.batch);
+    return rows.map(r => r.batch);
+  }
+
+  async archiveBatch(batch: string, archivedBy: string): Promise<void> {
+    await db.insert(archivedBatches).values({ batch: batch.trim(), archivedBy }).onConflictDoNothing();
+  }
+
   async getStudentDirectoryBatches(): Promise<string[]> {
+    const archived = await this.getArchivedBatches();
     const batches = await db.select({
       batch: studentDirectory.batch
     })
     .from(studentDirectory)
-    .where(sql`${studentDirectory.batch} IS NOT NULL AND ${studentDirectory.batch} != ''`)
+    .where(and(
+      sql`${studentDirectory.batch} IS NOT NULL AND ${studentDirectory.batch} != ''`,
+      archived.length > 0 ? notInArray(studentDirectory.batch, archived) : sql`1=1`
+    ))
     .groupBy(studentDirectory.batch)
     .orderBy(studentDirectory.batch);
 
@@ -1595,29 +1609,41 @@ export class DatabaseStorage implements IStorage {
       batch: string | null;
       section: string | null;
       phone: string | null;
+      linkedIn: string | null;
+      isAlumni?: boolean;
     }>;
     total: number;
     page: number;
     limit: number;
   }> {
     const { batch, query, section, program, page, limit, offset } = params;
+    const isAlumniView = batch === 'Alumni';
+    const archived = await this.getArchivedBatches();
 
-    // Build the base query
     let baseQuery = db.select({
       id: studentDirectory.id,
-      fullName: sql<string>`${studentDirectory.email}`.as('fullName'), // Use email as name for now
+      fullName: sql<string>`${studentDirectory.email}`.as('fullName'),
       email: studentDirectory.email,
       rollNumber: studentDirectory.rollNumber,
       batch: studentDirectory.batch,
       section: studentDirectory.section,
       phone: studentDirectory.phone,
+      linkedIn: studentDirectory.linkedIn,
     }).from(studentDirectory);
 
-    // Apply filters
     const conditions = [];
 
-    if (batch && batch !== 'All') {
-      conditions.push(eq(studentDirectory.batch, batch));
+    if (isAlumniView) {
+      if (archived.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      conditions.push(inArray(studentDirectory.batch, archived));
+    } else {
+      if (batch && batch !== 'All') {
+        conditions.push(eq(studentDirectory.batch, batch));
+      } else if (archived.length > 0) {
+        conditions.push(notInArray(studentDirectory.batch, archived));
+      }
     }
 
     if (query) {
@@ -1626,7 +1652,8 @@ export class DatabaseStorage implements IStorage {
         or(
           sql`LOWER(${studentDirectory.email}) LIKE ${searchQuery}`,
           sql`LOWER(${studentDirectory.rollNumber}) LIKE ${searchQuery}`,
-          sql`LOWER(COALESCE(${studentDirectory.phone}, '')) LIKE ${searchQuery}`
+          sql`LOWER(COALESCE(${studentDirectory.phone}, '')) LIKE ${searchQuery}`,
+          sql`LOWER(COALESCE(${studentDirectory.linkedIn}, '')) LIKE ${searchQuery}`
         )
       );
     }
@@ -1635,20 +1662,16 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(studentDirectory.section, section));
     }
 
-    // Apply conditions if any
     if (conditions.length > 0) {
       baseQuery = baseQuery.where(and(...conditions)) as any;
     }
 
-    // Get total count
     let countQuery = db.select({ count: sql<number>`count(*)` }).from(studentDirectory);
     if (conditions.length > 0) {
       countQuery = countQuery.where(and(...conditions)) as any;
     }
-    
     const [{ count: total }] = await countQuery;
 
-    // Get paginated data
     const data = await baseQuery
       .orderBy(studentDirectory.rollNumber, studentDirectory.batch, studentDirectory.section)
       .limit(limit)
@@ -1662,7 +1685,9 @@ export class DatabaseStorage implements IStorage {
         rollNumber: row.rollNumber,
         batch: row.batch,
         section: row.section,
-        phone: row.phone ?? null,
+        phone: isAlumniView ? null : (row.phone ?? null),
+        linkedIn: row.linkedIn ?? null,
+        isAlumni: isAlumniView,
       })),
       total,
       page,
@@ -1731,12 +1756,22 @@ export class DatabaseStorage implements IStorage {
           section: student.section,
           rollNumber: student.rollNumber ?? null,
           phone: student.phone ?? null,
+          linkedIn: (student as any).linkedIn ?? undefined,
           uploadedBy: student.uploadedBy,
           updatedAt: sql`now()`,
         },
       })
       .returning();
     return result;
+  }
+
+  async updateStudentDirectory(id: number, updates: { linkedIn?: string | null }): Promise<StudentDirectory | undefined> {
+    const [updated] = await db
+      .update(studentDirectory)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(studentDirectory.id, id))
+      .returning();
+    return updated;
   }
 
   async batchUpsertStudents(students: InsertStudentDirectory[]): Promise<StudentDirectory[]> {
@@ -1812,11 +1847,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBatches(): Promise<string[]> {
-    const results = await db
-      .selectDistinct({ batch: batchSections.batch })
-      .from(batchSections)
-      .orderBy(batchSections.batch);
-    
+    const archived = await this.getArchivedBatches();
+    let query = db.selectDistinct({ batch: batchSections.batch }).from(batchSections);
+    if (archived.length > 0) {
+      query = query.where(notInArray(batchSections.batch, archived)) as typeof query;
+    }
+    const results = await query.orderBy(batchSections.batch);
     return results.map(r => r.batch);
   }
 

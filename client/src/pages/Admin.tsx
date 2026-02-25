@@ -123,9 +123,11 @@ export default function Admin() {
     }
   });
 
-  // Redirect if not authenticated or not admin
+  const canAccessAdmin = currentUser?.role === 'admin' || currentUser?.permissions?.manageStudents;
+
+  // Redirect if not authenticated or no Admin/ManageStudents access
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || currentUser?.role !== 'admin')) {
+    if (!isLoading && (!isAuthenticated || !canAccessAdmin)) {
       toast({
         title: "Unauthorized",
         description: "Admin access required. Redirecting...",
@@ -136,7 +138,7 @@ export default function Admin() {
       }, 1000);
       return;
     }
-  }, [isAuthenticated, isLoading, currentUser, toast]);
+  }, [isAuthenticated, isLoading, canAccessAdmin, toast]);
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
@@ -495,7 +497,7 @@ export default function Admin() {
     );
   }
 
-  if (!isAuthenticated || currentUser?.role !== 'admin') {
+  if (!isAuthenticated || !canAccessAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-96">
@@ -505,7 +507,7 @@ export default function Admin() {
               Access Denied
             </CardTitle>
             <CardDescription>
-              Admin privileges required to access this page.
+              Admin or Manage Students access required.
             </CardDescription>
           </CardHeader>
         </Card>
