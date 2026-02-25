@@ -59,6 +59,7 @@ function Router() {
             <Route path="/amenities/weekly" component={Amenities} />
             <Route path="/triathlon" component={Triathlon} />
             <Route path="/triathlon/leaderboard" component={Triathlon} />
+            <Route path="/student-book" component={Directory} />
             <Route path="/directory" component={Directory} />
             <Route path="/attendance" component={Attendance} />
             <Route path="/attendance/:eventId" component={Attendance} />

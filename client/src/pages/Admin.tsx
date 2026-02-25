@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Settings, Shield, Search, Upload, Database, FileText, History } from "lucide-react";
+import { Users, Settings, Shield, Search, Upload, Database, FileText, History, Archive } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
@@ -101,6 +101,7 @@ export default function Admin() {
     }
   };
   const [batchName, setBatchName] = useState("");
+  const [archiveBatchSelect, setArchiveBatchSelect] = useState("");
   
   // Check if user can manage students
   const canManageStudents = currentUser?.role === 'admin' || currentUser?.permissions?.manageStudents;
@@ -140,11 +141,11 @@ export default function Admin() {
     }
   }, [isAuthenticated, isLoading, canAccessAdmin, toast]);
 
-  // Fetch all users
+  // Fetch all users (admin and manageStudents can view)
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
     retry: false,
-    enabled: isAuthenticated && currentUser?.role === 'admin',
+    enabled: isAuthenticated && canAccessAdmin,
   });
 
   // Update user mutation
@@ -199,8 +200,16 @@ export default function Admin() {
     enabled: isAuthenticated && currentUser?.role === 'admin',
   });
 
+  // Fetch archived batches (for archive UI and to filter active batches)
+  const { data: archivedBatches = [] } = useQuery<string[]>({
+    queryKey: ["/api/archived-batches"],
+    retry: false,
+    enabled: isAuthenticated && canManageStudents,
+  });
+
   // Get unique batches and sections for filter options
   const uniqueBatches = Array.from(new Set(students.map(s => s.batch))).sort();
+  const activeBatches = uniqueBatches.filter(b => !archivedBatches.includes(b));
   
   // Get sections filtered by selected batch (similar to event creation logic)
   const getFilteredSections = () => {
@@ -303,6 +312,39 @@ export default function Admin() {
       
       toast({
         title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Archive batch mutation
+  const archiveBatchMutation = useMutation({
+    mutationFn: async (batch: string) => {
+      const res = await fetch('/api/archived-batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch }),
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to archive batch');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Batch Archived",
+        description: `"${data.batch}" archived as alumni`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/archived-batches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/students"] });
+      setArchiveBatchSelect("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Archive Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -714,7 +756,7 @@ export default function Admin() {
                             >
                               Edit
                             </Button>
-                            {user.id !== currentUser?.id && (
+                            {user.id !== currentUser?.id && currentUser?.role === 'admin' && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -738,6 +780,57 @@ export default function Admin() {
 
           {/* Student Directory Tab */}
           <TabsContent value="students" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Archive className="h-5 w-5" />
+                  Archive Batch to Alumni
+                </CardTitle>
+                <CardDescription>
+                  Archive batches as alumni. Archived batches are excluded from event creation and directory filters.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-48">
+                    <Label htmlFor="archive-batch">Batch to archive</Label>
+                    <Select value={archiveBatchSelect} onValueChange={setArchiveBatchSelect}>
+                      <SelectTrigger id="archive-batch">
+                        <SelectValue placeholder="Select batch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeBatches.map(batch => (
+                          <SelectItem key={batch} value={batch}>{batch}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => archiveBatchSelect && archiveBatchMutation.mutate(archiveBatchSelect)}
+                    disabled={!archiveBatchSelect || archiveBatchMutation.isPending}
+                  >
+                    {archiveBatchMutation.isPending ? "Archiving..." : "Archive Batch to Alumni"}
+                  </Button>
+                </div>
+                {archivedBatches.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Archived batches ({archivedBatches.length})</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {archivedBatches.map(batch => (
+                        <Badge key={batch} variant="secondary">{batch}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeBatches.length === 0 && uniqueBatches.length > 0 && (
+                  <p className="text-sm text-muted-foreground">All batches are archived.</p>
+                )}
+                {uniqueBatches.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No batches available. Upload students first.</p>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -997,7 +1090,9 @@ export default function Admin() {
                 <SelectContent>
                   <SelectItem value="student">Student</SelectItem>
                   <SelectItem value="committee_club">Committee/Club</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {currentUser?.role === 'admin' && (
+                    <SelectItem value="admin">Admin</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

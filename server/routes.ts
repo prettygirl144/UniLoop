@@ -2627,7 +2627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.get('/api/admin/users', adminOnly(), async (req, res) => {
+  app.get('/api/admin/users', manageStudentsOnly(), async (req, res) => {
     try {
       const users = await storage.getAllUsersForAdmin();
       res.json(users);
@@ -2637,7 +2637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/users/:id', adminOnly(), async (req: any, res) => {
+  app.put('/api/admin/users/:id', manageStudentsOnly(), async (req: any, res) => {
     try {
       const targetUserId = req.params.id;
       const { role, permissions } = req.body;
@@ -2645,6 +2645,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate role
       if (!['student', 'committee_club', 'admin'].includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      // manageStudents users cannot assign admin role
+      const isAdmin = req.currentUser.role === 'admin';
+      if (!isAdmin && role === 'admin') {
+        return res.status(403).json({ message: "Only admins can assign the admin role" });
       }
       
       // Prevent admin from demoting themselves
@@ -2664,8 +2670,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete user (Admin or manageStudents permission for students)
-  app.delete('/api/admin/users/:id', manageStudentsOnly(), async (req: any, res) => {
+  // Delete user (Admin only - manageStudents cannot delete users)
+  app.delete('/api/admin/users/:id', adminOnly(), async (req: any, res) => {
     try {
       const targetUserId = req.params.id;
       

@@ -40,9 +40,9 @@ export default function Directory() {
   const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Parse URL parameters
+  // Parse URL parameters (path agnostic - works with /student-book or /directory)
   const urlParams = useMemo(() => {
-    const params = new URLSearchParams(location.split('?')[1]);
+    const params = new URLSearchParams(location.split('?')[1] || '');
     return {
       batch: params.get('batch') || '',
       query: params.get('q') || '',
@@ -72,7 +72,7 @@ export default function Directory() {
     if (newPage > 1) params.set('page', newPage.toString());
 
     const queryString = params.toString();
-    setLocation(queryString ? `/directory?${queryString}` : '/directory');
+    setLocation(queryString ? `/student-book?${queryString}` : '/student-book');
   };
 
   // Debounced search
@@ -192,7 +192,7 @@ export default function Directory() {
       <div className="p-4 space-y-4">
         <Card className="border-destructive">
           <CardContent className="p-6 text-center">
-            <p className="text-small text-destructive font-medium">Failed to load directory</p>
+            <p className="text-small text-destructive font-medium">Failed to load Student Book</p>
             <p className="text-xs text-muted-foreground mt-1">Check your connection and try again.</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchMyInfo()}>Retry</Button>
           </CardContent>
@@ -204,7 +204,7 @@ export default function Directory() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-large">Student Directory</h2>
+        <h2 className="text-large">Student Book</h2>
         <Button 
           variant="ghost" 
           size="sm" 
@@ -216,7 +216,7 @@ export default function Directory() {
         </Button>
       </div>
 
-      {/* Current User's Directory Info */}
+      {/* Current User's Student Book Entry */}
       {myInfoLoading ? (
         <Card className="mb-6 shadow-sm border-gray-100">
           <CardContent className="p-4">
@@ -235,7 +235,7 @@ export default function Directory() {
         <Card className="mb-6 shadow-sm border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-small font-medium text-gray-700">My Directory Information</h3>
+              <h3 className="text-small font-medium text-gray-700">My Entry</h3>
               <Badge variant="outline" className="text-xs">Me</Badge>
             </div>
             <div className="flex items-center space-x-3">
@@ -273,7 +273,7 @@ export default function Directory() {
                   </div>
                   {!myDirectoryInfo.rollNumber && !myDirectoryInfo.batch && !myDirectoryInfo.phone && (
                     <div className="text-amber-600 text-xs mt-1">
-                      Not found in directory. Contact Admin.
+                      Not found in Student Book. Contact Admin.
                     </div>
                   )}
                 </div>
@@ -283,9 +283,9 @@ export default function Directory() {
         </Card>
       )}
 
-      {/* Class Directory Section */}
+      {/* Classmates Section */}
       <div className="space-y-4">
-        <h3 className="text-medium font-medium text-gray-700">Class Directory</h3>
+        <h3 className="text-medium font-medium text-gray-700">Classmates</h3>
         
         {batchesError && (
           <p className="text-xs text-amber-600">Could not load batch list. Using default options.</p>
@@ -340,7 +340,7 @@ export default function Directory() {
         ) : studentsError ? (
           <Card className="border-destructive">
             <CardContent className="p-6 text-center">
-              <p className="text-small text-destructive font-medium">Failed to load class directory</p>
+              <p className="text-small text-destructive font-medium">Failed to load classmates</p>
               <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
             </CardContent>
           </Card>

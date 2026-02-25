@@ -219,7 +219,7 @@ export default function Home() {
         </p>
       </div>
 
-      {/* User Directory Card */}
+      {/* Student Book Entry Card */}
       {directoryLoading ? (
         <Card className="mb-6 shadow-sm border-gray-100">
           <CardContent className="p-4">
@@ -272,7 +272,7 @@ export default function Home() {
                   </div>
                   {!directoryInfo.rollNumber && !directoryInfo.batch && !directoryInfo.phone && (
                     <div className="text-amber-600 text-xs mt-1">
-                      Not found in directory. Contact Admin.
+                      Not found in Student Book. Contact Admin.
                     </div>
                   )}
                 </div>
@@ -472,11 +472,11 @@ export default function Home() {
           </Card>
         </Link>
         
-        <Link href="/directory">
+        <Link href="/student-book">
           <Card className="shadow-sm border-gray-100 cursor-pointer hover:shadow-md transition-all duration-200">
             <CardContent className="p-4 text-center space-y-2">
               <Users className="h-6 w-6 text-secondary mx-auto" />
-              <p className="text-small font-medium">Directory</p>
+              <p className="text-small font-medium">Student Book</p>
             </CardContent>
           </Card>
         </Link>

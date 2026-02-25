@@ -474,7 +474,7 @@ export default function Calendar() {
   };
 
   // Fetch batches and sections for admin event creation
-  const { data: batchesAndSections, isLoading: batchesLoading } = useQuery({
+  const { data: batchesAndSections } = useQuery({
     queryKey: ['/api/admin/students'],
     enabled: user?.role === 'admin' && showCreateDialog,
   });
@@ -688,7 +688,7 @@ export default function Calendar() {
   });
 
   // Fetch batches for form
-  const { data: availableBatches = [] } = useQuery({
+  const { data: availableBatches = [], isLoading: batchesLoading } = useQuery({
     queryKey: ['/api/batches'],
     enabled: user?.role === 'admin' || user?.permissions?.calendar,
   });
@@ -1084,7 +1084,7 @@ export default function Calendar() {
                   </div>
 
                   {/* Batch and Section Selection */}
-                  {user?.role === 'admin' && (
+                  {canCreateEvents && (
                     <div className="space-y-4">
                       <h4 className="text-medium font-medium">Target Attendees</h4>
                       <p className="text-xs text-muted-foreground">
@@ -1099,6 +1099,9 @@ export default function Calendar() {
                             <FormItem>
                               <FormLabel>Target Batches</FormLabel>
                               <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
+                                {!batchesLoading && (!availableBatches || availableBatches.length === 0) && (
+                                  <p className="text-xs text-muted-foreground py-2">No batches yet. Upload student directory in Admin → Students to add batches.</p>
+                                )}
                                 {Array.isArray(availableBatches) && availableBatches.map((batch: string) => (
                                   <div key={batch} className="flex items-center space-x-2">
                                     <Checkbox
@@ -1506,6 +1509,9 @@ export default function Calendar() {
                             <FormItem>
                               <FormLabel>Target Batches</FormLabel>
                               <div className="space-y-2 max-h-24 overflow-y-auto border rounded p-2">
+                                {!batchesLoading && (!availableBatches || availableBatches.length === 0) && (
+                                  <p className="text-xs text-muted-foreground py-2">No batches yet. Upload student directory in Admin → Students to add batches.</p>
+                                )}
                                 {Array.isArray(availableBatches) && availableBatches.map((batch: string) => (
                                   <div key={batch} className="flex items-center space-x-2">
                                     <Checkbox

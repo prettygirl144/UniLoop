@@ -1839,11 +1839,33 @@ export class DatabaseStorage implements IStorage {
   async getSectionsForBatches(batches: string[]): Promise<{ batch: string; section: string }[]> {
     if (batches.length === 0) return [];
     
-    return await db
+    const fromBatchSections = await db
       .select({ batch: batchSections.batch, section: batchSections.section })
       .from(batchSections)
       .where(inArray(batchSections.batch, batches))
       .orderBy(batchSections.batch, batchSections.section);
+
+    if (fromBatchSections.length > 0) return fromBatchSections;
+
+    // Fallback: derive from student_directory when batch_sections is empty (e.g. before first upload)
+    const archived = await this.getArchivedBatches();
+    const sectionConditions = [
+      inArray(studentDirectory.batch, batches),
+      sql`${studentDirectory.batch} IS NOT NULL AND ${studentDirectory.batch} != ''`,
+      sql`${studentDirectory.section} IS NOT NULL AND ${studentDirectory.section} != ''`
+    ];
+    if (archived.length > 0) {
+      sectionConditions.push(notInArray(studentDirectory.batch, archived));
+    }
+    const studentRows = await db
+      .selectDistinct({ batch: studentDirectory.batch, section: studentDirectory.section })
+      .from(studentDirectory)
+      .where(and(...sectionConditions))
+      .orderBy(studentDirectory.batch, studentDirectory.section);
+    return studentRows.map(r => ({
+      batch: r.batch,
+      section: r.section.includes('::') ? r.section : `${r.batch}::${r.section}`,
+    }));
   }
 
   async getAllBatches(): Promise<string[]> {
@@ -1853,7 +1875,21 @@ export class DatabaseStorage implements IStorage {
       query = query.where(notInArray(batchSections.batch, archived)) as typeof query;
     }
     const results = await query.orderBy(batchSections.batch);
-    return results.map(r => r.batch);
+    const batches = results.map(r => r.batch);
+
+    if (batches.length > 0) return batches;
+
+    // Fallback: derive from student_directory when batch_sections is empty
+    const batchConditions = [sql`${studentDirectory.batch} IS NOT NULL AND ${studentDirectory.batch} != ''`];
+    if (archived.length > 0) {
+      batchConditions.push(notInArray(studentDirectory.batch, archived));
+    }
+    const studentBatches = await db
+      .selectDistinct({ batch: studentDirectory.batch })
+      .from(studentDirectory)
+      .where(and(...batchConditions))
+      .orderBy(studentDirectory.batch);
+    return studentBatches.map(r => r.batch);
   }
 
   // Triathlon methods
