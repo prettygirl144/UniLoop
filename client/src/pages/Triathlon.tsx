@@ -80,9 +80,10 @@ export default function Triathlon() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showAnnounceConfirm, setShowAnnounceConfirm] = useState(false);
 
-  const isAdmin = user && typeof user === 'object' && 'role' in user ? (user as any).role === 'admin' : false;
-  const hasTriathlonPermission = user && typeof user === 'object' && 'permissions' in user ? 
-    ((user as any).permissions?.triathlon || (user as any).role === 'admin') : false;
+  const hasTriathlonPermission = !!user && (
+    (user as any).role === 'admin' ||
+    (user as any).permissions?.triathlon === true
+  );
 
   // Fetch triathlon state (frozen)
   const { data: triathlonState = { frozen: false } } = useQuery<{ frozen: boolean }>({
@@ -610,13 +611,13 @@ export default function Triathlon() {
               <Badge variant="secondary" className="bg-amber-100 text-amber-800">Frozen</Badge>
             )}
           </div>
-          {hasTriathlonPermission && (
+          {hasTriathlonPermission ? (
             <div className="flex items-center gap-2">
               <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset All
+                    Reset Board
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -633,7 +634,7 @@ export default function Triathlon() {
                       disabled={resetLeaderboardMutation.isPending}
                       className="bg-red-600 hover:bg-red-700"
                     >
-                      {resetLeaderboardMutation.isPending ? 'Resetting...' : 'Reset All'}
+                      {resetLeaderboardMutation.isPending ? 'Resetting...' : 'Reset Board'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -664,7 +665,7 @@ export default function Triathlon() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          )}
+          ) : null}
         </CardHeader>
         <CardContent className="p-0">
           {teams.length === 0 ? (
