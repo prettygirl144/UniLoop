@@ -20,6 +20,8 @@ import {
   studentUploadLogs,
   triathlonTeams,
   triathlonPointHistory,
+  triathlonState,
+  triathlonPastWinners,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -56,6 +58,7 @@ import {
   type InsertTriathlonTeam,
   type TriathlonPointHistory,
   type InsertTriathlonPointHistory,
+  type TriathlonPastWinner,
   type AttendanceSheet,
   type InsertAttendanceSheet,
   type AttendanceRecord,
@@ -1591,6 +1594,7 @@ export class DatabaseStorage implements IStorage {
       rollNumber: string | null;
       batch: string | null;
       section: string | null;
+      phone: string | null;
     }>;
     total: number;
     page: number;
@@ -1606,6 +1610,7 @@ export class DatabaseStorage implements IStorage {
       rollNumber: studentDirectory.rollNumber,
       batch: studentDirectory.batch,
       section: studentDirectory.section,
+      phone: studentDirectory.phone,
     }).from(studentDirectory);
 
     // Apply filters
@@ -1620,7 +1625,8 @@ export class DatabaseStorage implements IStorage {
       conditions.push(
         or(
           sql`LOWER(${studentDirectory.email}) LIKE ${searchQuery}`,
-          sql`LOWER(${studentDirectory.rollNumber}) LIKE ${searchQuery}`
+          sql`LOWER(${studentDirectory.rollNumber}) LIKE ${searchQuery}`,
+          sql`LOWER(COALESCE(${studentDirectory.phone}, '')) LIKE ${searchQuery}`
         )
       );
     }
@@ -1656,6 +1662,7 @@ export class DatabaseStorage implements IStorage {
         rollNumber: row.rollNumber,
         batch: row.batch,
         section: row.section,
+        phone: row.phone ?? null,
       })),
       total,
       page,
@@ -1722,6 +1729,8 @@ export class DatabaseStorage implements IStorage {
         set: {
           batch: student.batch,
           section: student.section,
+          rollNumber: student.rollNumber ?? null,
+          phone: student.phone ?? null,
           uploadedBy: student.uploadedBy,
           updatedAt: sql`now()`,
         },
@@ -1749,6 +1758,7 @@ export class DatabaseStorage implements IStorage {
             batch: sql`excluded.batch`,
             section: sql`excluded.section`,
             rollNumber: sql`excluded.roll_number`,
+            phone: sql`excluded.phone`,
             uploadedBy: sql`excluded.uploaded_by`,
             updatedAt: sql`now()`,
           },
@@ -2038,6 +2048,87 @@ export class DatabaseStorage implements IStorage {
       .from(triathlonPointHistory)
       .where(eq(triathlonPointHistory.teamId, teamId))
       .orderBy(desc(triathlonPointHistory.createdAt));
+  }
+
+  async getTriathlonState(): Promise<{ frozen: boolean }> {
+    const [row] = await db.select().from(triathlonState).limit(1);
+    return row ? { frozen: !!row.frozen } : { frozen: false };
+  }
+
+  async setTriathlonFrozen(frozen: boolean): Promise<void> {
+    const [existing] = await db.select().from(triathlonState).limit(1);
+    if (existing) {
+      await db
+        .update(triathlonState)
+        .set({
+          frozen,
+          frozenAt: frozen ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(triathlonState.id, existing.id));
+    } else {
+      await db.insert(triathlonState).values({
+        frozen,
+        frozenAt: frozen ? new Date() : null,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  async resetTriathlonLeaderboard(): Promise<void> {
+    const zero = "0.00";
+    await db
+      .update(triathlonTeams)
+      .set({
+        academicPoints: zero,
+        culturalPoints: zero,
+        sportsPoints: zero,
+        surprisePoints: zero,
+        penaltyPoints: zero,
+        totalPoints: zero,
+        updatedAt: new Date(),
+      });
+    await db.delete(triathlonPointHistory);
+    await this.setTriathlonFrozen(false);
+  }
+
+  async announceTriathlonWinners(announcedBy: string): Promise<TriathlonPastWinner> {
+    const teams = await this.getTriathlonTeams();
+    if (teams.length === 0) {
+      throw new Error("No teams to announce winners for");
+    }
+    const parse = (v: string | number | null | undefined) => parseFloat(String(v ?? 0)) || 0;
+    const byAcademic = [...teams].sort((a, b) => parse(b.academicPoints) - parse(a.academicPoints));
+    const byCultural = [...teams].sort((a, b) => parse(b.culturalPoints) - parse(a.culturalPoints));
+    const bySports = [...teams].sort((a, b) => parse(b.sportsPoints) - parse(a.sportsPoints));
+    const byOverall = [...teams].sort((a, b) => parse(b.totalPoints) - parse(a.totalPoints));
+    const academicFirst = byAcademic[0];
+    const culturalFirst = byCultural[0];
+    const sportsFirst = bySports[0];
+    const overallFirst = byOverall[0];
+    const [inserted] = await db
+      .insert(triathlonPastWinners)
+      .values({
+        academicFirstPlaceTeamId: academicFirst.id,
+        academicFirstPlaceName: academicFirst.name,
+        culturalFirstPlaceTeamId: culturalFirst.id,
+        culturalFirstPlaceName: culturalFirst.name,
+        sportsFirstPlaceTeamId: sportsFirst.id,
+        sportsFirstPlaceName: sportsFirst.name,
+        overallFirstPlaceTeamId: overallFirst.id,
+        overallFirstPlaceName: overallFirst.name,
+        announcedBy,
+      })
+      .returning();
+    await this.setTriathlonFrozen(true);
+    return inserted;
+  }
+
+  async getTriathlonPastWinners(): Promise<TriathlonPastWinner[]> {
+    return await db
+      .select()
+      .from(triathlonPastWinners)
+      .orderBy(desc(triathlonPastWinners.announcedAt));
   }
 
   // Attendance Sheets Management Implementation

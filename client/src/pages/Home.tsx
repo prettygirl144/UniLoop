@@ -13,6 +13,7 @@ interface DirectoryInfo {
   profileImageUrl?: string;
   rollNumber: string | null;
   batch: string | null;
+  phone?: string | null;
 }
 import triathlonLogo from '@assets/TMT2.0_1753605901392.webp';
 import triathlonBannerBg from '@assets/triathlon-banner-bg.png';
@@ -253,7 +254,7 @@ export default function Home() {
                   {directoryInfo.name}
                 </h3>
                 <div className="space-y-1 text-small text-gray-600">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span className="flex items-center gap-1">
                       <span className="font-medium">Roll:</span> 
                       <span>{directoryInfo.rollNumber || "—"}</span>
@@ -262,8 +263,14 @@ export default function Home() {
                       <span className="font-medium">Batch:</span> 
                       <span>{directoryInfo.batch || "—"}</span>
                     </span>
+                    {directoryInfo.phone && (
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Phone:</span> 
+                        <span>{directoryInfo.phone}</span>
+                      </span>
+                    )}
                   </div>
-                  {!directoryInfo.rollNumber && !directoryInfo.batch && (
+                  {!directoryInfo.rollNumber && !directoryInfo.batch && !directoryInfo.phone && (
                     <div className="text-amber-600 text-xs mt-1">
                       Not found in directory. Contact Admin.
                     </div>

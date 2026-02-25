@@ -5,6 +5,7 @@ interface StudentRecord {
   section: string;
   batch: string;
   rollNumber?: string; // Optional roll number from Excel parsing
+  phone?: string; // Optional phone from Excel parsing
 }
 
 interface ParseResult {
@@ -90,13 +91,15 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
       // Get the range of the worksheet
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
       
-      // First pass: Identify potential roll number columns by checking headers
+      // First pass: Identify potential roll number and phone columns by checking headers
       const rollNumberColumns = identifyRollNumberColumns(worksheet, range);
+      const phoneColumns = identifyPhoneColumns(worksheet, range);
       
-      // Parse each row to extract email and potential roll number
+      // Parse each row to extract email, optional roll number, and optional phone
       for (let rowNum = range.s.r; rowNum <= range.e.r; rowNum++) {
         let email: string | null = null;
         let rollNumber: string | null = null;
+        let phone: string | null = null;
         
         // Check all columns in the current row
         for (let colNum = range.s.c; colNum <= range.e.c; colNum++) {
@@ -111,23 +114,33 @@ export function parseStudentExcel(fileBuffer: Buffer, batchName: string): ParseR
               email = cellValue.toLowerCase(); // Normalize email to lowercase
             }
             // Enhanced roll number detection: check if column is identified as roll number column OR cell contains hyphen pattern
-            // Remove 'else' to allow both email and roll number detection in same scan
             if (rollNumberColumns.includes(colNum) || isValidRollNumber(cellValue)) {
               rollNumber = cellValue.toUpperCase(); // Normalize roll number to uppercase
               console.log(`  -> Detected roll number: ${rollNumber} in column ${XLSX.utils.encode_col(colNum)} for row ${rowNum + 1}`);
+            }
+            // Phone detection: check if column is identified as phone column OR value looks like a phone number
+            if (phoneColumns.includes(colNum) || isValidPhoneValue(cellValue)) {
+              const normalized = normalizePhoneValue(cellValue);
+              if (normalized) {
+                phone = normalized;
+                if (phoneColumns.includes(colNum)) {
+                  console.log(`  -> Detected phone: ${phone} in column ${XLSX.utils.encode_col(colNum)} for row ${rowNum + 1}`);
+                }
+              }
             }
           }
         }
         
         // If we found an email in this row, create a student record
         if (email) {
-          console.log(`Found email: ${email}${rollNumber ? ` with roll number: ${rollNumber}` : ''} in sheet: ${sheetName}`);
+          console.log(`Found email: ${email}${rollNumber ? ` with roll number: ${rollNumber}` : ''}${phone ? ` with phone: ${phone}` : ''} in sheet: ${sheetName}`);
           
           students.push({
             email,
             section: `${batchName}::${sheetName}`, // Store as batch::section combination
             batch: batchName,
-            rollNumber: rollNumber || undefined
+            rollNumber: rollNumber || undefined,
+            phone: phone || undefined
           });
           
           totalEmails++;
@@ -224,4 +237,48 @@ function isCommonNonRollNumber(value: string): boolean {
   // Filter out common false positives that contain hyphens
   const falsePositives = ['n/a', 'na', 'nil', 'none', 'not-applicable', 'not-available'];
   return falsePositives.includes(value.toLowerCase());
+}
+
+function identifyPhoneColumns(worksheet: XLSX.WorkSheet, range: XLSX.Range): number[] {
+  const phoneCols: number[] = [];
+  const maxHeaderRows = Math.min(3, range.e.r - range.s.r + 1);
+
+  for (let colNum = range.s.c; colNum <= range.e.c; colNum++) {
+    for (let rowNum = range.s.r; rowNum < range.s.r + maxHeaderRows; rowNum++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: rowNum, c: colNum });
+      const cell = worksheet[cellAddress];
+      if (cell && cell.v) {
+        const cellValue = cell.v.toString().toLowerCase().trim();
+        if (isPhoneHeader(cellValue)) {
+          phoneCols.push(colNum);
+          console.log(`Identified phone column at ${XLSX.utils.encode_col(colNum)} with header: "${cellValue}"`);
+          break;
+        }
+      }
+    }
+  }
+  return phoneCols;
+}
+
+function isPhoneHeader(headerValue: string): boolean {
+  const phoneKeywords = [
+    'phone', 'mobile', 'contact', 'tel', 'telephone', 'cell', 'whatsapp',
+    'phone number', 'phonenumber', 'mobile no', 'mobile no.', 'contact no', 'contact no.'
+  ];
+  return phoneKeywords.some(keyword => headerValue.includes(keyword));
+}
+
+function isValidPhoneValue(value: string): boolean {
+  if (!value || value.includes('@')) return false;
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+function normalizePhoneValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) return null;
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  return digits;
 }

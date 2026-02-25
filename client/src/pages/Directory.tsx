@@ -14,6 +14,7 @@ interface DirectoryInfo {
   profileImageUrl?: string;
   rollNumber: string | null;
   batch: string | null;
+  phone?: string | null;
 }
 
 interface StudentListItem {
@@ -23,6 +24,7 @@ interface StudentListItem {
   rollNumber: string | null;
   batch: string | null;
   section: string | null;
+  phone?: string | null;
 }
 
 interface StudentListResponse {
@@ -228,7 +230,7 @@ export default function Directory() {
                   {myDirectoryInfo.name}
                 </h4>
                 <div className="space-y-1 text-small text-gray-600">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span className="flex items-center gap-1">
                       <span className="font-medium">Roll:</span> 
                       <span>{myDirectoryInfo.rollNumber || "—"}</span>
@@ -237,8 +239,14 @@ export default function Directory() {
                       <span className="font-medium">Batch:</span> 
                       <span>{myDirectoryInfo.batch || "—"}</span>
                     </span>
+                    {myDirectoryInfo.phone && (
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Phone:</span> 
+                        <span>{myDirectoryInfo.phone}</span>
+                      </span>
+                    )}
                   </div>
-                  {!myDirectoryInfo.rollNumber && !myDirectoryInfo.batch && (
+                  {!myDirectoryInfo.rollNumber && !myDirectoryInfo.batch && !myDirectoryInfo.phone && (
                     <div className="text-amber-600 text-xs mt-1">
                       Not found in directory. Contact Admin.
                     </div>
@@ -336,13 +344,18 @@ export default function Directory() {
                             {displayName || "Unknown Student"}
                           </h4>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-small text-gray-600 mt-1">
-                            <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:gap-4">
                               <span className="font-mono text-xs">
                                 {student.rollNumber || "—"}
                               </span>
                               <span className="text-xs sm:text-small">
                                 {student.batch || "—"}
                               </span>
+                              {student.phone && (
+                                <span className="text-xs sm:text-small">
+                                  {student.phone}
+                                </span>
+                              )}
                             </div>
                             <span className="truncate text-xs sm:text-small max-w-full">
                               {student.email}

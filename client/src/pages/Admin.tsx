@@ -47,6 +47,7 @@ interface StudentDirectory {
   batch: string;
   section: string;
   rollNumber?: string;
+  phone?: string | null;
   uploadedBy: string;
   createdAt: string;
   updatedAt: string;
@@ -742,6 +743,9 @@ export default function Admin() {
                 <CardDescription>
                   Upload an Excel file to add students to the directory
                 </CardDescription>
+                <p className="text-xs text-muted-foreground mt-1">
+                  One sheet = one section; each row must have an email; add optional columns for roll number and phone (e.g. headers: Roll No, Phone / Mobile).
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -761,9 +765,6 @@ export default function Admin() {
                     accept=".xlsx"
                     onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   />
-                  <p className="text-small text-muted-foreground">
-                    Each sheet represents a section. Include emails and optional roll numbers in the cells.
-                  </p>
                 </div>
                 <Button 
                   onClick={handleStudentUpload}
@@ -791,7 +792,7 @@ export default function Admin() {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by email, roll number, batch, or section..."
+                      placeholder="Search by email, roll number, phone, batch, or section..."
                       value={studentSearchTerm}
                       onChange={(e) => setStudentSearchTerm(e.target.value)}
                       className="pl-10"
@@ -879,6 +880,7 @@ export default function Admin() {
                         <TableRow>
                           <TableHead>Email</TableHead>
                           <TableHead>Roll Number</TableHead>
+                          <TableHead>Phone</TableHead>
                           <TableHead>Batch</TableHead>
                           <TableHead>Section</TableHead>
                           <TableHead>Uploaded</TableHead>
@@ -890,6 +892,9 @@ export default function Admin() {
                             <TableCell className="text-small">{student.email}</TableCell>
                             <TableCell className="text-small text-muted-foreground">
                               {student.rollNumber || '-'}
+                            </TableCell>
+                            <TableCell className="text-small text-muted-foreground">
+                              {student.phone || '-'}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">{student.batch}</Badge>

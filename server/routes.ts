@@ -2498,6 +2498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profileImageUrl: user.profileImageUrl,
         rollNumber: directoryInfo?.rollNumber || null,
         batch: directoryInfo?.batch || null,
+        phone: directoryInfo?.phone ?? null,
         cacheVersion: directoryCacheVersion
       };
 
@@ -2972,6 +2973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batch: student.batch,
         section: student.section,
         rollNumber: student.rollNumber ? student.rollNumber.toUpperCase().trim() : null, // Normalize to uppercase
+        phone: student.phone ? student.phone.trim() || null : null,
         uploadedBy: req.currentUser.id
       }));
 
@@ -3127,6 +3129,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/triathlon/teams', authorize('triathlon'), async (req, res) => {
     try {
+      const state = await storage.getTriathlonState();
+      if (state.frozen) {
+        return res.status(403).json({ message: "Leaderboard is frozen. Reset to add or edit." });
+      }
       const data = req.body;
       const team = await storage.createTriathlonTeam(data);
       res.json(team);
@@ -3138,6 +3144,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/triathlon/teams/:teamId', authorize('triathlon'), async (req, res) => {
     try {
+      const state = await storage.getTriathlonState();
+      if (state.frozen) {
+        return res.status(403).json({ message: "Leaderboard is frozen. Reset to add or edit." });
+      }
       const teamId = parseInt(req.params.teamId);
       const { name, logoUrl } = req.body;
       
@@ -3151,6 +3161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/triathlon/teams/:teamId', authorize('triathlon'), async (req, res) => {
     try {
+      const state = await storage.getTriathlonState();
+      if (state.frozen) {
+        return res.status(403).json({ message: "Leaderboard is frozen. Reset to add or edit." });
+      }
       const teamId = parseInt(req.params.teamId);
       await storage.deleteTriathlonTeam(teamId);
       res.json({ message: "Team deleted successfully" });
@@ -3162,6 +3176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/triathlon/teams/:teamId/points', authorize('triathlon'), async (req, res) => {
     try {
+      const state = await storage.getTriathlonState();
+      if (state.frozen) {
+        return res.status(403).json({ message: "Leaderboard is frozen. Reset to add or edit." });
+      }
       const teamId = parseInt(req.params.teamId);
       const { category, pointChange, reason } = req.body;
       
@@ -3187,6 +3205,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/triathlon/teams/:teamId/points', authorize('triathlon'), async (req, res) => {
     try {
+      const state = await storage.getTriathlonState();
+      if (state.frozen) {
+        return res.status(403).json({ message: "Leaderboard is frozen. Reset to add or edit." });
+      }
       const teamId = parseInt(req.params.teamId);
       const { category, points, reason } = req.body;
       
@@ -3218,6 +3240,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching point history:", error);
       res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  app.get('/api/triathlon/state', async (req, res) => {
+    try {
+      const state = await storage.getTriathlonState();
+      res.json(state);
+    } catch (error) {
+      console.error("Error fetching triathlon state:", error);
+      res.status(500).json({ message: "Failed to fetch state" });
+    }
+  });
+
+  app.get('/api/triathlon/past-winners', async (req, res) => {
+    try {
+      const pastWinners = await storage.getTriathlonPastWinners();
+      res.json(pastWinners);
+    } catch (error) {
+      console.error("Error fetching past winners:", error);
+      res.status(500).json({ message: "Failed to fetch past winners" });
+    }
+  });
+
+  app.post('/api/triathlon/reset', authorize('triathlon'), async (req, res) => {
+    try {
+      await storage.resetTriathlonLeaderboard();
+      res.json({ message: "Leaderboard reset successfully" });
+    } catch (error) {
+      console.error("Error resetting triathlon leaderboard:", error);
+      res.status(500).json({ message: "Failed to reset leaderboard" });
+    }
+  });
+
+  app.post('/api/triathlon/announce-winners', authorize('triathlon'), async (req, res) => {
+    try {
+      const user = extractUser(req);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const record = await storage.announceTriathlonWinners(user.id);
+      res.json(record);
+    } catch (error: any) {
+      console.error("Error announcing triathlon winners:", error);
+      res.status(500).json({ message: error?.message || "Failed to announce winners" });
     }
   });
 

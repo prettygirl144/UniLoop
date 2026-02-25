@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Trophy, Plus, Edit, History, Medal, Award, Star, Zap, BookOpen, Palette, Target, Trash2, MoreVertical, Upload, X, ImageIcon, MessageSquare, AlertTriangle, RotateCcw, Megaphone } from 'lucide-react';
 import type { TriathlonTeam, InsertTriathlonTeam } from '@shared/schema';
 import { useAuth } from '@/hooks/useAuth';
 import TriathlonNews from '@/components/TriathlonNews';
@@ -50,6 +50,17 @@ interface TeamWithRank extends TriathlonTeam {
   rank: number;
 }
 
+interface PastWinnerRecord {
+  id: number;
+  announcedAt: string;
+  label?: string | null;
+  academicFirstPlaceName: string;
+  culturalFirstPlaceName: string;
+  sportsFirstPlaceName: string;
+  overallFirstPlaceName: string;
+  announcedBy?: string;
+}
+
 export default function Triathlon() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,14 +77,28 @@ export default function Triathlon() {
   // State for inline editing
   const [editingCell, setEditingCell] = useState<{ teamId: number; category: string } | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showAnnounceConfirm, setShowAnnounceConfirm] = useState(false);
 
   const isAdmin = user && typeof user === 'object' && 'role' in user ? (user as any).role === 'admin' : false;
   const hasTriathlonPermission = user && typeof user === 'object' && 'permissions' in user ? 
     ((user as any).permissions?.triathlon || (user as any).role === 'admin') : false;
 
+  // Fetch triathlon state (frozen)
+  const { data: triathlonState = { frozen: false } } = useQuery<{ frozen: boolean }>({
+    queryKey: ['/api/triathlon/state'],
+  });
+  const frozen = triathlonState.frozen;
+  const canEdit = hasTriathlonPermission && !frozen;
+
   // Fetch teams data
   const { data: teams = [], isLoading } = useQuery<TeamWithRank[]>({
     queryKey: ['/api/triathlon/teams'],
+  });
+
+  // Fetch past winners for Past Winners tab
+  const { data: pastWinners = [] } = useQuery<PastWinnerRecord[]>({
+    queryKey: ['/api/triathlon/past-winners'],
   });
 
   // Fetch point history for selected team
@@ -200,6 +225,33 @@ export default function Triathlon() {
     },
   });
 
+  const resetLeaderboardMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/triathlon/reset', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/teams'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/state'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/history'] });
+      setShowResetConfirm(false);
+      toast({ title: "Leaderboard reset successfully." });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "Failed to reset leaderboard", variant: "destructive" });
+    },
+  });
+
+  const announceWinnersMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/triathlon/announce-winners', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/state'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/triathlon/past-winners'] });
+      setShowAnnounceConfirm(false);
+      toast({ title: "Winners announced. Leaderboard is now frozen." });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "Failed to announce winners", variant: "destructive" });
+    },
+  });
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'academic': return <BookOpen className="h-4 w-4" />;
@@ -240,7 +292,7 @@ export default function Triathlon() {
 
   // Functions for inline editing
   const startCellEdit = (teamId: number, category: string, currentValue: string | number | null | undefined) => {
-    if (!hasTriathlonPermission) return;
+    if (!canEdit) return;
     setEditingCell({ teamId, category });
     setEditingValue(formatPoints(currentValue));
   };
@@ -305,7 +357,7 @@ export default function Triathlon() {
       <Badge
         data-testid={`badge-points-${category}-${team.id}`}
         variant="secondary"
-        className={`${className} ${hasTriathlonPermission ? 'cursor-pointer hover:opacity-80' : ''}`}
+        className={`${className} ${canEdit ? 'cursor-pointer hover:opacity-80' : ''}`}
         onClick={() => startCellEdit(team.id, category, value)}
       >
         {formatPoints(value)}
@@ -376,7 +428,7 @@ export default function Triathlon() {
           </div>
         </div>
         
-        {hasTriathlonPermission && (
+        {canEdit && (
           <Dialog open={showAddTeam} onOpenChange={setShowAddTeam}>
             <DialogTrigger asChild>
               <Button 
@@ -599,7 +651,7 @@ export default function Triathlon() {
                       </div>
                     </th>
                     <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[100px]">Total</th>
-                    {hasTriathlonPermission && <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[120px]">Actions</th>}
+                    {canEdit && <th className="text-center p-4 text-small font-medium text-gray-600 min-w-[120px]">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -669,7 +721,7 @@ export default function Triathlon() {
                           {formatPoints(team.totalPoints)}
                         </Badge>
                       </td>
-                      {hasTriathlonPermission && (
+                      {canEdit && (
                         <td className="p-4">
                           <div className="flex justify-center">
                             <DropdownMenu>

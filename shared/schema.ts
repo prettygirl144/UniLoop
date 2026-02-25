@@ -33,6 +33,7 @@ export const studentDirectory = pgTable("student_directory", {
   batch: varchar("batch").notNull(),
   section: varchar("section").notNull(),
   rollNumber: varchar("roll_number"), // Optional secondary identifier
+  phone: varchar("phone"), // Optional phone from Excel upload
   uploadedBy: varchar("uploaded_by").notNull(), // Will be a user ID but not a foreign key due to circular refs
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -652,6 +653,30 @@ export const triathlonPointHistory = pgTable("triathlon_point_history", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Single-row state: frozen = leaderboard locked after "Announce Winners"
+export const triathlonState = pgTable("triathlon_state", {
+  id: serial("id").primaryKey(),
+  frozen: boolean("frozen").default(false).notNull(),
+  frozenAt: timestamp("frozen_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Past winners snapshots (Academic, Cultural, Sports, Overall first places only)
+export const triathlonPastWinners = pgTable("triathlon_past_winners", {
+  id: serial("id").primaryKey(),
+  announcedAt: timestamp("announced_at").defaultNow().notNull(),
+  label: varchar("label", { length: 100 }), // e.g. "2024", "Spring 2024"
+  academicFirstPlaceTeamId: integer("academic_first_place_team_id").references(() => triathlonTeams.id, { onDelete: "set null" }),
+  academicFirstPlaceName: varchar("academic_first_place_name", { length: 100 }).notNull(),
+  culturalFirstPlaceTeamId: integer("cultural_first_place_team_id").references(() => triathlonTeams.id, { onDelete: "set null" }),
+  culturalFirstPlaceName: varchar("cultural_first_place_name", { length: 100 }).notNull(),
+  sportsFirstPlaceTeamId: integer("sports_first_place_team_id").references(() => triathlonTeams.id, { onDelete: "set null" }),
+  sportsFirstPlaceName: varchar("sports_first_place_name", { length: 100 }).notNull(),
+  overallFirstPlaceTeamId: integer("overall_first_place_team_id").references(() => triathlonTeams.id, { onDelete: "set null" }),
+  overallFirstPlaceName: varchar("overall_first_place_name", { length: 100 }).notNull(),
+  announcedBy: varchar("announced_by").notNull().references(() => users.id),
+});
+
 // Relations for triathlon tables
 export const triathlonTeamsRelations = relations(triathlonTeams, ({ one, many }) => ({
   creator: one(users, {
@@ -691,3 +716,5 @@ export type InsertTriathlonTeam = z.infer<typeof insertTriathlonTeamSchema>;
 export type TriathlonTeam = typeof triathlonTeams.$inferSelect;
 export type InsertTriathlonPointHistory = z.infer<typeof insertTriathlonPointHistorySchema>;
 export type TriathlonPointHistory = typeof triathlonPointHistory.$inferSelect;
+export type TriathlonState = typeof triathlonState.$inferSelect;
+export type TriathlonPastWinner = typeof triathlonPastWinners.$inferSelect;
