@@ -178,6 +178,10 @@ export const communityPosts = pgTable("community_posts", {
 });
 
 // Community Board Votes table
+// Unique constraints temporarily removed for db:push (avoids truncation of existing votes).
+// After running scripts/deduplicate-community-votes.sql, add back inside pgTable(..., (table) => [...]):
+//   unique("unique_user_post_vote").on(table.userId, table.postId),
+//   unique("unique_user_reply_vote").on(table.userId, table.replyId)
 export const communityVotes = pgTable("community_votes", {
   id: serial("id").primaryKey(),
   postId: integer("post_id").references(() => communityPosts.id),
@@ -185,10 +189,7 @@ export const communityVotes = pgTable("community_votes", {
   userId: varchar("user_id").notNull().references(() => users.id),
   voteType: varchar("vote_type").notNull(), // upvote, downvote
   createdAt: timestamp("created_at").defaultNow(),
-}, (table) => [
-  unique("unique_user_post_vote").on(table.userId, table.postId),
-  unique("unique_user_reply_vote").on(table.userId, table.replyId)
-]);
+});
 
 // Community Board Replies table (one level deep only)
 export const communityReplies = pgTable("community_replies", {

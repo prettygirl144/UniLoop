@@ -583,10 +583,14 @@ export default function Triathlon() {
 
       {/* Tabs */}
       <Tabs defaultValue="leaderboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="leaderboard" className="flex items-center space-x-2">
             <Trophy className="h-4 w-4" />
             <span>Leaderboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="pastWinners" className="flex items-center space-x-2">
+            <Award className="h-4 w-4" />
+            <span>Past Winners</span>
           </TabsTrigger>
           <TabsTrigger value="news" className="flex items-center space-x-2">
             <MessageSquare className="h-4 w-4" />
@@ -596,11 +600,71 @@ export default function Triathlon() {
         
         <TabsContent value="leaderboard" className="mt-6">
           <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Trophy className="h-5 w-5" />
-            <span>Leaderboard</span>
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <CardTitle className="flex items-center space-x-2">
+              <Trophy className="h-5 w-5" />
+              <span>Leaderboard</span>
+            </CardTitle>
+            {frozen && (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800">Frozen</Badge>
+            )}
+          </div>
+          {hasTriathlonPermission && (
+            <div className="flex items-center gap-2">
+              <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset Leaderboard</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will reset all team points to zero and clear point history. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => resetLeaderboardMutation.mutate()}
+                      disabled={resetLeaderboardMutation.isPending}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {resetLeaderboardMutation.isPending ? 'Resetting...' : 'Reset All'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog open={showAnnounceConfirm} onOpenChange={setShowAnnounceConfirm}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="default" size="sm">
+                    <Megaphone className="h-4 w-4 mr-2" />
+                    Announce Winners
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Announce Winners</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will freeze the leaderboard and save the current first-place winners (Academic, Cultural, Sports, Overall) to Past Winners. No further edits until you reset.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => announceWinnersMutation.mutate()}
+                      disabled={announceWinnersMutation.isPending}
+                    >
+                      {announceWinnersMutation.isPending ? 'Announcing...' : 'Announce Winners'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {teams.length === 0 ? (
@@ -779,7 +843,58 @@ export default function Triathlon() {
           </CardContent>
         </Card>
         </TabsContent>
-        
+
+        <TabsContent value="pastWinners" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Award className="h-5 w-5" />
+                <span>Past Winners</span>
+              </CardTitle>
+              <CardDescription>
+                Academic, Cultural, Sports and Overall first-place winners by announcement date
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pastWinners.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-medium mb-2">No past winners yet</p>
+                  <p className="text-small">Use &quot;Announce Winners&quot; on the Leaderboard to record the first-place teams</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {pastWinners.map((record) => (
+                    <div key={record.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="text-small text-muted-foreground">
+                        {new Date(record.announcedAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-blue-600">Academic</div>
+                          <div className="font-medium">{record.academicFirstPlaceName}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-purple-600">Cultural</div>
+                          <div className="font-medium">{record.culturalFirstPlaceName}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-green-600">Sports</div>
+                          <div className="font-medium">{record.sportsFirstPlaceName}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-amber-600">Overall</div>
+                          <div className="font-medium">{record.overallFirstPlaceName}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="news" className="mt-6">
           <TriathlonNews />
         </TabsContent>
