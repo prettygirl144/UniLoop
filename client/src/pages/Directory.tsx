@@ -83,10 +83,20 @@ export default function Directory() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  // Helper: fetch with credentials and throw on error (avoids parsing error body as data)
+  const fetchApi = async (url: string) => {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(err.message || `Request failed: ${res.status}`);
+    }
+    return res.json();
+  };
+
   // Fetch current user's directory info with fresh data
-  const { data: myDirectoryInfo, isLoading: myInfoLoading, refetch: refetchMyInfo } = useQuery<DirectoryInfo & { cacheVersion?: number }>({
+  const { data: myDirectoryInfo, isLoading: myInfoLoading, refetch: refetchMyInfo, isError: myInfoError } = useQuery<DirectoryInfo & { cacheVersion?: number }>({
     queryKey: ['directory', 'me'],
-    queryFn: () => fetch('/api/directory/me').then(res => res.json()),
+    queryFn: () => fetchApi('/api/directory/me'),
     staleTime: 0, // Always fetch fresh data during rollout
     refetchOnWindowFocus: true,
   });
@@ -112,7 +122,7 @@ export default function Directory() {
   }, [myDirectoryInfo, selectedBatch, urlParams.batch]);
 
   // Fetch student directory list
-  const { data: studentList, isLoading: studentsLoading } = useQuery<StudentListResponse>({
+  const { data: studentList, isLoading: studentsLoading, isError: studentsError } = useQuery<StudentListResponse>({
     queryKey: ['directory', 'list', { 
       batch: selectedBatch || 'All', 
       query: searchQuery, 
@@ -136,17 +146,18 @@ export default function Directory() {
         params.set('query', searchQuery);
       }
 
-      return fetch(`/api/directory/list?${params}`).then(res => res.json());
+      return fetchApi(`/api/directory/list?${params}`);
     },
     enabled: !myInfoLoading, // Wait for user info to load first
   });
 
-  // Fetch all available batches
-  const { data: availableBatches = ['All'] } = useQuery<string[]>({
+  // Fetch all available batches (safely default to ['All', 'Alumni'] on error to avoid .map crash)
+  const { data: batchesData, isError: batchesError } = useQuery<string[]>({
     queryKey: ['directory', 'batches'],
-    queryFn: () => fetch('/api/directory/batches').then(res => res.json()),
+    queryFn: () => fetchApi('/api/directory/batches'),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+  const availableBatches = Array.isArray(batchesData) ? batchesData : ['All', 'Alumni'];
 
 
   // Pagination handlers
@@ -172,6 +183,20 @@ export default function Directory() {
           <div className="h-20 bg-gray-200 rounded"></div>
           <div className="h-20 bg-gray-200 rounded"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (myInfoError) {
+    return (
+      <div className="p-4 space-y-4">
+        <Card className="border-destructive">
+          <CardContent className="p-6 text-center">
+            <p className="text-small text-destructive font-medium">Failed to load directory</p>
+            <p className="text-xs text-muted-foreground mt-1">Check your connection and try again.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchMyInfo()}>Retry</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -262,6 +287,9 @@ export default function Directory() {
       <div className="space-y-4">
         <h3 className="text-medium font-medium text-gray-700">Class Directory</h3>
         
+        {batchesError && (
+          <p className="text-xs text-amber-600">Could not load batch list. Using default options.</p>
+        )}
         {/* Controls Row */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
@@ -309,7 +337,14 @@ export default function Directory() {
               </Card>
             ))}
           </div>
-        ) : !studentList?.data?.length ? (
+        ) : studentsError ? (
+          <Card className="border-destructive">
+            <CardContent className="p-6 text-center">
+              <p className="text-small text-destructive font-medium">Failed to load class directory</p>
+              <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
+            </CardContent>
+          </Card>
+        ) : !Array.isArray(studentList?.data) || !studentList.data.length ? (
           <Card className="border-dashed">
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />

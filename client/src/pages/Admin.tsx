@@ -184,12 +184,13 @@ export default function Admin() {
     },
   });
 
-  // Fetch student directory
-  const { data: students = [], isLoading: studentsLoading } = useQuery<StudentDirectory[]>({
+  // Fetch student directory (ensure array to avoid .map crash on error/weird responses)
+  const { data: studentsData, isLoading: studentsLoading, isError: studentsError } = useQuery<StudentDirectory[]>({
     queryKey: ["/api/admin/students"],
     retry: false,
     enabled: isAuthenticated && canManageStudents,
   });
+  const students = Array.isArray(studentsData) ? studentsData : [];
 
   // Fetch upload logs
   const { data: uploadLogs = [], isLoading: logsLoading } = useQuery<StudentUploadLog[]>({
@@ -247,6 +248,7 @@ export default function Admin() {
       const response = await fetch('/api/admin/upload-students', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
       
       if (!response.ok) {
@@ -866,6 +868,11 @@ export default function Admin() {
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
                     Loading students...
+                  </div>
+                ) : studentsError ? (
+                  <div className="text-center py-8">
+                    <p className="text-destructive font-medium">Failed to load student directory</p>
+                    <p className="text-small text-muted-foreground mt-1">Check your connection or permissions and try again.</p>
                   </div>
                 ) : students.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
